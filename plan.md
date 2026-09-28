@@ -1,510 +1,220 @@
-# Kế hoạch dự án: TaskBoard – Trello Clone SaaS
+# TaskBoard – Trello Clone SaaS · Project Blueprint
 
-## 1. Tổng quan
+> This file is the **high-level blueprint**: product scope, architecture decisions, milestones.
+> Detailed technical documentation lives in [`docs/`](docs/); Claude Code instructions live in [`.claude/`](.claude/CLAUDE.md).
 
-**TaskBoard** là ứng dụng SaaS quản lý công việc theo mô hình Kanban (tương tự Trello). Người dùng tạo workspace, board, list và card, rồi kéo thả card giữa các cột để theo dõi tiến độ, cộng tác cùng team theo thời gian thực.
+---
 
-### Mục tiêu
-- Xây dựng một SaaS demo đầy đủ: xác thực, multi-tenant, phân quyền, gói cước.
-- Trải nghiệm kéo thả mượt, cập nhật realtime giữa nhiều người dùng.
-- Mã nguồn rõ ràng, dễ mở rộng, có test và hướng dẫn deploy.
+## 1. Product overview
 
-### Đối tượng người dùng
-- Cá nhân quản lý việc riêng.
-- Team nhỏ (startup, nhóm học tập, freelancer) cần công cụ Kanban đơn giản.
+**TaskBoard** is a Kanban-style task management SaaS (Trello-like): workspace → board → list → card, drag and drop, realtime collaboration, Free/Pro plans.
+
+- **Goal:** a production-quality learning/demo SaaS covering authentication, multi-tenancy, authorization, realtime, billing, testing, and CI.
+- **Users:** individuals and small teams (startups, study groups, freelancers).
+- **Developers:** one developer working with Claude Code; structured so a small team can join later.
+
+### MVP scope
+- Auth: register, login, refresh token, profile.
+- Workspaces: CRUD, member invitations, roles OWNER / ADMIN / MEMBER / VIEWER.
+- Boards / Lists / Cards: CRUD, archive, drag and drop with persisted ordering.
+- Card details: markdown description, labels, members, due date, checklists, comments, activity log.
+
+### Post-MVP
+Realtime, attachments, search/filter, notifications, Free/Pro billing (Stripe test mode), board templates, dark mode.
 
 ---
 
 ## 2. Tech stack
 
-| Tầng | Công nghệ | Vai trò |
-|------|-----------|---------|
-| Frontend | React 18 + Vite + TypeScript | UI SPA |
-| | React Router v6 | Điều hướng |
-| | TanStack Query | Gọi API, cache, optimistic update |
-| | Zustand | State UI cục bộ (modal, filter) |
-| | @dnd-kit | Kéo thả list/card |
-| | Tailwind CSS + shadcn/ui | Giao diện |
-| | React Hook Form + Zod | Form & validate |
-| | socket.io-client | Realtime |
-| Backend | Node.js 20 + Express + TypeScript | REST API |
-| | Prisma ORM + PostgreSQL | Lưu trữ dữ liệu |
-| | Zod | Validate request |
-| | JWT (access + refresh) + bcrypt | Xác thực |
-| | Socket.IO | Đồng bộ realtime |
-| | Multer + S3/Cloudinary | Upload file đính kèm |
-| | Pino | Logging |
-| Chung | pnpm workspaces (monorepo) | Quản lý package |
-| | ESLint + Prettier | Chất lượng code |
-| | Vitest, Supertest, Playwright | Test |
-| | Docker Compose | Chạy Postgres local |
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18, TypeScript, Vite, React Router, TanStack Query (server state), Zustand (UI state), @dnd-kit, Tailwind CSS, shadcn/ui, React Hook Form, Zod, Axios, socket.io-client |
+| Backend | Node.js 20, Express, TypeScript, Prisma, PostgreSQL, Zod, JWT + bcrypt, Socket.IO, Multer + S3/Cloudinary, Pino, Helmet |
+| Shared | Zod schemas, TypeScript types, constants (`@trello-clone/shared`) |
+| Monorepo | pnpm workspace |
+| Quality | ESLint, Prettier, Vitest, Supertest, Playwright, GitHub Actions |
+| Local infra | Docker Compose (PostgreSQL) |
 
 ---
 
-## 3. Kiến trúc & cấu trúc thư mục
+## 3. Changes from the previous plan
+
+### What changed
+| Change | Why |
+|--------|-----|
+| `apps/web`, `apps/api` → `Trello-Clone-FE/`, `Trello-Clone-BE/` | FE/BE boundary is obvious at a glance; easier for Claude Code to scope changes |
+| Technical details (schema, API, security, testing) moved into `docs/` | Single source of truth per topic; `plan.md` stays short |
+| Added `.claude/` (CLAUDE.md, settings, 6 skills, 4 commands) | Safe, repeatable Claude Code workflow |
+| Backend repositories are **selective**, not mandatory for every module | Avoid needless abstraction ([ADR-004](docs/decisions/README.md)) |
+| Schema: added `RefreshToken`, `WorkspaceInvite`, `Card.boardId`, `ActivityType` / `SubscriptionStatus` enums, missing indexes | Previous plan referenced these features without models; cheaper authorization checks ([ADR-006](docs/decisions/README.md)) |
+| Realtime: events carry `eventId` + `version`; emitters split by domain | Duplicate-event handling; Redis adapter can be added later |
+| Roadmap split into Phase 0–9, each with its own Definition of Done | Incremental, controllable delivery |
+
+### Intentionally NOT changed
+- The 15-entity business model, roles, and permission matrix.
+- `Float` position ordering with rebalancing.
+- REST `/api/v1` and the unified error format.
+- In-memory JWT access token + httpOnly refresh-token cookie.
+- Socket.IO **without Redis** initially.
+- Modular monolith; no microservices.
+
+### Accepted trade-offs
+- `Card.boardId` is denormalized and must be updated when a card moves across boards, in exchange for single-query authorization and realtime routing.
+- pnpm workspace + shared package adds some configuration, in exchange for not defining types/schemas twice.
+- Float positions need occasional rebalancing, in exchange for simpler logic than LexoRank.
+
+---
+
+## 4. Root folder structure
 
 ```
-React SPA  ──HTTP (REST)──▶  Express API  ──Prisma──▶  PostgreSQL
-    ▲                            │
-    └──────WebSocket (Socket.IO)─┘
-```
-
-```
-saas/
-├── apps/
-│   ├── web/                     # React frontend
-│   │   ├── src/
-│   │   │   ├── api/             # client gọi API (axios + interceptors)
-│   │   │   ├── components/      # UI dùng chung (Button, Modal, Avatar…)
-│   │   │   ├── features/
-│   │   │   │   ├── auth/
-│   │   │   │   ├── workspaces/
-│   │   │   │   ├── boards/
-│   │   │   │   ├── lists/
-│   │   │   │   └── cards/
-│   │   │   ├── hooks/
-│   │   │   ├── pages/
-│   │   │   ├── stores/          # Zustand
-│   │   │   ├── lib/             # socket, utils
-│   │   │   └── main.tsx
-│   │   └── vite.config.ts
-│   └── api/                     # Node.js backend
-│       ├── src/
-│       │   ├── config/          # env, logger
-│       │   ├── middlewares/     # auth, error, validate, rateLimit
-│       │   ├── modules/
-│       │   │   ├── auth/        # route + controller + service
-│       │   │   ├── users/
-│       │   │   ├── workspaces/
-│       │   │   ├── boards/
-│       │   │   ├── lists/
-│       │   │   ├── cards/
-│       │   │   ├── comments/
-│       │   │   └── billing/
-│       │   ├── realtime/        # Socket.IO handlers
-│       │   ├── app.ts
-│       │   └── server.ts
-│       └── prisma/
-│           ├── schema.prisma
-│           └── seed.ts
+Trello-Clone/                 # = repository root
+├── Trello-Clone-FE/          # @trello-clone/web    – frontend code only
+├── Trello-Clone-BE/          # @trello-clone/api    – backend code only
 ├── packages/
-│   └── shared/                  # Zod schema + TypeScript types dùng chung
-├── docker-compose.yml
-├── package.json
-├── pnpm-workspace.yaml
-└── plan.md
+│   └── shared/               # @trello-clone/shared – shared schemas/types/constants
+├── docs/                     # detailed technical documentation
+├── .claude/                  # Claude Code instructions and skills
+├── .github/workflows/        # CI (created in Phase 0)
+├── plan.md                   # this blueprint
+├── README.md
+├── docker-compose.yml        # local PostgreSQL
+├── package.json              # root scripts (Phase 0)
+├── pnpm-workspace.yaml       # (Phase 0)
+└── .gitignore
 ```
 
-Mỗi module backend theo mô hình: `*.routes.ts` → `*.controller.ts` → `*.service.ts` → Prisma.
+| Folder | Responsibility | Must not contain |
+|--------|----------------|------------------|
+| `Trello-Clone-FE/` | UI, routing, API calls, client state | Business logic, real authorization, secrets |
+| `Trello-Clone-BE/` | API, business logic, authorization, DB, realtime | UI code |
+| `packages/shared/` | Zod schemas for API request/response, types, enums, constants | Business logic, DB access, React/Express code |
+| `docs/` | Technical documentation | Runnable code |
+| `.claude/` | Claude Code instructions | Technical docs duplicated from `docs/` |
+
+**No `docker/` folder**: there is a single compose file at the root, and each package owns its Dockerfile ([ADR-003](docs/decisions/README.md)).
+
+Internal structure: [FE](docs/architecture/frontend.md) · [BE](docs/architecture/backend.md) · [shared & monorepo](docs/architecture/overview.md).
 
 ---
 
-## 4. Tính năng
+## 5. Single source of truth
 
-### 4.1 MVP (bắt buộc)
-- **Auth:** đăng ký, đăng nhập, đăng xuất, refresh token, xem/sửa profile.
-- **Workspace:** tạo/sửa/xoá, mời thành viên qua email, gán vai trò.
-- **Board:** tạo/sửa/xoá, đổi màu nền, đánh dấu sao (favorite), lưu trữ (archive).
-- **List:** tạo/đổi tên/xoá/archive, kéo thả sắp xếp.
-- **Card:**
-  - Tạo nhanh, sửa tiêu đề và mô tả (markdown).
-  - Kéo thả trong list và giữa các list.
-  - Gán thành viên, label màu, ngày hết hạn (due date).
-  - Checklist với thanh tiến độ.
-  - Bình luận.
-- **Activity log:** lịch sử thay đổi trên board/card.
+| Information | Lives in |
+|-------------|----------|
+| Product scope, major decisions, roadmap | `plan.md` |
+| Architecture and per-layer rules | `docs/architecture/` |
+| API contracts | `docs/api/` (once code exists: Zod schemas in `packages/shared`) |
+| Database schema | `docs/database/schema.md` (once code exists: `Trello-Clone-BE/prisma/schema.prisma`) |
+| Setup, conventions, testing | `docs/development/` |
+| Deployment | `docs/deployment/` |
+| Why decisions were made | `docs/decisions/README.md` |
+| Rules for Claude Code | `.claude/CLAUDE.md` and `.claude/skills/` |
 
-### 4.2 Mở rộng
-- Realtime: nhiều người xem cùng board thấy thay đổi ngay.
-- Đính kèm file/ảnh, ảnh bìa card.
-- Tìm kiếm & lọc card (theo label, thành viên, hạn).
-- Thông báo trong app (được gán card, được nhắc tên, sắp đến hạn).
-- Gói Free/Pro với Stripe test mode.
-- Template board (Kanban cơ bản, Sprint, Todo cá nhân).
-- Dark mode.
+Once real code exists, **code is the source of truth** and documentation must be kept in sync with it.
 
 ---
 
-## 5. Database schema (Prisma)
+## 6. Key architecture decisions
 
-```prisma
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  memberships  WorkspaceMember[]
-  cards        CardMember[]
-  comments     Comment[]
-  activities   Activity[]
-}
+Summary; full reasoning in [`docs/decisions/README.md`](docs/decisions/README.md).
 
-model Workspace {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  plan         Plan     @default(FREE)
-  createdAt    DateTime @default(now())
-  members      WorkspaceMember[]
-  boards       Board[]
-  subscription Subscription?
-}
-
-model WorkspaceMember {
-  userId      String
-  workspaceId String
-  role        Role     @default(MEMBER)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  @@id([userId, workspaceId])
-}
-
-model Board {
-  id          String   @id @default(cuid())
-  workspaceId String
-  title       String
-  background  String   @default("#0079bf")
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  lists       List[]
-  labels      Label[]
-  activities  Activity[]
-}
-
-model List {
-  id       String  @id @default(cuid())
-  boardId  String
-  title    String
-  position Float
-  archived Boolean @default(false)
-  board    Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards    Card[]
-  @@index([boardId, position])
-}
-
-model Card {
-  id          String    @id @default(cuid())
-  listId      String
-  title       String
-  description String?
-  position    Float
-  dueDate     DateTime?
-  completed   Boolean   @default(false)
-  coverUrl    String?
-  archived    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  list        List      @relation(fields: [listId], references: [id], onDelete: Cascade)
-  members     CardMember[]
-  labels      CardLabel[]
-  checklists  Checklist[]
-  comments    Comment[]
-  attachments Attachment[]
-  @@index([listId, position])
-}
-
-model CardMember {
-  cardId String
-  userId String
-  card   Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@id([cardId, userId])
-}
-
-model Label {
-  id      String @id @default(cuid())
-  boardId String
-  name    String
-  color   String
-  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards   CardLabel[]
-}
-
-model CardLabel {
-  cardId  String
-  labelId String
-  card    Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
-  @@id([cardId, labelId])
-}
-
-model Checklist {
-  id     String @id @default(cuid())
-  cardId String
-  title  String
-  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  items  ChecklistItem[]
-}
-
-model ChecklistItem {
-  id          String    @id @default(cuid())
-  checklistId String
-  content     String
-  done        Boolean   @default(false)
-  position    Float
-  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-}
-
-model Comment {
-  id        String   @id @default(cuid())
-  cardId    String
-  authorId  String
-  content   String
-  createdAt DateTime @default(now())
-  card      Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  author    User @relation(fields: [authorId], references: [id])
-}
-
-model Attachment {
-  id        String   @id @default(cuid())
-  cardId    String
-  url       String
-  fileName  String
-  size      Int
-  createdAt DateTime @default(now())
-  card      Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-}
-
-model Activity {
-  id        String   @id @default(cuid())
-  boardId   String
-  userId    String
-  type      String   // CARD_CREATED, CARD_MOVED, COMMENT_ADDED...
-  data      Json
-  createdAt DateTime @default(now())
-  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user      User  @relation(fields: [userId], references: [id])
-  @@index([boardId, createdAt])
-}
-
-model Subscription {
-  id               String    @id @default(cuid())
-  workspaceId      String    @unique
-  stripeCustomerId String?
-  stripeSubId      String?
-  status           String
-  currentPeriodEnd DateTime?
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-}
-
-enum Role { OWNER ADMIN MEMBER VIEWER }
-enum Plan { FREE PRO }
-```
-
-### Sắp xếp vị trí (position)
-- Dùng số thực (`Float`), phần tử mới được thêm cuối cột với `position = max + 1024`.
-- Khi kéo phần tử vào giữa A và B: `position = (A.position + B.position) / 2`, nên chỉ phải cập nhật 1 bản ghi.
-- Khi khoảng cách giữa hai vị trí quá nhỏ (< 0.0001), đánh số lại (rebalance) toàn bộ cột.
+1. **Modular monolith**: one backend split into domain modules. No microservices.
+2. **pnpm monorepo** with three packages: `@trello-clone/web`, `@trello-clone/api`, `@trello-clone/shared`.
+3. **No `docker/` folder.**
+4. **Repositories only where they earn their place.**
+5. **TanStack Query for server state; Zustand for UI state only.**
+6. **Multi-tenancy:** every query is scoped to the user's workspaces; authorization is always enforced on the backend.
+7. **Realtime:** Socket.IO rooms per board, domain events, upgrade path to a Redis adapter.
+8. **Float positions** for list/card ordering.
+9. **Auth:** short-lived access token + rotating refresh token with reuse detection.
+10. **Claude Code:** CLAUDE.md is the primary instruction file; skills exist only for specialized workflows.
 
 ---
 
-## 6. REST API
+## 7. Roadmap
 
-Tiền tố: `/api/v1`. Các endpoint (trừ auth) đều yêu cầu header `Authorization: Bearer <accessToken>`.
+> Durations are **estimates** for one developer working with Claude Code and may change. Every phase merges via PR with green CI.
 
-### Auth
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| POST | `/auth/register` | Đăng ký |
-| POST | `/auth/login` | Đăng nhập, trả access token + refresh token (httpOnly cookie) |
-| POST | `/auth/refresh` | Cấp lại access token |
-| POST | `/auth/logout` | Thu hồi refresh token |
-| GET | `/auth/me` | Thông tin user hiện tại |
-| PATCH | `/users/me` | Cập nhật profile |
+### Phase 0 — Project foundation (~2 days, estimate)
+- **Goal:** `pnpm dev` runs FE + BE; CI is green.
+- **BE:** Express + TS, `/health`, Zod-validated env config, logger, error middleware.
+- **FE:** Vite + React + TS, Tailwind, shadcn/ui, Router, QueryClient.
+- **DB:** Docker Compose Postgres, initial `schema.prisma` (User only).
+- **Shared:** package created, exports one sample schema.
+- **Tests:** Vitest runs in all three packages.
+- **Docs:** `development/setup.md` matches reality.
+- **DoD:** clone → `pnpm i && pnpm dev` works; CI runs lint + typecheck + test.
 
-### Workspace
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/workspaces` | Danh sách workspace của user |
-| POST | `/workspaces` | Tạo workspace |
-| PATCH | `/workspaces/:id` | Sửa |
-| DELETE | `/workspaces/:id` | Xoá (OWNER) |
-| GET | `/workspaces/:id/members` | Danh sách thành viên |
-| POST | `/workspaces/:id/invites` | Mời qua email |
-| PATCH | `/workspaces/:id/members/:userId` | Đổi vai trò |
-| DELETE | `/workspaces/:id/members/:userId` | Xoá thành viên |
+### Phase 1 — Authentication (~3 days)
+- **BE:** register / login / refresh / logout / me, `RefreshToken` model, rotation, rate limiting.
+- **FE:** Login/Register pages, axios interceptor, `ProtectedRoute`.
+- **DB:** migrations for User, RefreshToken.
+- **Tests:** unit (hashing, tokens), integration (auth flows, reuse detection), E2E register/login.
+- **Docs:** `api/authentication.md`.
+- **DoD:** session survives a page reload; a reused token revokes its whole family.
 
-### Board
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | `/workspaces/:id/boards` | Danh sách board |
-| POST | `/workspaces/:id/boards` | Tạo board |
-| GET | `/boards/:id` | Chi tiết board kèm list + card |
-| PATCH | `/boards/:id` | Sửa tiêu đề/màu/archive |
-| DELETE | `/boards/:id` | Xoá |
-| GET | `/boards/:id/activities` | Activity log (phân trang) |
-| GET / POST | `/boards/:id/labels` | Quản lý label |
+### Phase 2 — Workspaces & authorization (~3 days)
+- **BE:** workspace CRUD, members, invites, `requireWorkspaceRole` middleware.
+- **FE:** workspace sidebar, members page, invite acceptance flow.
+- **DB:** Workspace, WorkspaceMember, WorkspaceInvite.
+- **Tests:** role matrix (4 roles × actions), tenant isolation.
+- **Docs:** `api/workspaces.md`.
+- **DoD:** a non-member gets 404 for every resource in the workspace.
 
-### List
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| POST | `/boards/:id/lists` | Tạo list |
-| PATCH | `/lists/:id` | Đổi tên, archive, đổi `position` |
-| DELETE | `/lists/:id` | Xoá |
+### Phase 3 — Boards / Lists / Cards (~5 days)
+- **BE:** board/list/card CRUD, move API, position algorithm + rebalancing.
+- **FE:** board page, @dnd-kit drag and drop, optimistic updates with rollback.
+- **DB:** Board, List, Card (with `boardId`), Label.
+- **Tests:** position unit tests, move integration tests, drag-and-drop E2E.
+- **Docs:** `api/boards.md`, `api/lists.md`, `api/cards.md`.
+- **DoD:** order is preserved after reload; rapid consecutive drags never corrupt order.
 
-### Card
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| POST | `/lists/:id/cards` | Tạo card |
-| GET | `/cards/:id` | Chi tiết card |
-| PATCH | `/cards/:id` | Sửa nội dung, due date, hoàn thành |
-| PATCH | `/cards/:id/move` | Di chuyển `{ listId, position }` |
-| DELETE | `/cards/:id` | Xoá |
-| POST / DELETE | `/cards/:id/members/:userId` | Gán/bỏ gán thành viên |
-| POST / DELETE | `/cards/:id/labels/:labelId` | Gắn/gỡ label |
-| POST | `/cards/:id/checklists` | Tạo checklist |
-| POST / PATCH / DELETE | `/checklists/:id/items[/:itemId]` | Quản lý item |
-| GET / POST | `/cards/:id/comments` | Bình luận |
-| POST | `/cards/:id/attachments` | Upload file |
+### Phase 4 — Card details (~4 days)
+- Labels, members, due date, checklists, comments (sanitized markdown), activity log.
+- **DoD:** complete card modal; `/b/:boardId/c/:cardId` is shareable.
 
-### Billing
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| POST | `/billing/checkout` | Tạo Stripe Checkout session |
-| POST | `/billing/portal` | Mở Stripe customer portal |
-| POST | `/billing/webhook` | Nhận webhook Stripe |
+### Phase 5 — Realtime (~4 days)
+- **BE:** Socket.IO with connection authentication, room authorization, emit after commit.
+- **FE:** `useBoardSocket` syncing the TanStack Query cache, duplicate-event filtering, invalidate on reconnect.
+- **Tests:** socket-client integration tests, two-browser E2E.
+- **Docs:** `architecture/realtime.md`.
+- **DoD:** two tabs sync within 1 second; data is correct after a disconnect/reconnect.
 
-### Định dạng lỗi thống nhất
-```json
-{ "error": { "code": "VALIDATION_ERROR", "message": "Title is required", "details": [] } }
-```
+### Phase 6 — Attachments / search / notifications (~4 days)
+- Uploads with type and size validation, card covers, card search and filters, in-app notifications.
 
-### Sự kiện realtime (Socket.IO)
-- Client kết nối bằng access token, sau đó `join` vào room `board:<id>` (server kiểm tra quyền).
-- Sự kiện server phát: `list:created`, `list:updated`, `list:deleted`, `card:created`, `card:updated`, `card:moved`, `card:deleted`, `comment:created`.
-- Client nhận sự kiện thì cập nhật cache TanStack Query. Hành động của chính mình dùng optimistic update.
+### Phase 7 — Billing (~3 days)
+- Stripe Checkout + Customer Portal + signature-verified webhook, plan limit checks (`402 PLAN_LIMIT_REACHED`).
+- **Docs:** `api/billing.md`.
+
+### Phase 8 — Testing & CI hardening (~3 days)
+- Fill test gaps up to the minimum bar, E2E in CI, coverage reporting.
+
+### Phase 9 — Production deployment (~2 days)
+- Staging + production deploys, migrations on deploy, error monitoring.
+- **Docs:** `deployment/staging.md`, `deployment/production.md`.
 
 ---
 
-## 7. Frontend
+## 8. Definition of Done (every feature)
 
-### Các trang
-| Route | Trang |
-|-------|-------|
-| `/` | Landing page |
-| `/pricing` | Bảng giá |
-| `/login`, `/register` | Xác thực |
-| `/w/:slug` | Danh sách board của workspace |
-| `/w/:slug/members` | Quản lý thành viên |
-| `/w/:slug/settings` | Cài đặt, gói cước |
-| `/b/:boardId` | Board Kanban |
-| `/b/:boardId/c/:cardId` | Modal chi tiết card (URL chia sẻ được) |
-| `/settings/profile` | Hồ sơ cá nhân |
-
-### Component chính
-- `AppLayout` (sidebar workspace + header), `BoardCard`, `CreateBoardDialog`
-- `BoardView` → `ListColumn` → `CardItem` (bọc bởi `DndContext`, `SortableContext`)
-- `CardDetailModal`: mô tả, label, thành viên, checklist, comment, activity
-- `InlineEditable`, `LabelPicker`, `MemberPicker`, `DatePicker`
-
-### Quản lý state
-- **Server state:** TanStack Query với query key `['board', id]`, `['card', id]`…
-- **Kéo thả:** cập nhật cache ngay (optimistic), gọi `PATCH /cards/:id/move`, rollback nếu lỗi.
-- **Auth:** access token giữ trong bộ nhớ. Interceptor axios tự gọi `/auth/refresh` khi nhận 401.
+- [ ] Code lives in the owning folder; no unrelated modules touched.
+- [ ] Authorization and tenant isolation enforced on the backend, with tests.
+- [ ] Tests meet the minimum bar in [`docs/development/testing.md`](docs/development/testing.md).
+- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass.
+- [ ] Schema changes include a Prisma migration; API changes update `docs/api/`.
+- [ ] No secrets in code or in the FE bundle.
+- [ ] Diff self-reviewed before merge; PR describes the change clearly.
 
 ---
 
-## 8. Phân quyền & bảo mật
+## 9. Documentation index
 
-| Hành động | OWNER | ADMIN | MEMBER | VIEWER |
-|-----------|:-----:|:-----:|:------:|:------:|
-| Xem board | ✅ | ✅ | ✅ | ✅ |
-| Tạo/sửa list, card, comment | ✅ | ✅ | ✅ | ❌ |
-| Tạo/xoá board | ✅ | ✅ | ✅ | ❌ |
-| Mời/xoá thành viên | ✅ | ✅ | ❌ | ❌ |
-| Đổi gói cước, xoá workspace | ✅ | ❌ | ❌ | ❌ |
-
-- Middleware `requireWorkspaceRole(role)` kiểm tra quyền trên mọi route, suy ra workspace từ board/list/card.
-- Mật khẩu hash bằng bcrypt (cost 12). Refresh token lưu hash trong DB, xoay vòng sau mỗi lần refresh.
-- Dùng Helmet, CORS whitelist, rate limit cho `/auth/*`.
-- Validate mọi input bằng Zod. Prisma chống SQL injection. Sanitize markdown khi render.
-
----
-
-## 9. Gói cước
-
-| | Free | Pro ($5/user/tháng – demo) |
-|--|------|-----|
-| Số board / workspace | 5 | Không giới hạn |
-| Thành viên / workspace | 5 | Không giới hạn |
-| Dung lượng file | 10 MB/file | 100 MB/file |
-| Activity log | 7 ngày | Không giới hạn |
-| Template board | ❌ | ✅ |
-
-Giới hạn được kiểm tra ở service layer. Khi vượt giới hạn, API trả lỗi `402 PLAN_LIMIT_REACHED` và FE hiện gợi ý nâng cấp.
-
----
-
-## 10. Lộ trình triển khai
-
-| Giai đoạn | Thời gian | Nội dung | Kết quả |
-|-----------|-----------|----------|---------|
-| 1. Khởi tạo | 2 ngày | Monorepo pnpm, Vite, Express, Prisma, Docker Postgres, ESLint/Prettier | `pnpm dev` chạy được FE + BE |
-| 2. Auth | 3 ngày | User model, register/login/refresh, trang Login/Register, protected route | Đăng nhập được |
-| 3. Workspace & Board | 3 ngày | CRUD workspace, board, thành viên, phân quyền | Trang danh sách board |
-| 4. List & Card + kéo thả | 5 ngày | CRUD list/card, dnd-kit, thuật toán position | Board Kanban hoạt động |
-| 5. Chi tiết card | 4 ngày | Label, member, due date, checklist, comment, activity | Modal card đầy đủ |
-| 6. Realtime & mở rộng | 4 ngày | Socket.IO, upload file, tìm kiếm/lọc | Nhiều tab đồng bộ |
-| 7. Billing & hoàn thiện | 3 ngày | Gói Free/Pro, Stripe test, Landing, Pricing, dark mode | Luồng nâng cấp |
-| 8. Test & deploy | 3 ngày | Unit/integration/E2E test, CI GitHub Actions, deploy | Bản demo online |
-
-**Tổng thời gian dự kiến:** khoảng 5 tuần (1 người).
-
----
-
-## 11. Testing
-
-- **Unit test (Vitest):** service backend (tính position, kiểm tra giới hạn gói cước), hook/util FE.
-- **Integration test (Supertest):** API chạy trên Postgres test (Docker), reset DB giữa các test.
-- **E2E test (Playwright):** đăng ký → tạo board → tạo list/card → kéo thả → comment.
-- **CI:** GitHub Actions chạy lint, typecheck, test cho mỗi PR.
-
----
-
-## 12. Biến môi trường
-
-`apps/api/.env.example`
-```
-DATABASE_URL=
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
-CLIENT_URL=
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STORAGE_BUCKET=
-```
-
-`apps/web/.env.example`
-```
-VITE_API_URL=
-VITE_SOCKET_URL=
-```
-
----
-
-## 13. Deploy
-
-| Thành phần | Nền tảng gợi ý |
-|------------|----------------|
-| Frontend | Vercel / Netlify |
-| Backend + Socket.IO | Render / Railway / Fly.io |
-| Database | Supabase / Neon (PostgreSQL) |
-| File | Cloudinary / AWS S3 |
-
-Khi deploy, chạy `prisma migrate deploy` trước lúc khởi động API.
-
----
-
-## 14. Checklist hoàn thành (Definition of Done)
-
-- [ ] Đăng ký/đăng nhập, refresh token hoạt động
-- [ ] CRUD workspace, board, list, card
-- [ ] Kéo thả list/card mượt, thứ tự được lưu
-- [ ] Label, thành viên, due date, checklist, comment
-- [ ] Phân quyền đúng theo bảng mục 8
-- [ ] Realtime giữa 2 trình duyệt
-- [ ] Giới hạn gói Free, luồng nâng cấp Pro (Stripe test)
-- [ ] Test pass trên CI
-- [ ] Deploy bản demo và viết README hướng dẫn chạy local
+- Architecture: [overview](docs/architecture/overview.md) · [frontend](docs/architecture/frontend.md) · [backend](docs/architecture/backend.md) · [database](docs/architecture/database.md) · [realtime](docs/architecture/realtime.md) · [security](docs/architecture/security.md)
+- API: [README](docs/api/README.md)
+- Database: [schema](docs/database/schema.md) · [relationships](docs/database/relationships.md)
+- Development: [setup](docs/development/setup.md) · [coding conventions](docs/development/coding-conventions.md) · [testing](docs/development/testing.md) · [troubleshooting](docs/development/troubleshooting.md)
+- Deployment: [local](docs/deployment/local.md) · [staging](docs/deployment/staging.md) · [production](docs/deployment/production.md)
+- Decisions: [ADR log](docs/decisions/README.md)
+- Claude Code: [CLAUDE.md](.claude/CLAUDE.md)

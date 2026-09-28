@@ -1,0 +1,83 @@
+# Frontend Architecture
+
+> **Domain:** structure and rules of `Trello-Clone-FE` (`@trello-clone/web`).
+
+## Stack
+React 18 · TypeScript · Vite · React Router · TanStack Query · Zustand · @dnd-kit · Tailwind CSS · shadcn/ui · React Hook Form · Zod · Axios · socket.io-client
+
+## Structure (feature-based)
+
+```
+Trello-Clone-FE/
+├── src/
+│   ├── api/                 # axios instance, refresh-token interceptor, apiClient
+│   ├── components/
+│   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input)
+│   │   ├── layout/          # AppLayout, Sidebar, Header
+│   │   └── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── workspaces/
+│   │   ├── boards/
+│   │   ├── lists/
+│   │   ├── cards/
+│   │   ├── comments/
+│   │   └── billing/
+│   ├── pages/               # route-level components that compose features; no logic
+│   ├── hooks/               # generic, domain-agnostic hooks (useDebounce, useMediaQuery)
+│   ├── stores/              # global Zustand stores for UI state (theme, sidebar)
+│   ├── lib/                 # socket client, queryClient, cn(), date formatting
+│   ├── routes/              # router definition, ProtectedRoute, lazy loading
+│   └── main.tsx
+├── public/
+├── tests/                   # Playwright E2E + shared test setup
+├── package.json
+└── vite.config.ts
+```
+
+### Inside a feature
+```
+features/cards/
+├── api.ts            # API calls (apiClient + schemas from shared)
+├── queries.ts        # useCardQuery, useMoveCardMutation, … + query key factory
+├── components/       # CardItem, CardDetailModal, ChecklistSection
+├── hooks/            # hooks used only by this feature
+├── store.ts          # (optional) feature-local UI state
+└── index.ts          # the feature's public API
+```
+
+## What belongs where
+
+| Folder | Contains | Does NOT contain |
+|--------|----------|------------------|
+| `components/` | **Domain-agnostic** UI reusable anywhere | Anything named after a domain ("Card", "Board") or that calls the API |
+| `features/` | Everything for one domain: API calls, queries, components, hooks | Imports of another feature's internals (only via its `index.ts`) |
+| `hooks/` | Generic hooks not tied to a domain | Hooks that call the API (those belong to a feature) |
+| `stores/` | Global UI state (theme, sidebar open, active filters) | **Server data** (boards, cards, users) |
+| `lib/` | Library setup, pure utilities | React components |
+| `pages/` | Route-bound components composing features | Business logic, direct API calls |
+| `routes/` | Router config, route guards, lazy imports | UI |
+
+## State management
+- **Server state must use TanStack Query.** Query keys: `['boards', workspaceId]`, `['board', boardId]`, `['card', cardId]`; each feature exposes a key factory in `queries.ts`.
+- **Zustand is for UI state only** (open modal, filters, theme). Never copy server data into Zustand.
+- **Forms:** React Hook Form + `zodResolver` with schemas from `@trello-clone/shared`.
+
+## Drag and drop with optimistic updates
+1. `onDragEnd` computes the new `position` with `positionBetween(prev, next)`.
+2. `onMutate`: cancel in-flight queries, snapshot the cache, update the cache.
+3. Call `PATCH /cards/:id/move`; on error restore the snapshot in `onError`; `onSettled` invalidates.
+
+## Auth on the FE
+- Access token is kept **in memory** (inside `api/`), never in localStorage.
+- Interceptor: on 401, call `/auth/refresh` exactly once (concurrent failures share one promise), then retry.
+- Hiding buttons by role is **UX only**; real authorization is always enforced by the backend.
+
+## Routes
+| Route | Page |
+|-------|------|
+| `/`, `/pricing` | Landing, Pricing |
+| `/login`, `/register` | Auth |
+| `/w/:slug`, `/w/:slug/members`, `/w/:slug/settings` | Workspace |
+| `/b/:boardId`, `/b/:boardId/c/:cardId` | Board, card modal |
+| `/settings/profile` | Profile |
