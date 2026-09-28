@@ -15,16 +15,11 @@ This skill adds detail to CLAUDE.md; it never overrides it.
 3. `Trello-Clone-BE/prisma/schema.prisma` (the source of truth once it exists)
 
 ## Rules
-- Every model change → `pnpm --filter @trello-clone/api exec prisma migrate dev --name <snake_case_description>`. Commit the schema and the migration together.
-- Never edit a migration that has been merged. Fix forward with a new migration.
-- Destructive changes use expand → migrate data → contract across separate migrations.
-- New business models must be reachable from a `Workspace` (directly or through a `Board`) so tenant checks are possible.
-- Choose `onDelete` deliberately and document it in relationships.md. Users with history are anonymized, not deleted.
-- Add an index for every new foreign key used in a `where` or ordering; justify composite indexes by the query they serve.
-- Keep invariants in services (e.g. `Card.boardId === List.boardId`); document new invariants.
-- Raw SQL only via `$queryRaw` tagged templates.
-- Seed data (`prisma/seed.ts`) must be idempotent and contain no real personal data.
-- Never run `prisma migrate reset` or `db push` against anything but a local DB, and ask the user first.
+The always-on rules live in [`.claude/rules/database.md`](../../rules/database.md) and load automatically for matching files; follow them. This skill adds the procedure, references, and checklist.
+
+## References
+Read the one that matches the work before writing code; they show the target shape. If the real code differs, the code wins: update the reference in the same PR.
+- [`references/prisma-7.md`](references/prisma-7.md): schema generator, `prisma.config.ts`, driver adapter, commands
 
 ## May modify
 - `Trello-Clone-BE/prisma/schema.prisma`, new files in `prisma/migrations/`, `prisma/seed.ts`

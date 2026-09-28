@@ -54,5 +54,9 @@ Do **not** add E2E tests for internal changes, pure refactors, or API-only behav
 - Every new endpoint registers itself in the role-matrix harness (WORKSPACE-005) and the tenant-isolation suite (WORKSPACE-006).
 - Coverage is reported (TESTING-001) but has no hard threshold.
 
+## Claude Code cloud sessions
+- There is no Docker daemon. `.claude/hooks/session-start.sh` starts the preinstalled PostgreSQL 16 with the same ports, user, and databases as `docker-compose.yml` (5432 `trello`, 5433 `trello_test`), so the commands above work unchanged.
+- Chromium for Playwright is preinstalled; never run `playwright install` there. Details: the `testing` skill (`references/playwright-cloud.md`) and the `run-app` skill.
+
 ## CI
 `install → typecheck → lint → test (unit + integration with a postgres service) → build` on every PR (FOUNDATION-006). E2E on PRs to `main` from TESTING-001 on.
