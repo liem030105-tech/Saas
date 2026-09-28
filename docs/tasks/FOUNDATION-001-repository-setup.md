@@ -15,11 +15,11 @@ Turn the repository into a working pnpm workspace with shared tooling, so the FE
 Implements the root layout in [plan.md §4](../../plan.md#4-root-folder-structure) and the monorepo rules in [architecture/overview.md](../architecture/overview.md#monorepo-pnpm-workspace). No application code.
 
 # Requirements
-1. Root `package.json` (`"private": true`, `packageManager` pinned to pnpm 9) with scripts `dev`, `build`, `lint`, `typecheck`, `test`, `format`, `format:check`, `db:up`. Each fans out with `pnpm -r` (they may no-op until packages exist).
-2. `pnpm-workspace.yaml` listing `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/*`.
-3. `tsconfig.base.json` with `strict`, `noUncheckedIndexedAccess`, and `moduleResolution: bundler`, extended by every package.
+1. Root `package.json` (`"private": true`, `"type": "module"`, `packageManager` pinned to an exact pnpm 10 version, `engines.node` `>=22.12`) with scripts `dev`, `build`, `lint`, `typecheck`, `test`, `format`, `format:check`, `db:up`. Each fans out with `pnpm -r` (they may no-op until packages exist).
+2. `pnpm-workspace.yaml` listing `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/*`, plus `onlyBuiltDependencies: [esbuild, prisma, '@prisma/engines']` (ADR-015; pnpm 10 skips other install scripts).
+3. `tsconfig.base.json` with `strict`, `noUncheckedIndexedAccess`, `module: ESNext`, `moduleResolution: bundler`, `verbatimModuleSyntax`, `noEmit`, extended by every package (ADR-015).
 4. ESLint flat config at the root (`@typescript-eslint`, `import/order`, `no-restricted-imports` blocking FE↔BE imports) and a Prettier config per [coding-conventions.md](../development/coding-conventions.md).
-5. `.gitignore` (node_modules, dist, build, coverage, `.env`, `.env.*` except `.env.example`), `.nvmrc` (20), `.editorconfig`.
+5. `.gitignore` (node_modules, dist, build, coverage, `.env`, `.env.*` except `.env.example`, `**/src/generated/`, `.claude/settings.local.json`, `CLAUDE.local.md`), `.nvmrc` (`24`), `.editorconfig`.
 6. `docker-compose.yml` with `postgres` and `postgres-test` exactly as in [deployment/local.md](../deployment/local.md).
 7. README "Getting started" points to `docs/development/setup.md`.
 
@@ -48,7 +48,7 @@ None.
 No automated tests. Verify manually: `pnpm install`, `pnpm format:check`, `docker compose up -d postgres postgres-test` → both healthy.
 
 # Acceptance Criteria
-- [ ] `pnpm install` succeeds on a clean clone with Node 20.
+- [ ] `pnpm install` succeeds on a clean clone with Node 24, and with Node 22.12+.
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test` run without error (no packages yet).
 - [ ] `docker compose up -d` starts Postgres on 5432 and 5433.
 
@@ -60,4 +60,4 @@ No automated tests. Verify manually: `pnpm install`, `pnpm format:check`, `docke
 None.
 
 # Risks
-Tool-version drift → pin versions in the root `package.json`.
+Tool-version drift → pin exact versions in `package.json` files; major versions must match [plan.md §3](../../plan.md#3-tech-stack).

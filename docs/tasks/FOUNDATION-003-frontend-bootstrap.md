@@ -9,18 +9,18 @@
 | Skills | frontend |
 
 # Goal
-A runnable React + Vite + TypeScript app (`@trello-clone/web`) with the folder structure, routing, styling, and data-fetching providers in place.
+A runnable React 19 + Vite + TypeScript app (`@trello-clone/web`) with the folder structure, routing, styling, and data-fetching providers in place.
 
 # Context
 Structure and rules per [architecture/frontend.md](../architecture/frontend.md).
 
 # Requirements
 1. Package `Trello-Clone-FE` named `@trello-clone/web`; scripts `dev`, `build`, `preview`, `lint`, `typecheck`, `test`.
-2. Tailwind CSS configured; shadcn/ui initialized with `Button`, `Input`, `Dialog`, `DropdownMenu`, `Toast` in `components/ui`.
+2. Tailwind CSS 4 via `@tailwindcss/vite` (CSS-based config, no `tailwind.config.js`); shadcn/ui initialized with `Button`, `Input`, `Dialog`, `DropdownMenu`, `Sonner` in `components/ui`.
 3. Folder skeleton exactly as in frontend.md (`api/`, `components/{ui,layout,feedback}`, `features/`, `pages/`, `hooks/`, `stores/`, `lib/`, `routes/`).
-4. `lib/query-client.ts` (TanStack Query) and `routes/router.tsx` (React Router) with placeholder pages for `/`, `/login`, `/register`, and a `NotFound` page.
+4. `lib/query-client.ts` (TanStack Query 5) and `routes/router.tsx` (React Router 7 data mode: `createBrowserRouter` from `react-router`) with placeholder pages for `/`, `/login`, `/register`, and a `NotFound` page.
 5. `api/client.ts`: an axios instance with `baseURL = VITE_API_URL` and `withCredentials: true`, plus a typed helper that unwraps `{ data }` and converts the canonical error into an `ApiError`. The auth interceptor comes later (AUTH-003).
-6. `components/feedback/ErrorBoundary.tsx` and a `Toaster`.
+6. `components/feedback/ErrorBoundary.tsx` and the Sonner `Toaster` mounted once at the root.
 7. `.env.example` with `VITE_API_URL`, `VITE_SOCKET_URL`.
 
 # Out of Scope

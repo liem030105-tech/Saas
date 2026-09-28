@@ -6,6 +6,7 @@ Precedence on conflict: **CLAUDE.md > skill > docs**. If docs disagree with code
 ## 1. Project
 Trello-style Kanban SaaS: workspace → board → list → card, role-based access, realtime, Free/Pro billing.
 pnpm monorepo, modular monolith. Blueprint: `plan.md`. Decision rationale: `docs/decisions/README.md`.
+Stack major versions are fixed in `plan.md` §3 (ADR-015): write code for those versions (e.g. Express 5, Prisma 7, React Router 7, Tailwind 4, Zod 4), never for older APIs.
 
 ## 2. Folder ownership
 

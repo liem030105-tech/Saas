@@ -3,7 +3,11 @@
 > **Domain:** structure and rules of `Trello-Clone-FE` (`@trello-clone/web`).
 
 ## Stack
-React 18 · TypeScript · Vite · React Router · TanStack Query · Zustand · @dnd-kit · Tailwind CSS · shadcn/ui · React Hook Form · Zod · Axios · socket.io-client
+Versions: [plan.md §3](../../plan.md#3-tech-stack) (ADR-015). Version-specific rules that differ from older tutorials:
+- **React Router 7 in data mode:** `createBrowserRouter` + `RouterProvider`, imported from `react-router` (not `react-router-dom`, not framework mode).
+- **Tailwind CSS 4:** configured in CSS (`@import "tailwindcss"`, `@theme`) with the `@tailwindcss/vite` plugin; there is no `tailwind.config.js`.
+- **shadcn/ui:** toasts use **Sonner**; the old `Toast` component is deprecated.
+- **Zod 4** API (e.g. `z.email()`), shared with the BE through `@trello-clone/shared`.
 
 ## Structure (feature-based)
 

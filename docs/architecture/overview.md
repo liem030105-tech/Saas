@@ -46,7 +46,7 @@ packages:
 | Root | `dev` (FE + BE in parallel), `build`, `lint`, `typecheck`, `test`, `format`, `db:up` (docker compose) |
 | FE | `dev`, `build`, `preview`, `lint`, `typecheck`, `test`, `test:e2e` |
 | BE | `dev`, `build`, `start`, `lint`, `typecheck`, `test`, `db:migrate`, `db:seed`, `db:studio` |
-| shared | `build`, `lint`, `typecheck`, `test` |
+| shared | `lint`, `typecheck`, `test` (no `build`: consumed as TypeScript source, ADR-015) |
 
 Root scripts fan out with `pnpm -r <script>`, or target one package with `pnpm --filter <pkg> <script>`.
 
@@ -59,8 +59,10 @@ packages/shared/
 │   ├── types/        # types inferred from schemas (z.infer) + realtime event payload types
 │   ├── constants/    # Role, Plan, ActivityType enums, plan limits, error codes, event names
 │   └── index.ts      # the only export entry point
-└── package.json
+└── package.json      # "exports": { ".": "./src/index.ts" }
 ```
+
+Shared is an **internal package**: it has no build step. Vite (FE), `tsx` and Vitest (BE dev/tests) compile it directly, and the BE production bundle inlines it (ADR-015). It must therefore stay plain TypeScript with `zod` as its only dependency.
 
 | ✅ Allowed | ❌ Forbidden |
 |-----------|-------------|

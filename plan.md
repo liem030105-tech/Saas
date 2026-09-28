@@ -25,13 +25,15 @@
 
 ## 3. Tech stack
 
+Major versions are fixed by [ADR-015](docs/decisions/README.md#adr-015-stack-major-versions-and-module-system); this table is their single source. Write code for these versions, not for older APIs.
+
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, TypeScript, Vite, React Router, TanStack Query (server state), Zustand (UI state), @dnd-kit, Tailwind CSS, shadcn/ui, React Hook Form, Zod, Axios, socket.io-client (Phase 5) |
-| Backend | Node.js 20, Express, TypeScript, Prisma, PostgreSQL, Zod, JWT + bcrypt, Pino, Helmet; Socket.IO (Phase 5), Multer (Phase 6), Stripe (Phase 7) |
-| Shared | `@trello-clone/shared`: Zod schemas, types, constants |
-| Monorepo | pnpm workspace |
-| Quality | ESLint, Prettier, Vitest, Supertest, Playwright, GitHub Actions |
+| Runtime | Node.js 24 LTS (22.12+ also supported, e.g. cloud sessions) · pnpm 10 workspace · TypeScript, ESM everywhere |
+| Frontend | React 19, Vite 8, React Router 7 (data mode), TanStack Query 5 (server state), Zustand 5 (UI state), @dnd-kit, Tailwind CSS 4, shadcn/ui (Sonner for toasts), React Hook Form 7, Zod 4, Axios, socket.io-client 4 (Phase 5) |
+| Backend | Express 5, Prisma 7 (`@prisma/adapter-pg`), PostgreSQL 16, Zod 4, JWT + bcrypt (library per D-03), Pino, Helmet; dev with `tsx`, production bundle with `tsdown`; Socket.IO 4 (Phase 5), Multer (Phase 6), Stripe (Phase 7) |
+| Shared | `@trello-clone/shared`: Zod schemas, types, constants; internal package consumed as TypeScript source (no build step) |
+| Quality | ESLint (flat config), Prettier, Vitest 4, Supertest, Playwright, GitHub Actions |
 | Local infra | Docker Compose (PostgreSQL) |
 
 ## 4. Root folder structure
@@ -82,6 +84,7 @@ Full rationale: [ADR log](docs/decisions/README.md).
 7. Realtime via Socket.IO rooms per board, REST-only mutations, emit after commit (ADR-009).
 8. In-memory access token + rotating refresh token in an httpOnly cookie (ADR-010).
 9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013); hooks, a reviewer subagent, and Claude GitHub workflows as guardrails (ADR-014).
+10. Pinned stack major versions; ESM everywhere; `shared` consumed as TypeScript source; BE bundled with `tsdown` (ADR-015).
 
 ## 7. Roadmap
 
