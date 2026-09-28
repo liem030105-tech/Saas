@@ -14,6 +14,7 @@
 git clone https://github.com/liem030105-tech/Saas.git
 cd Saas
 pnpm install
+pnpm --filter @trello-clone/api db:generate  # Prisma client (git-ignored); typecheck/test/build need it
 
 cp Trello-Clone-BE/.env.example Trello-Clone-BE/.env
 cp Trello-Clone-FE/.env.example Trello-Clone-FE/.env
@@ -21,7 +22,7 @@ cp Trello-Clone-FE/.env.example Trello-Clone-FE/.env
 
 pnpm db:up                                   # docker compose up -d postgres postgres-test
 pnpm --filter @trello-clone/api db:migrate   # run migrations
-pnpm --filter @trello-clone/api db:seed      # seed sample data
+pnpm --filter @trello-clone/api db:seed      # demo@example.com, password from SEED_DEMO_PASSWORD; safe to re-run
 pnpm dev                                     # FE :5173, BE :4000
 ```
 

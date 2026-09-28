@@ -64,7 +64,7 @@ Every error response, without exception:
 A malformed JSON body is a `400 VALIDATION_ERROR` with empty `details`. An unknown route is a `404 NOT_FOUND`.
 
 ## Health
-`GET /api/v1/health` (**Public**) → `200 { "data": { "status": "ok" } }`. Used by load balancers and smoke tests; it does not touch the database.
+`GET /api/v1/health` (**Public**) → `200 { "data": { "status": "ok", "db": "ok" | "down" } }`. Used by load balancers and smoke tests. `status` says the process answers; `db` is the result of `SELECT 1` against the database. The status code stays `200` when `db` is `"down"`, so read the field.
 
 ## Pagination
 - **Strategy:** cursor-based, ordered by `(createdAt DESC, id DESC)` unless stated otherwise.

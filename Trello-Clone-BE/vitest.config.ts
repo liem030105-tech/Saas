@@ -8,5 +8,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     // Test-only values validated by src/config/env.ts; they live with the other test data.
     env: testEnv,
+    // Applies migrations to the test database once (refuses non-`_test` databases).
+    globalSetup: ['./tests/global-setup.ts'],
+    // Files share one database, so they run one after another (testing.md).
+    fileParallelism: false,
   },
 });

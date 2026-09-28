@@ -1,7 +1,8 @@
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { API_PREFIX } from '../../src/app';
+import { prisma } from '../../src/config/prisma';
 import { RATE_LIMITS } from '../../src/middlewares/rate-limit';
 import { testEnv } from '../data/env';
 import {
@@ -43,12 +44,14 @@ describe('app', () => {
     app = createTestApp();
   });
 
+  afterAll(() => prisma.$disconnect());
+
   describe('GET /api/v1/health', () => {
-    it('returns 200 with status ok and a request id', async () => {
+    it('returns 200 with status ok, db ok (test database) and a request id', async () => {
       const res = await request(app).get(paths.health);
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ data: { status: 'ok' } });
+      expect(res.body).toEqual({ data: { status: 'ok', db: 'ok' } });
       expect(res.headers['x-request-id']).toEqual(expect.any(String));
     });
 

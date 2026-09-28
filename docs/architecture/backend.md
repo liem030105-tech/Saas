@@ -39,6 +39,7 @@ Trello-Clone-BE/
 │   ├── schema.prisma
 │   ├── migrations/
 │   └── seed.ts
+├── scripts/                 # check-prisma-client.mjs: typecheck/test/build stop early if db:generate never ran
 ├── prisma.config.ts         # Prisma 7 config: schema path, migrations, datasource URL
 ├── tests/                   # data/ (test data), helpers/ (createTestApp, factories, DB setup), integration/
 ├── package.json

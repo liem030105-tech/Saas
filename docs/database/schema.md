@@ -1,7 +1,7 @@
 # Database Schema
 
 > **Domain:** the complete data model, entity by entity.
-> This is the **specification** until `Trello-Clone-BE/prisma/schema.prisma` exists; after that `schema.prisma` is the source of truth and this file keeps explanations and the changelog.
+> For every model already in `Trello-Clone-BE/prisma/schema.prisma`, that file is the source of truth and this file keeps explanations and the changelog; models not yet there are still specified here ([migration log](#migration-log)).
 > Relations, cascades, invariants, ordering: [relationships.md](relationships.md) · Access rules: [architecture/database.md](../architecture/database.md).
 
 ## Conventions
@@ -475,3 +475,9 @@ model Subscription {
   workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 ```
+
+## Migration log
+
+| Migration | Task | Change |
+|-----------|------|--------|
+| `20260928153607_init_user` | FOUNDATION-004 | `User` table, unique index on `email` |
