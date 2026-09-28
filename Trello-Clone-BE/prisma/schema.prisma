@@ -1,0 +1,25 @@
+// Source of truth for the data model (docs/database/schema.md keeps explanations and the changelog).
+// Prisma 7 (ADR-015): the connection URL lives in prisma.config.ts, not here.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Global identity; not tenant-scoped. Introduced in FOUNDATION-004, used from AUTH-001.
+model User {
+  id           String   @id @default(cuid())
+  /// Stored lower-cased.
+  email        String   @unique
+  /// bcrypt hash; never returned by the API.
+  passwordHash String
+  name         String
+  /// URL only; uploads are out of scope.
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

@@ -34,7 +34,8 @@ Trello-Clone-FE/
 │   ├── stores/              # global Zustand stores for UI state (theme, sidebar)
 │   ├── lib/                 # socket client, queryClient, cn(), date formatting
 │   ├── routes/              # router definition, ProtectedRoute, lazy loading
-│   ├── testing/             # MSW handlers + server, renderWithProviders, test data builders
+│   ├── testing/             # mocks/ (MSW handlers + server), render.tsx (renderWithProviders, renderApp)
+│   │   └── data/            # test data and builders, one file per area; tests never inline it
 │   └── main.tsx
 ├── public/
 ├── tests/                   # Playwright E2E + shared test setup
@@ -66,7 +67,7 @@ features/cards/
 | `routes/` | Router config, route guards, lazy imports | UI |
 | `app/` | Providers and the root component | Feature logic |
 | `config/` | Validated public env (`VITE_*`) | Secrets (never in the FE) |
-| `testing/` | Test-only helpers and MSW mocks | Production code imports |
+| `testing/` | Test-only helpers, MSW mocks, and test data (`testing/data/`) | Production code imports |
 
 **Import direction** (enforced in `eslint.config.js` by `import-x/no-restricted-paths` and `no-restricted-imports`, FOUNDATION-001): `components`, `hooks`, `lib`, `config`, `stores` → never import `features`, `pages`, `routes`, or `app`; features never import `pages`, `routes`, or `app`; a feature imports another feature only through its `index.ts` (`@/features/<name>`); `pages` compose features; `app` imports everything.
 
