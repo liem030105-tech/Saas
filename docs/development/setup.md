@@ -1,0 +1,57 @@
+# Development Setup
+
+> **Domain:** first-time setup and running the project. Common errors: [troubleshooting.md](troubleshooting.md). Docker details: [deployment/local.md](../deployment/local.md).
+> ⚠️ Code is created in **Phase 0**. The commands below are **planned** and will be updated when Phase 0 lands.
+
+## Prerequisites
+- Node.js 20 LTS (`.nvmrc`)
+- pnpm 9 (`corepack enable`)
+- Docker + Docker Compose (PostgreSQL)
+- Git
+
+## Steps
+```bash
+git clone https://github.com/liem030105-tech/Saas.git
+cd Saas
+pnpm install
+
+cp Trello-Clone-BE/.env.example Trello-Clone-BE/.env
+cp Trello-Clone-FE/.env.example Trello-Clone-FE/.env
+# fill in values (never commit .env)
+
+pnpm db:up                                   # docker compose up -d postgres
+pnpm --filter @trello-clone/api db:migrate   # run migrations
+pnpm --filter @trello-clone/api db:seed      # seed sample data
+pnpm dev                                     # FE :5173, BE :4000
+```
+
+## Environment variables
+
+`Trello-Clone-BE/.env.example`
+| Variable | Description |
+|----------|-------------|
+| `NODE_ENV` | `development` \| `test` \| `production` |
+| `PORT` | API port (default 4000) |
+| `DATABASE_URL` | Postgres connection string |
+| `JWT_ACCESS_SECRET` | Access-token signing secret (≥ 32 chars) |
+| `ACCESS_TOKEN_TTL` | Default `15m` |
+| `REFRESH_TOKEN_TTL_DAYS` | Default `30` |
+| `CLIENT_URL` | FE origin, used for CORS |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO` | Phase 7 |
+| `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Phase 6 |
+
+`Trello-Clone-FE/.env.example`
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | e.g. `http://localhost:4000/api/v1` |
+| `VITE_SOCKET_URL` | e.g. `http://localhost:4000` |
+
+`VITE_*` variables are exposed to the browser – **never** put secrets there.
+
+## Common commands (from the root)
+| Command | Effect |
+|---------|--------|
+| `pnpm dev` | Run FE + BE |
+| `pnpm typecheck` / `pnpm lint` / `pnpm test` | Check the whole repo |
+| `pnpm --filter @trello-clone/web test:e2e` | Run Playwright |
+| `pnpm --filter @trello-clone/api db:studio` | Open Prisma Studio |

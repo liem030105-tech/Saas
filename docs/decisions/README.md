@@ -1,0 +1,70 @@
+# Architecture Decision Records (ADR)
+
+> **Domain:** architecture decisions and **why** they were made. Append new ADRs at the end. Never edit an accepted ADR; to change a decision, add a new ADR and mark the old one *Superseded*.
+
+ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
+
+---
+
+### ADR-001: Modular monolith, no microservices
+- **Decision:** one Express backend split into domain modules.
+- **Rationale:** one developer, demo scale. A monolith is easier to debug, supports simple transactions, and deploys easily.
+- **Trade-offs:** no independent scaling per module. Acceptable.
+- **Status:** Accepted
+
+### ADR-002: pnpm monorepo with `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/shared`
+- **Decision:** replace `apps/web`, `apps/api` with explicitly named folders. Package names `@trello-clone/web|api|shared`. The repository root is the project root.
+- **Rationale:** the FE/BE boundary is obvious (easy for Claude Code to scope changes); Zod schemas are shared; types are not defined twice.
+- **Trade-offs:** extra workspace configuration; folder names differ from package names.
+- **Status:** Accepted
+
+### ADR-003: No `docker/` folder
+- **Decision:** `docker-compose.yml` at the root, a `Dockerfile` inside each package.
+- **Rationale:** there is only one compose file; an extra folder adds nothing.
+- **Revisit when:** there are ≥ 3 infrastructure config files (nginx, init SQL, …).
+- **Status:** Accepted
+
+### ADR-004: Repositories only where needed
+- **Decision:** services use Prisma directly for simple CRUD. Repositories only for complex queries, queries reused across services, or DB-bound algorithms.
+- **Rationale:** avoid thin wrappers with no value; Prisma is already a typed data-access layer.
+- **Trade-offs:** modules are not 100% uniform; the clear rule in backend.md compensates.
+- **Status:** Accepted
+
+### ADR-005: TanStack Query for server state, Zustand for UI state only
+- **Rationale:** built-in caching, refetching, optimistic updates, and invalidation; avoids two sources of truth for the same data.
+- **Status:** Accepted
+
+### ADR-006: Schema additions (`RefreshToken`, `WorkspaceInvite`, `Card.boardId`, enums, indexes)
+- **Rationale:** the previous plan referenced these features (token rotation, invites) without models. `Card.boardId` enables single-query authorization and realtime routing.
+- **Trade-offs:** `boardId` is denormalized and must be kept in sync inside the move transaction.
+- **Status:** Accepted
+
+### ADR-007: Shared-schema multi-tenancy with service-level authorization
+- **Decision:** filter by membership in every query; return 404 to non-members.
+- **Rationale:** simple and safe enough with a role-matrix test suite. Postgres RLS is deferred as defense in depth.
+- **Status:** Accepted
+
+### ADR-008: Float positions with rebalancing
+- **Rationale:** one row written per drag; simpler than LexoRank.
+- **Trade-offs:** occasional full-list rebalance.
+- **Status:** Accepted
+
+### ADR-009: Socket.IO realtime, rooms per board, no Redis initially
+- **Decision:** all mutations go through REST; sockets only broadcast. Events carry `eventId` + `version`. All emits are centralized in `realtime/events/*`.
+- **Rationale:** a single write path, easy authorization; adding a Redis adapter later requires no service changes.
+- **Status:** Accepted
+
+### ADR-010: In-memory access token + rotating refresh token in an httpOnly cookie
+- **Rationale:** reduces token theft via XSS, allows revocation, and detects stolen tokens through reuse.
+- **Trade-offs:** the FE must de-duplicate concurrent refreshes; cookies need same-site setup or careful configuration on deploy.
+- **Status:** Accepted
+
+### ADR-011: Claude Code structure: `.claude/CLAUDE.md` + 6 skills + 4 commands
+- **Decision:** CLAUDE.md holds concise project-wide rules. Skills for frontend, backend, database, realtime, testing, code-review. **No** `architecture` skill: architecture rules already live in CLAUDE.md and `docs/architecture`, and planning lives in `/plan`.
+- **Rationale:** no duplicated content; each skill has a clear purpose and trigger.
+- **Status:** Accepted
+
+### ADR-012: Separate `plan.md` / `docs/` / `.claude/`
+- **Decision:** `plan.md` is the high-level blueprint, `docs/` holds technical detail, `.claude/` holds AI instructions. Once code exists, code is the source of truth.
+- **Rationale:** a single source of truth per kind of information; no contradicting documents.
+- **Status:** Accepted
