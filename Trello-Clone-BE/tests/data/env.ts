@@ -15,6 +15,7 @@ export const invalidEnvs = {
   missingJwtSecret: { ...testEnv, JWT_ACCESS_SECRET: undefined },
   shortJwtSecret: { ...testEnv, JWT_ACCESS_SECRET: 'too-short' },
   clientUrlNotAUrl: { ...testEnv, CLIENT_URL: 'localhost' },
+  clientUrlNotHttp: { ...testEnv, CLIENT_URL: 'file:///srv/app' },
   badTtl: { ...testEnv, ACCESS_TOKEN_TTL: 'fifteen minutes' },
 } satisfies Record<string, Record<string, string | undefined>>;
 

@@ -28,6 +28,7 @@ Trello-Clone-BE/
 │   │   ├── cards/           # includes card labels, checklists, attachments
 │   │   ├── comments/
 │   │   └── billing/
+│   ├── types/               # express.d.ts: Request augmentation (req.userId)
 │   ├── realtime/
 │   │   ├── socket.ts        # server setup, auth middleware
 │   │   ├── rooms.ts         # authorized join/leave
