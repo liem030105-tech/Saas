@@ -233,8 +233,12 @@ Processed Stripe `event.id`s for webhook idempotency: stored in a `StripeEvent(i
 ## Reference Prisma schema (target state after Phase 7)
 
 ```prisma
-generator client { provider = "prisma-client-js" }
-datasource db   { provider = "postgresql"; url = env("DATABASE_URL") }
+// Prisma 7 (ADR-015): the URL lives in prisma.config.ts; the client is generated into src/generated/prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db { provider = "postgresql" }
 
 enum Role               { OWNER ADMIN MEMBER VIEWER }
 enum Plan               { FREE PRO }

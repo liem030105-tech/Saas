@@ -22,9 +22,10 @@
 - **Options:** 7 / 14 / 30 days; sliding vs. absolute expiry.
 - **Affects:** `architecture/security.md`, AUTH-003. **Blocking:** no (env var `REFRESH_TOKEN_TTL_DAYS`).
 
-### D-03 bcrypt cost factor
-- **Proposed default:** 12.
-- **Affects:** AUTH-001. **Blocking:** no.
+### D-03 bcrypt cost factor and library
+- **Proposed default:** cost 12, library `bcryptjs` (pure JavaScript).
+- **Options:** `bcryptjs` (no native build, works in CI and cloud sessions without extra setup; slower) · `bcrypt` (native, faster; needs a build-script approval under pnpm 10 and a compiler toolchain).
+- **Affects:** AUTH-001, ADR-015. **Blocking:** no.
 
 ### D-04 Rate limits
 - **Proposed default:** `/auth/register` and `/auth/login`: 10 requests/min/IP. Authenticated API: 300 requests/min/user.

@@ -84,3 +84,15 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** guardrails that must always hold are enforced by the harness, not by instructions; a reviewer that did not write the code catches more.
 - **Trade-offs:** hooks need Node on the developer machine (already a prerequisite); the workflows need the Claude GitHub App and a `CLAUDE_CODE_OAUTH_TOKEN` secret, and each run counts against the owner's Claude plan usage. The permission deny rules stay as a second layer.
 - **Status:** Accepted
+
+### ADR-015: Stack major versions and module system
+- **Context:** the stack was listed without versions, and the ones given were outdated (Node 20 reached end of life on 2026-04-30; pnpm 9). Several libraries changed their APIs in ways that older tutorials, and Claude's defaults, get wrong: Express 5 async errors, Prisma 7 config and driver adapters, Tailwind CSS 4 CSS-based config, React Router 7, Zod 4, shadcn/ui replacing `Toast` with Sonner. The build setup was also unresolved: every package extended `moduleResolution: bundler`, while the BE was expected to run compiled output under Node and `shared` had to be built before its consumers.
+- **Decision:**
+  - Major versions are fixed in [plan.md §3](../../plan.md#3-tech-stack), the single source. Changing a major version needs a new ADR.
+  - Node.js 24 LTS (`.nvmrc`, CI); Node 22.12+ stays supported so cloud sessions work. pnpm 10, pinned exactly in `packageManager`; dependency install scripts are allowed only for packages listed in `onlyBuiltDependencies` (`esbuild`, `prisma`, `@prisma/engines` at start).
+  - ESM everywhere (`"type": "module"`), one `tsconfig.base.json` with `moduleResolution: bundler`; `typecheck` is `tsc --noEmit` in every package.
+  - `@trello-clone/shared` is an internal package whose `exports` point at `src/index.ts`; it has no build step.
+  - The BE runs with `tsx watch` in development and is bundled with `tsdown` (inlining `shared`) for production, so bundler resolution is valid for it too. Vitest runs the TypeScript source directly.
+- **Rationale:** version-pinned docs keep generated code on current APIs. One module system, and no build ordering between packages, removes the most common monorepo failures ("Cannot find module", missing `.js` extensions, stale `dist/`).
+- **Trade-offs:** `tsdown` is a newer tool than `tsc`/`tsup`; if it causes problems, replacing it is confined to the BE `build` script. Consuming `shared` as source means it must stay plain TypeScript with no build-time features.
+- **Status:** Accepted

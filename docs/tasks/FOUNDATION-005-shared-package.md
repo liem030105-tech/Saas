@@ -15,7 +15,7 @@ Create `@trello-clone/shared` and prove that both FE and BE consume it.
 Rules for what may live in shared: [architecture/overview.md → packages/shared](../architecture/overview.md#packagesshared).
 
 # Requirements
-1. `packages/shared` with `src/{schemas,types,constants}/` and a single `src/index.ts` export. Built with `tsc` (no new build tool); `zod` is its only dependency.
+1. `packages/shared` with `src/{schemas,types,constants}/` and a single `src/index.ts` export. Internal package with no build step: `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `lint`, `typecheck`, `test` (ADR-015). `zod` is its only dependency.
 2. `constants/error-codes.ts`: every code in the [error table](../api/README.md#canonical-error-format).
 3. `schemas/common.ts`: `CuidSchema`, `PaginationQuerySchema` (`limit` default/max per D-14, optional `cursor`), `ErrorResponseSchema`.
 4. BE `errorHandler` and FE `ApiError` import the error codes from shared (replacing any local copies).
@@ -47,6 +47,7 @@ Unit: `PaginationQuerySchema` defaults and max; `ErrorResponseSchema` parses a r
 
 # Acceptance Criteria
 - [ ] `pnpm typecheck` passes across all packages with the shared imports.
+- [ ] FE `dev`/`build` and BE `dev`/`build`/`test` all resolve `@trello-clone/shared` without building it first.
 - [ ] A deliberate import of FE code from shared fails lint.
 
 # Definition of Done
@@ -57,4 +58,4 @@ Unit: `PaginationQuerySchema` defaults and max; `ErrorResponseSchema` parses a r
 FOUNDATION-002 and FOUNDATION-003 (both consumers must exist).
 
 # Risks
-Dev-time resolution of the TypeScript source vs. `dist` → use `exports` with a `types` condition and build shared before FE/BE in `pnpm -r build`.
+A TypeScript feature that needs whole-program compilation (e.g. `const enum`, path aliases) breaks consumers → keep shared to plain TypeScript; `verbatimModuleSyntax` catches type-only import mistakes.
