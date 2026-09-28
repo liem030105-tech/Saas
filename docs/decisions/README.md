@@ -68,3 +68,9 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Decision:** `plan.md` is the high-level blueprint, `docs/` holds technical detail, `.claude/` holds AI instructions. Once code exists, code is the source of truth.
 - **Rationale:** a single source of truth per kind of information; no contradicting documents.
 - **Status:** Accepted
+
+### ADR-013: Task-spec-driven implementation and a single Definition of Done
+- **Decision:** implementation proceeds only through task specs in `docs/tasks/` in the order of `docs/tasks/README.md`. Every task is accepted against one canonical DoD (`docs/development/definition-of-done.md`). Unconfirmed values are tracked in `DECISIONS-REQUIRED.md` and used as proposed defaults unless blocking.
+- **Rationale:** a new Claude Code session can implement without guessing; no competing DoD definitions.
+- **Consequences:** MVP tasks do not emit realtime events and do not enforce plan limits; the activity model arrives in BOARD-001 and its feed in CARD-005.
+- **Status:** Accepted (pending owner approval of the PR that introduced it)

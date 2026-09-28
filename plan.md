@@ -1,69 +1,38 @@
 # TaskBoard – Trello Clone SaaS · Project Blueprint
 
-> This file is the **high-level blueprint**: product scope, architecture decisions, milestones.
-> Detailed technical documentation lives in [`docs/`](docs/); Claude Code instructions live in [`.claude/`](.claude/CLAUDE.md).
+> **High-level blueprint:** product scope, architecture decisions, roadmap. Detailed specifications live in [`docs/`](docs/); the implementation backlog lives in [`docs/tasks/`](docs/tasks/README.md); Claude Code instructions live in [`.claude/`](.claude/CLAUDE.md).
+> Document hierarchy on conflict: **plan.md → ADRs → technical docs → task specs → code**.
 
 ---
 
 ## 1. Product overview
 
-**TaskBoard** is a Kanban-style task management SaaS (Trello-like): workspace → board → list → card, drag and drop, realtime collaboration, Free/Pro plans.
+**TaskBoard** is a Kanban-style task management SaaS (Trello-like): workspace → board → list → card, with drag and drop, team roles, and (post-MVP) realtime collaboration and Free/Pro plans.
 
 - **Goal:** a production-quality learning/demo SaaS covering authentication, multi-tenancy, authorization, realtime, billing, testing, and CI.
 - **Users:** individuals and small teams (startups, study groups, freelancers).
 - **Developers:** one developer working with Claude Code; structured so a small team can join later.
 
-### MVP scope
-- Auth: register, login, refresh token, profile.
-- Workspaces: CRUD, member invitations, roles OWNER / ADMIN / MEMBER / VIEWER.
-- Boards / Lists / Cards: CRUD, archive, drag and drop with persisted ordering.
-- Card details: markdown description, labels, members, due date, checklists, comments, activity log.
+## 2. Scope: MVP vs. Post-MVP
 
-### Post-MVP
-Realtime, attachments, search/filter, notifications, Free/Pro billing (Stripe test mode), board templates, dark mode.
+| | Phases | Delivers |
+|--|--------|----------|
+| **MVP** | 0 → 4 | Project foundation · Authentication (register, login, refresh, logout, profile) · Workspaces with roles, members, invitations · Boards / Lists / Cards with drag-and-drop ordering · Card details (description, due date, labels, members, checklists, comments, activity log) |
+| **Post-MVP** | 5 → 9 | Realtime · Attachments & covers · Search/filters · Notifications · Billing & plan limits · Testing hardening · Production deployment |
 
----
+**Explicitly not in the MVP:** realtime updates (clients refetch), plan limits (D-11), email delivery (invite links are shared manually, D-18), file uploads.
+**Unphased ideas** (templates, dark mode, favorites, landing/pricing pages): awaiting **D-08**.
 
-## 2. Tech stack
+## 3. Tech stack
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, TypeScript, Vite, React Router, TanStack Query (server state), Zustand (UI state), @dnd-kit, Tailwind CSS, shadcn/ui, React Hook Form, Zod, Axios, socket.io-client |
-| Backend | Node.js 20, Express, TypeScript, Prisma, PostgreSQL, Zod, JWT + bcrypt, Socket.IO, Multer + S3/Cloudinary, Pino, Helmet |
-| Shared | Zod schemas, TypeScript types, constants (`@trello-clone/shared`) |
+| Frontend | React 18, TypeScript, Vite, React Router, TanStack Query (server state), Zustand (UI state), @dnd-kit, Tailwind CSS, shadcn/ui, React Hook Form, Zod, Axios, socket.io-client (Phase 5) |
+| Backend | Node.js 20, Express, TypeScript, Prisma, PostgreSQL, Zod, JWT + bcrypt, Pino, Helmet; Socket.IO (Phase 5), Multer (Phase 6), Stripe (Phase 7) |
+| Shared | `@trello-clone/shared`: Zod schemas, types, constants |
 | Monorepo | pnpm workspace |
 | Quality | ESLint, Prettier, Vitest, Supertest, Playwright, GitHub Actions |
 | Local infra | Docker Compose (PostgreSQL) |
-
----
-
-## 3. Changes from the previous plan
-
-### What changed
-| Change | Why |
-|--------|-----|
-| `apps/web`, `apps/api` → `Trello-Clone-FE/`, `Trello-Clone-BE/` | FE/BE boundary is obvious at a glance; easier for Claude Code to scope changes |
-| Technical details (schema, API, security, testing) moved into `docs/` | Single source of truth per topic; `plan.md` stays short |
-| Added `.claude/` (CLAUDE.md, settings, 6 skills, 4 commands) | Safe, repeatable Claude Code workflow |
-| Backend repositories are **selective**, not mandatory for every module | Avoid needless abstraction ([ADR-004](docs/decisions/README.md)) |
-| Schema: added `RefreshToken`, `WorkspaceInvite`, `Card.boardId`, `ActivityType` / `SubscriptionStatus` enums, missing indexes | Previous plan referenced these features without models; cheaper authorization checks ([ADR-006](docs/decisions/README.md)) |
-| Realtime: events carry `eventId` + `version`; emitters split by domain | Duplicate-event handling; Redis adapter can be added later |
-| Roadmap split into Phase 0–9, each with its own Definition of Done | Incremental, controllable delivery |
-
-### Intentionally NOT changed
-- The 15-entity business model, roles, and permission matrix.
-- `Float` position ordering with rebalancing.
-- REST `/api/v1` and the unified error format.
-- In-memory JWT access token + httpOnly refresh-token cookie.
-- Socket.IO **without Redis** initially.
-- Modular monolith; no microservices.
-
-### Accepted trade-offs
-- `Card.boardId` is denormalized and must be updated when a card moves across boards, in exchange for single-query authorization and realtime routing.
-- pnpm workspace + shared package adds some configuration, in exchange for not defining types/schemas twice.
-- Float positions need occasional rebalancing, in exchange for simpler logic than LexoRank.
-
----
 
 ## 4. Root folder structure
 
@@ -71,150 +40,78 @@ Realtime, attachments, search/filter, notifications, Free/Pro billing (Stripe te
 Trello-Clone/                 # = repository root
 ├── Trello-Clone-FE/          # @trello-clone/web    – frontend code only
 ├── Trello-Clone-BE/          # @trello-clone/api    – backend code only
-├── packages/
-│   └── shared/               # @trello-clone/shared – shared schemas/types/constants
-├── docs/                     # detailed technical documentation
-├── .claude/                  # Claude Code instructions and skills
-├── .github/workflows/        # CI (created in Phase 0)
-├── plan.md                   # this blueprint
-├── README.md
-├── docker-compose.yml        # local PostgreSQL
-├── package.json              # root scripts (Phase 0)
-├── pnpm-workspace.yaml       # (Phase 0)
-└── .gitignore
+├── packages/shared/          # @trello-clone/shared – shared schemas/types/constants
+├── docs/                     # technical specs, tasks, decisions
+├── .claude/                  # Claude Code instructions, skills, commands
+├── .github/workflows/        # CI (FOUNDATION-006)
+├── plan.md · README.md · docker-compose.yml · package.json · pnpm-workspace.yaml · .gitignore
 ```
 
 | Folder | Responsibility | Must not contain |
 |--------|----------------|------------------|
-| `Trello-Clone-FE/` | UI, routing, API calls, client state | Business logic, real authorization, secrets |
-| `Trello-Clone-BE/` | API, business logic, authorization, DB, realtime | UI code |
-| `packages/shared/` | Zod schemas for API request/response, types, enums, constants | Business logic, DB access, React/Express code |
-| `docs/` | Technical documentation | Runnable code |
-| `.claude/` | Claude Code instructions | Technical docs duplicated from `docs/` |
+| `Trello-Clone-FE/` | UI, routing, API calls, client state | Business rules, real authorization, secrets |
+| `Trello-Clone-BE/` | API, business rules, authorization, DB, realtime | UI code |
+| `packages/shared/` | API schemas, types, enums, constants used by both sides | Business logic, DB access, React/Express code |
+| `docs/` | Specifications, tasks, decisions | Runnable code |
+| `.claude/` | Claude Code instructions | Copies of `docs/` content |
 
-**No `docker/` folder**: there is a single compose file at the root, and each package owns its Dockerfile ([ADR-003](docs/decisions/README.md)).
-
-Internal structure: [FE](docs/architecture/frontend.md) · [BE](docs/architecture/backend.md) · [shared & monorepo](docs/architecture/overview.md).
-
----
+Internal structure: [overview & monorepo](docs/architecture/overview.md) · [frontend](docs/architecture/frontend.md) · [backend](docs/architecture/backend.md).
 
 ## 5. Single source of truth
 
 | Information | Lives in |
 |-------------|----------|
-| Product scope, major decisions, roadmap | `plan.md` |
-| Architecture and per-layer rules | `docs/architecture/` |
-| API contracts | `docs/api/` (once code exists: Zod schemas in `packages/shared`) |
-| Database schema | `docs/database/schema.md` (once code exists: `Trello-Clone-BE/prisma/schema.prisma`) |
-| Setup, conventions, testing | `docs/development/` |
-| Deployment | `docs/deployment/` |
-| Why decisions were made | `docs/decisions/README.md` |
-| Rules for Claude Code | `.claude/CLAUDE.md` and `.claude/skills/` |
-
-Once real code exists, **code is the source of truth** and documentation must be kept in sync with it.
-
----
+| Scope, decisions, roadmap | `plan.md` |
+| Decision rationale / open decisions | `docs/decisions/README.md` / `docs/decisions/DECISIONS-REQUIRED.md` |
+| Architecture rules | `docs/architecture/` |
+| API contracts, authorization model | `docs/api/` (Zod schemas in `packages/shared` once code exists) |
+| Database | `docs/database/` (`prisma/schema.prisma` once code exists) |
+| Implementation units | `docs/tasks/` |
+| Setup, conventions, testing, Definition of Done | `docs/development/` |
+| Claude Code rules | `.claude/CLAUDE.md`, `.claude/skills/` |
 
 ## 6. Key architecture decisions
+Full rationale: [ADR log](docs/decisions/README.md).
 
-Summary; full reasoning in [`docs/decisions/README.md`](docs/decisions/README.md).
-
-1. **Modular monolith**: one backend split into domain modules. No microservices.
-2. **pnpm monorepo** with three packages: `@trello-clone/web`, `@trello-clone/api`, `@trello-clone/shared`.
-3. **No `docker/` folder.**
-4. **Repositories only where they earn their place.**
-5. **TanStack Query for server state; Zustand for UI state only.**
-6. **Multi-tenancy:** every query is scoped to the user's workspaces; authorization is always enforced on the backend.
-7. **Realtime:** Socket.IO rooms per board, domain events, upgrade path to a Redis adapter.
-8. **Float positions** for list/card ordering.
-9. **Auth:** short-lived access token + rotating refresh token with reuse detection.
-10. **Claude Code:** CLAUDE.md is the primary instruction file; skills exist only for specialized workflows.
-
----
+1. Modular monolith; no microservices (ADR-001).
+2. pnpm monorepo with `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/shared` (ADR-002); no `docker/` folder (ADR-003).
+3. Repositories only where they earn their place (ADR-004).
+4. TanStack Query for server state; Zustand for UI state only (ADR-005).
+5. Multi-tenancy by workspace; authorization always on the backend; non-members get 404 (ADR-007).
+6. Float positions with rebalancing for ordering (ADR-008).
+7. Realtime via Socket.IO rooms per board, REST-only mutations, emit after commit (ADR-009).
+8. In-memory access token + rotating refresh token in an httpOnly cookie (ADR-010).
+9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013).
 
 ## 7. Roadmap
 
-> Durations are **estimates** for one developer working with Claude Code and may change. Every phase merges via PR with green CI.
+Durations are **estimates** for one developer with Claude Code. Every task merges via PR with green CI. Task details and the deterministic order: [docs/tasks/README.md](docs/tasks/README.md).
 
-### Phase 0 — Project foundation (~2 days, estimate)
-- **Goal:** `pnpm dev` runs FE + BE; CI is green.
-- **BE:** Express + TS, `/health`, Zod-validated env config, logger, error middleware.
-- **FE:** Vite + React + TS, Tailwind, shadcn/ui, Router, QueryClient.
-- **DB:** Docker Compose Postgres, initial `schema.prisma` (User only).
-- **Shared:** package created, exports one sample schema.
-- **Tests:** Vitest runs in all three packages.
-- **Docs:** `development/setup.md` matches reality.
-- **DoD:** clone → `pnpm i && pnpm dev` works; CI runs lint + typecheck + test.
+| Phase | Scope | Tasks | Phase acceptance (on `main`) | Estimate |
+|-------|-------|-------|------------------------------|----------|
+| 0 Foundation | Monorepo, BE/FE/DB bootstrap, shared package, CI | FOUNDATION-001…006 | Clone → `pnpm i && pnpm dev` works; `ci` check green and required | ~2 days |
+| 1 Authentication | Register, login, refresh rotation, logout, profile, route protection | AUTH-001…006 | Session survives reload; a replayed refresh token kills the session; E2E 1 green | ~3 days |
+| 2 Workspaces & authorization | Workspaces, members, invitations, RBAC, tenant isolation | WORKSPACE-001…006 | Role matrix and tenant-isolation suites green; E2E 2 green | ~3 days |
+| 3 Boards / Lists / Cards | Board CRUD, list/card CRUD, ordering, move API, drag and drop | BOARD-001…002, LIST-001…003, CARD-001…004 | Order persists after reload under repeated drags; E2E 3, 4, 6 green | ~5 days |
+| 4 Card details | Labels, members, checklists, comments, activity feed | CARD-005 | Complete card modal; E2E 5 green → **MVP done** | ~4 days |
+| 5 Realtime | Socket.IO rooms/events, FE cache sync | REALTIME-001 | Two browsers converge; E2E 7 green | ~4 days |
+| 6 Attachments / search / notifications | Uploads & covers, board search, notifications | ATTACHMENTS-001, SEARCH-001, NOTIFICATIONS-001 | Per task acceptance | ~4 days |
+| 7 Billing | Stripe, plan limits, pricing/landing | BILLING-001 | Test-mode upgrade/downgrade works; limits return 402 | ~3 days |
+| 8 Testing hardening | Gap audit, E2E in CI, coverage | TESTING-001 | Zero baseline gaps; `e2e` required | ~3 days |
+| 9 Production | Staging + production, monitoring, backups | DEPLOYMENT-001 | Production usable end-to-end | ~2 days |
 
-### Phase 1 — Authentication (~3 days)
-- **BE:** register / login / refresh / logout / me, `RefreshToken` model, rotation, rate limiting.
-- **FE:** Login/Register pages, axios interceptor, `ProtectedRoute`.
-- **DB:** migrations for User, RefreshToken.
-- **Tests:** unit (hashing, tokens), integration (auth flows, reuse detection), E2E register/login.
-- **Docs:** `api/authentication.md`.
-- **DoD:** session survives a page reload; a reused token revokes its whole family.
+## 8. Definition of Done
+Every task satisfies the single canonical [Definition of Done](docs/development/definition-of-done.md): architecture boundaries, backend authorization, tenant isolation, validation, tests per the [test matrix](docs/development/testing.md#when-each-test-type-is-required), typecheck, lint, updated docs, no secrets, no unrelated refactoring, green CI.
 
-### Phase 2 — Workspaces & authorization (~3 days)
-- **BE:** workspace CRUD, members, invites, `requireWorkspaceRole` middleware.
-- **FE:** workspace sidebar, members page, invite acceptance flow.
-- **DB:** Workspace, WorkspaceMember, WorkspaceInvite.
-- **Tests:** role matrix (4 roles × actions), tenant isolation.
-- **Docs:** `api/workspaces.md`.
-- **DoD:** a non-member gets 404 for every resource in the workspace.
+## 9. Unresolved decisions
+Open questions needing human approval are tracked in [DECISIONS-REQUIRED.md](docs/decisions/DECISIONS-REQUIRED.md) (`D-01`…`D-23`). Tasks may proceed on proposed defaults unless an item is marked **blocking** for that task. Currently blocking: D-06 (WORKSPACE-001 register hook), D-09 (NOTIFICATIONS-001), D-13 (BILLING-001), D-20 (ATTACHMENTS-001), D-21 and D-22 (DEPLOYMENT-001).
 
-### Phase 3 — Boards / Lists / Cards (~5 days)
-- **BE:** board/list/card CRUD, move API, position algorithm + rebalancing.
-- **FE:** board page, @dnd-kit drag and drop, optimistic updates with rollback.
-- **DB:** Board, List, Card (with `boardId`), Label.
-- **Tests:** position unit tests, move integration tests, drag-and-drop E2E.
-- **Docs:** `api/boards.md`, `api/lists.md`, `api/cards.md`.
-- **DoD:** order is preserved after reload; rapid consecutive drags never corrupt order.
-
-### Phase 4 — Card details (~4 days)
-- Labels, members, due date, checklists, comments (sanitized markdown), activity log.
-- **DoD:** complete card modal; `/b/:boardId/c/:cardId` is shareable.
-
-### Phase 5 — Realtime (~4 days)
-- **BE:** Socket.IO with connection authentication, room authorization, emit after commit.
-- **FE:** `useBoardSocket` syncing the TanStack Query cache, duplicate-event filtering, invalidate on reconnect.
-- **Tests:** socket-client integration tests, two-browser E2E.
-- **Docs:** `architecture/realtime.md`.
-- **DoD:** two tabs sync within 1 second; data is correct after a disconnect/reconnect.
-
-### Phase 6 — Attachments / search / notifications (~4 days)
-- Uploads with type and size validation, card covers, card search and filters, in-app notifications.
-
-### Phase 7 — Billing (~3 days)
-- Stripe Checkout + Customer Portal + signature-verified webhook, plan limit checks (`402 PLAN_LIMIT_REACHED`).
-- **Docs:** `api/billing.md`.
-
-### Phase 8 — Testing & CI hardening (~3 days)
-- Fill test gaps up to the minimum bar, E2E in CI, coverage reporting.
-
-### Phase 9 — Production deployment (~2 days)
-- Staging + production deploys, migrations on deploy, error monitoring.
-- **Docs:** `deployment/staging.md`, `deployment/production.md`.
-
----
-
-## 8. Definition of Done (every feature)
-
-- [ ] Code lives in the owning folder; no unrelated modules touched.
-- [ ] Authorization and tenant isolation enforced on the backend, with tests.
-- [ ] Tests meet the minimum bar in [`docs/development/testing.md`](docs/development/testing.md).
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass.
-- [ ] Schema changes include a Prisma migration; API changes update `docs/api/`.
-- [ ] No secrets in code or in the FE bundle.
-- [ ] Diff self-reviewed before merge; PR describes the change clearly.
-
----
-
-## 9. Documentation index
-
+## 10. Documentation index
 - Architecture: [overview](docs/architecture/overview.md) · [frontend](docs/architecture/frontend.md) · [backend](docs/architecture/backend.md) · [database](docs/architecture/database.md) · [realtime](docs/architecture/realtime.md) · [security](docs/architecture/security.md)
-- API: [README](docs/api/README.md)
-- Database: [schema](docs/database/schema.md) · [relationships](docs/database/relationships.md)
-- Development: [setup](docs/development/setup.md) · [coding conventions](docs/development/coding-conventions.md) · [testing](docs/development/testing.md) · [troubleshooting](docs/development/troubleshooting.md)
+- API: [conventions & authorization](docs/api/README.md) · [authentication](docs/api/authentication.md) · [workspaces](docs/api/workspaces.md) · [boards](docs/api/boards.md) · [lists](docs/api/lists.md) · [cards](docs/api/cards.md) · [billing](docs/api/billing.md)
+- Database: [schema](docs/database/schema.md) · [relationships & ordering](docs/database/relationships.md)
+- Development: [setup](docs/development/setup.md) · [conventions](docs/development/coding-conventions.md) · [testing](docs/development/testing.md) · [Definition of Done](docs/development/definition-of-done.md) · [troubleshooting](docs/development/troubleshooting.md)
 - Deployment: [local](docs/deployment/local.md) · [staging](docs/deployment/staging.md) · [production](docs/deployment/production.md)
-- Decisions: [ADR log](docs/decisions/README.md)
+- Tasks: [backlog & dependency graph](docs/tasks/README.md) · [template](docs/tasks/TASK-TEMPLATE.md)
+- Decisions: [ADR log](docs/decisions/README.md) · [decisions required](docs/decisions/DECISIONS-REQUIRED.md)
 - Claude Code: [CLAUDE.md](.claude/CLAUDE.md)

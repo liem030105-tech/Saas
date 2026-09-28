@@ -33,12 +33,14 @@ pnpm dev                                     # FE :5173, BE :4000
 | `NODE_ENV` | `development` \| `test` \| `production` |
 | `PORT` | API port (default 4000) |
 | `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL_TEST` | Test database (`postgres-test`, name must end in `_test`) |
+| `SEED_DEMO_PASSWORD` | Password for the seeded demo user (FOUNDATION-004) |
 | `JWT_ACCESS_SECRET` | Access-token signing secret (≥ 32 chars) |
-| `ACCESS_TOKEN_TTL` | Default `15m` |
-| `REFRESH_TOKEN_TTL_DAYS` | Default `30` |
+| `ACCESS_TOKEN_TTL` | Proposed default `15m` (D-01) |
+| `REFRESH_TOKEN_TTL_DAYS` | Proposed default `30` (D-02) |
 | `CLIENT_URL` | FE origin, used for CORS |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO` | Phase 7 |
-| `STORAGE_BUCKET`, `STORAGE_REGION`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY` | Phase 6 |
+| `STORAGE_*` | Phase 6; exact variables depend on the provider (D-20) |
 
 `Trello-Clone-FE/.env.example`
 | Variable | Description |

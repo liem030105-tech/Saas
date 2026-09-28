@@ -69,7 +69,9 @@ Dependency flow: **Route → Controller → Service → (Repository) → Prisma*
 **Direct Prisma access from the service is fine** for simple CRUD modules (e.g. `users`, `comments`, `labels`).
 Never create a repository just to wrap `prisma.x.findUnique`.
 
-Expected repositories: `boards` (load board with lists/cards), `cards` (move + rebalance), `workspaces` (membership queries shared by authorization).
+Expected repositories: `boards` (load board with lists/cards, search), `cards` (move), `workspaces` (membership queries shared by authorization). The generic container rebalance lives in `lib/rebalance.ts` (LIST-003).
+
+The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts` (BOARD-001) and is called inside the same transaction as the change it records.
 
 ## Cross-module communication
 - Module A calls only module B's **service** (e.g. `cards.service` → `workspaces.service.assertMember()`).
@@ -80,5 +82,5 @@ Expected repositories: `boards` (load board with lists/cards), `cards` (move + r
 - Services throw `AppError(code, httpStatus, message, details?)`; `errorHandler` maps it to the common format (see [api/README.md](../api/README.md)).
 - Zod errors → `400 VALIDATION_ERROR`; Prisma `P2025` → `404 NOT_FOUND`; anything unexpected → `500 INTERNAL_ERROR`, fully logged, no stack trace sent to the client.
 
-## Realtime emits
-Services emit **after the transaction commits**, through `realtime/events/*.events.ts`; never call `io.emit` directly from a service. See [realtime.md](realtime.md).
+## Realtime emits (Post-MVP, REALTIME-001)
+MVP services do not emit. From REALTIME-001 on, services emit **after the transaction commits**, through `realtime/events/*.events.ts`; never call `io.emit` directly from a service. See [realtime.md](realtime.md).

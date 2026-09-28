@@ -1,50 +1,85 @@
 # Security
 
-> **Domain:** authentication, authorization, input/output protection, secrets.
+> **Domain:** authentication flow, token mechanics, HTTP hardening, input/output safety, secrets.
+> **Authorization** (roles, permission matrix, tenant isolation) is specified once in [api/README.md → Authorization model](../api/README.md#authorization-model). Values marked `D-xx` are proposed defaults pending [DECISIONS-REQUIRED](../decisions/DECISIONS-REQUIRED.md).
 
 ## Authentication vs. authorization
 | | Authentication | Authorization |
 |--|----------------|---------------|
-| Question | "Who are you?" | "What may you do with this resource?" |
-| Where | `authenticate` middleware (`auth` module) | `requireWorkspaceRole` + `assertBoardAccess` in services |
+| Question | Who is calling? | May they do this to this resource? |
+| Where | `authenticate` middleware (verifies the access token, sets `req.userId`) | `assertWorkspaceAccess` / `assertBoardAccess` in services, `requireWorkspaceRole` on workspace routes |
 | Failure | `401 UNAUTHORIZED` | `404 NOT_FOUND` (non-member) / `403 FORBIDDEN` (insufficient role) |
 
-## Tokens
-- **Access token:** JWT HS256, 15-minute TTL, payload `{ sub: userId }`. Roles are not embedded (they can change). The FE keeps it in memory.
-- **Refresh token:** 256-bit random string (not a JWT), 30-day TTL, sent as an `httpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` cookie.
-- **Storage:** the DB stores only `sha256(token)` in `RefreshToken` (with `familyId`, `expiresAt`, `revokedAt`, `replacedById`).
-- **Rotation:** each `/auth/refresh` revokes the old token and issues a new one in the same `familyId`.
-- **Reuse detection:** if a revoked token is presented, revoke the **entire family** and return `401 TOKEN_REUSED`.
-- Logout revokes the current family; a password change revokes all of the user's families.
+## Authentication flow
 
-## Passwords
-bcrypt with cost 12. Length 8–72 characters (bcrypt only uses the first 72 bytes). Never log passwords or hashes.
+```
+ Browser (FE)                                   API (BE)                               DB
+ ────────────                                   ────────                               ──
+ 1. POST /auth/register {email,password,name} ─▶ hash pw (bcrypt) ─ create User ──────▶ User
+    or POST /auth/login {email,password}         new family: raw token R1 ─ store sha256(R1) ▶ RefreshToken
+ ◀── 201/200 { accessToken A1 } + Set-Cookie refresh_token=R1 (HttpOnly)
+ 2. keep A1 in memory (never localStorage)
+ 3. GET /api/v1/... Authorization: Bearer A1 ─▶ verify JWT signature + exp → req.userId
+ 4. ... A1 expires (D-01) → API returns 401 UNAUTHORIZED
+ 5. POST /auth/refresh (cookie R1 sent automatically) ─▶ find sha256(R1)
+       valid & not revoked → revoke R1, create R2 (same family, R1.replacedById=R2) ▶ RefreshToken
+ ◀── 200 { accessToken A2 } + Set-Cookie refresh_token=R2
+ 6. retry the original request with A2
+ 7. R1 presented again (stolen/replayed) → revoke whole family → 401 TOKEN_REUSED, cookie cleared
+ 8. POST /auth/logout → revoke current family → 204, cookie cleared
+```
 
-## HTTP
-- **Helmet** with defaults; CSP is configured by the static FE host.
-- **CORS:** allowlist from `CLIENT_URL`, `credentials: true`. Never `*`.
-- **Rate limiting:** `/auth/login` and `/auth/register` at 10 requests/min/IP; general API at 300 requests/min/user.
-- JSON body limit 1 MB.
+### Parameters
+| Item | Value |
+|------|-------|
+| Access token | JWT HS256 signed with `JWT_ACCESS_SECRET`; payload `{ sub: userId, iat, exp }`; roles are **not** embedded (they can change) |
+| Access token lifetime | 15 minutes (**D-01**) |
+| Refresh token | 256-bit random value, base64url; **not** a JWT |
+| Refresh token lifetime | 30 days, absolute from login; rotation keeps the family's original expiry (**D-02**) |
+| Refresh cookie | `refresh_token`; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`. Requires FE and API on the same site in production (**D-22**) |
+| Token storage (server) | only `sha256(token)` in `RefreshToken.tokenHash` |
+| Rotation | every successful `/auth/refresh` revokes the presented token and issues a successor in the same `familyId` |
+| Reuse detection | presenting a revoked token revokes **every** token in its family → `401 TOKEN_REUSED` |
+| Logout | revokes the current family only; other devices stay signed in |
+| Logout-all | **not supported** (**D-05**); a password change (if **D-07** is approved) revokes all other families |
+| Password hashing | bcrypt, cost 12 (**D-03**); passwords 8–72 chars |
+| Login timing | an unknown email still runs a bcrypt compare against a dummy hash |
+| Rate limiting | `/auth/register`, `/auth/login`: 10/min/IP; authenticated API: 300/min/user (**D-04**) → `429 RATE_LIMITED` + `Retry-After` |
+
+### Frontend token handling
+- The access token lives in a module-scoped variable in `src/api`; the refresh token is never readable by JS.
+- On app start the FE calls `/auth/refresh` once to restore the session.
+- On `401 UNAUTHORIZED`, a single shared refresh promise is used; concurrent requests wait for it, then retry once. If the refresh fails → clear state and redirect to `/login`.
+- `TOKEN_REUSED` → force logout and show "session expired".
+
+### CSRF
+- Bearer-authenticated endpoints are not CSRF-prone.
+- Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) rely on `SameSite=Strict` plus the CORS allowlist. If D-22 chooses `SameSite=None`, a CSRF token for these two endpoints becomes mandatory.
+
+## HTTP hardening
+- **Helmet** defaults on the API. The FE host sets the CSP.
+- **CORS:** allowlist from `CLIENT_URL`, `credentials: true`, never `*`.
+- JSON body limit 1 MB. Every response carries `X-Request-Id`.
 
 ## Input / output
-- Every `body`, `params`, `query` is validated with Zod via the `validate` middleware; unknown fields are stripped.
-- Prisma queries are parameterized; raw SQL only via `$queryRaw` template literals, never string concatenation.
-- **Markdown** (card descriptions, comments) is stored raw; the FE renders it with `react-markdown` + `rehype-sanitize`. Never `dangerouslySetInnerHTML`.
+- Every `body`, `params`, and `query` is validated with Zod in the `validate` middleware; unknown fields are stripped ([rules](../api/README.md#validation-rules)).
+- Prisma queries are parameterized. Raw SQL only via `$queryRaw` tagged templates.
+- **Markdown** (card descriptions, comments) is stored raw and rendered by the FE with `react-markdown` + `rehype-sanitize`. Never `dangerouslySetInnerHTML`.
 
-## File uploads
-- Multer memory storage, then upload to S3/Cloudinary; nothing is written to the server disk.
-- MIME allowlist (images, pdf, text, office), verified by magic bytes, not just the extension.
-- Size limit by plan (Free 10 MB, Pro 100 MB). File names are sanitized; storage keys are UUIDs.
+## File uploads (ATTACHMENTS-001)
+- Multer memory storage → storage provider (**D-20**). Nothing is written to server disk.
+- MIME allowlist (**D-19**) verified by magic bytes, not the extension. Size by plan (**D-10**).
+- File names are sanitized. Storage keys are `<workspaceId>/<cardId>/<uuid>`.
 
 ## Stripe webhook
-- `/billing/webhook` uses `express.raw()` and verifies with `stripe.webhooks.constructEvent` + `STRIPE_WEBHOOK_SECRET`.
-- Idempotent by `event.id`. Plan status is **only changed by webhooks**, never by a FE success redirect.
+- `/billing/webhook` uses `express.raw()` and `stripe.webhooks.constructEvent` with `STRIPE_WEBHOOK_SECRET`.
+- Idempotent by `event.id`. The plan changes **only** via webhooks.
 
 ## Secrets
-- Secrets live only in environment variables; the repo contains `.env.example` files with empty values.
-- `config/env.ts` validates env at startup and exits if anything is missing.
-- The FE only receives public `VITE_*` variables (API/socket URLs). **Never** put secrets in the FE.
+- Secrets live only in environment variables. The repo has `.env.example` files with empty values.
+- `config/env.ts` validates env at startup and exits on missing values.
+- The FE receives only public `VITE_*` values. **Never** put secrets in the FE.
 
 ## Error handling and logging
-- Never return stack traces or raw Prisma errors to the client.
-- Logs include `requestId` and `userId`; sensitive fields (`password`, `token`, `authorization`, `cookie`) are redacted via Pino `redact`.
+- Never return stack traces or raw Prisma errors.
+- Logs include `requestId` and `userId`. Pino `redact` removes `password`, `token`, `authorization`, `cookie`, and `set-cookie`.

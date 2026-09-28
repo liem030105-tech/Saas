@@ -1,49 +1,58 @@
 # Testing Strategy
 
-> **Domain:** test types, tools, and the minimum bar before a feature is considered done.
+> **Domain:** test types, tools, when each type is required, required E2E scenarios.
+> The baseline acceptance for every task is the [Definition of Done](definition-of-done.md); this file defines its "tests" item.
 
-## Tools
+## Tools and locations
 | Type | Tool | Location |
 |------|------|----------|
-| Unit / service (BE) | Vitest | `Trello-Clone-BE/src/modules/**/<module>.test.ts` |
-| API integration (BE) | Vitest + Supertest + test Postgres (Docker) | `Trello-Clone-BE/tests/integration/*.test.ts` |
-| Component / hook (FE) | Vitest + Testing Library + MSW | next to the file under test (`*.test.tsx`) |
+| Unit (BE/shared) | Vitest | next to the code: `*.test.ts` |
+| Service (BE) | Vitest + test Postgres | `Trello-Clone-BE/src/modules/<m>/<m>.test.ts` |
+| API integration (BE) | Vitest + Supertest + test Postgres | `Trello-Clone-BE/tests/integration/<module>.test.ts` |
+| Component / hook (FE) | Vitest + Testing Library + MSW | next to the file: `*.test.tsx` |
 | E2E | Playwright | `Trello-Clone-FE/tests/e2e/*.spec.ts` |
-| Shared | Vitest | `packages/shared/src/**/*.test.ts` |
 
-## Backend
-- **Unit:** pure functions such as `positionBetween`, plan-limit checks, token rotation logic.
-- **Service:** run against a real test DB (do not mock Prisma); reset data per test file with `TRUNCATE … CASCADE`.
-- **Repository:** only repositories with complex queries (move/rebalance, `findDetail`, search).
-- **API integration:** every endpoint covers:
-  1. happy path
-  2. validation error
-  3. unauthenticated → 401
-  4. **non-member → 404**
-  5. insufficient role → 403
+## When each test type is required
 
-## Frontend
-- **Components:** render, interaction, loading/empty/error states.
-- **Hooks:** hooks with logic, e.g. optimistic update + rollback (MSW returns an error), realtime de-duplication.
-- **Features:** flows within one feature, API mocked via MSW.
-- Do not test implementation details (CSS classes, internal state).
+| Change | Unit | Integration (API) | FE component/hook | E2E |
+|--------|:----:|:-----------------:|:-----------------:|:---:|
+| Pure function / algorithm (position, token, limits) | **required** | – | – | – |
+| New or changed endpoint | if it contains non-trivial logic | **required**: 5-case baseline + endpoint-specific cases from `docs/api` | – | – |
+| Authorization or tenant rule | – | **required** (matrix rows touched) | – | – |
+| DB invariant / cascade / transaction | – | **required** | – | – |
+| FE hook or component **with logic** (optimistic update, rollback, form rules, dedupe) | – | – | **required** | – |
+| Presentational-only component | – | – | optional | – |
+| **New user-visible flow** in the list below | – | – | – | **required** |
+| Refactor with no behavior change | existing tests must pass, no new tests needed | | | |
+| Docs / config only | – | – | – | – |
 
-## E2E (Playwright)
-Required scenarios before a release:
-1. Register → login → reload keeps the session
-2. Create workspace → board → list → card
-3. Drag a card between two lists → reload → order is correct
-4. Open a card → add a comment, checklist, and label
-5. **Realtime:** two browser contexts; A moves a card and B sees it immediately
-6. **Authorization:** a VIEWER sees no create buttons and gets 403 when calling the API directly; a non-member opening a board URL sees 404
+**5-case baseline per endpoint:**
+1. happy path
+2. validation error → 400
+3. unauthenticated → 401
+4. **non-member → 404**
+5. insufficient role → 403 (skip only for endpoints any authenticated user may call, e.g. `POST /workspaces`)
 
-## Minimum bar for "done"
-- [ ] New endpoints have integration tests for all 5 cases above.
-- [ ] New service business logic has unit or service tests.
-- [ ] Hooks/components with logic (not just presentation) have tests.
-- [ ] Important new user flows are added to E2E or extend an existing scenario.
-- [ ] `pnpm test` passes locally and in CI; no `skip` or `only` left behind.
+## E2E scenarios (added by the task that delivers the flow)
+| # | Scenario | Added in |
+|---|----------|----------|
+| 1 | Register → login → reload keeps the session → logout | AUTH-006 |
+| 2 | Create workspace → invite link → second user accepts | WORKSPACE-004 |
+| 3 | Create board → list → card | CARD-001 |
+| 4 | Drag a card between lists → reload → order persisted | CARD-004 |
+| 5 | Card modal: comment, checklist, label, member | CARD-005 |
+| 6 | VIEWER sees no create actions; non-member opening a board URL sees "not found" | BOARD-002 |
+| 7 | Realtime: two browser contexts, A moves a card, B sees it | REALTIME-001 |
 
-## CI (GitHub Actions)
-`install → typecheck → lint → test (unit + integration with a postgres service) → build`. E2E runs on PRs to `main` (Phase 8).
-Coverage is reported but has no hard threshold; covering the important cases matters more.
+Do **not** add E2E tests for internal changes, pure refactors, or API-only behavior already covered by integration tests.
+
+## Rules
+- BE service and integration tests run against a real Postgres (`postgres-test` in compose); do not mock Prisma. Reset data per test file (`TRUNCATE … CASCADE`); run integration files serially.
+- FE tests mock the network with MSW; test behavior, not implementation details.
+- Tests are deterministic: no real timers or network, no order dependence.
+- A failing test is a bug until proven otherwise. Never weaken assertions, skip, or delete tests to get green. No `.only` / `.skip` in commits.
+- Every new endpoint registers itself in the role-matrix harness (WORKSPACE-005) and the tenant-isolation suite (WORKSPACE-006).
+- Coverage is reported (TESTING-001) but has no hard threshold.
+
+## CI
+`install → typecheck → lint → test (unit + integration with a postgres service) → build` on every PR (FOUNDATION-006). E2E on PRs to `main` from TESTING-001 on.

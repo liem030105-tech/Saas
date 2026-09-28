@@ -8,7 +8,7 @@ Create an implementation plan for: $ARGUMENTS
 Do **not** modify any files. Follow workflow steps 1–4 in `.claude/CLAUDE.md`:
 
 1. Restate the requirement and list open questions. If anything is ambiguous, ask before planning further.
-2. Read the relevant docs (`plan.md` phase, `docs/architecture/*`, `docs/api/<module>.md`, `docs/database/*`).
+2. Read the relevant docs (the task spec in `docs/tasks/` if one exists, `plan.md` phase, `docs/architecture/*`, `docs/api/<module>.md`, `docs/database/*`).
 3. Inspect the affected code and list the modules touched, grouped as **BE / shared / FE / DB / docs**. Call out anything outside those modules and why it is needed.
 4. Output the plan:
    - Goal and non-goals
