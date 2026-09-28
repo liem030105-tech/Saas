@@ -57,3 +57,7 @@ pnpm dev                                     # FE :5173, BE :4000
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | Check the whole repo |
 | `pnpm --filter @trello-clone/web test:e2e` | Run Playwright |
 | `pnpm --filter @trello-clone/api db:studio` | Open Prisma Studio |
+
+## Claude Code
+- Hooks in `.claude/settings.json` run with `node`, so Node 20 must be on `PATH` before starting Claude Code (ADR-014).
+- The GitHub workflows `claude.yml` (`@claude` mentions) and `claude-review.yml` (automatic PR review) need the [Claude GitHub App](https://github.com/apps/claude) installed on the repository and a repository secret `CLAUDE_CODE_OAUTH_TOKEN` (Settings → Secrets and variables → Actions). Create the token on your machine with `claude setup-token` while logged in to a Claude Pro/Max plan; runs count against that plan's usage, no API key needed. Never paste the token anywhere but the secret. Without it the workflows fail; nothing else is affected.

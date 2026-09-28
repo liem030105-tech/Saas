@@ -74,3 +74,13 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** a new Claude Code session can implement without guessing; no competing DoD definitions.
 - **Consequences:** MVP tasks do not emit realtime events and do not enforce plan limits; the activity model arrives in BOARD-001 and its feed in CARD-005.
 - **Status:** Accepted (pending owner approval of the PR that introduced it)
+
+### ADR-014: Deterministic guardrails, a reviewer subagent, and Claude GitHub workflows
+- **Context:** ADR-011 put every rule in prose (CLAUDE.md, skills). Rules such as "never touch `.env`", "never edit a merged migration", and "never push to `main`" then depend on the model remembering them, and `/implement` reviewed its own diff in the same context that wrote it.
+- **Decision:** extend ADR-011 with:
+  - **Hooks** in `.claude/settings.json`: `.claude/hooks/guard.mjs` (PreToolUse) blocks reading or editing real `.env*` files, editing migrations already on `origin/main`, and pushing to `main`, and asks the user before `prisma migrate reset` / `db push`; `.claude/hooks/format.mjs` (PostToolUse) runs the repo's Prettier on edited code files.
+  - **Subagent** `.claude/agents/code-reviewer.md`: read-only, applies the `code-review` skill in a fresh context; used by `/review` and step 8 of `/implement`.
+  - **GitHub workflows:** `.github/workflows/claude.yml` (`@claude` mentions) and `claude-review.yml` (automatic review of ready-for-review PRs against the same skill).
+- **Rationale:** guardrails that must always hold are enforced by the harness, not by instructions; a reviewer that did not write the code catches more.
+- **Trade-offs:** hooks need Node on the developer machine (already a prerequisite); the workflows need the Claude GitHub App and a `CLAUDE_CODE_OAUTH_TOKEN` secret, and each run counts against the owner's Claude plan usage. The permission deny rules stay as a second layer.
+- **Status:** Accepted

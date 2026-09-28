@@ -81,7 +81,7 @@ Full rationale: [ADR log](docs/decisions/README.md).
 6. Float positions with rebalancing for ordering (ADR-008).
 7. Realtime via Socket.IO rooms per board, REST-only mutations, emit after commit (ADR-009).
 8. In-memory access token + rotating refresh token in an httpOnly cookie (ADR-010).
-9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013).
+9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013); hooks, a reviewer subagent, and Claude GitHub workflows as guardrails (ADR-014).
 
 ## 7. Roadmap
 

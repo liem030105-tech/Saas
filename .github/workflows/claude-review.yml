@@ -1,0 +1,44 @@
+# Automatic Claude review of every ready-for-review PR against the project rules (ADR-014).
+# Requires the Claude GitHub App and the CLAUDE_CODE_OAUTH_TOKEN secret (docs/development/setup.md).
+name: claude-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Drafts are still in progress; fork PRs cannot read the secret.
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Review PR
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request as this repository's reviewer.
+            - Rules: `.claude/CLAUDE.md`. Checklist, priorities, and severities: `.claude/skills/code-review/SKILL.md`. Apply only those; no generic style advice.
+            - If the PR implements a task spec (`docs/tasks/<TASK-ID>-*.md`, usually named in the title or body), check its Requirements, Out of Scope, and Acceptance Criteria.
+            - Read the docs and surrounding code of every touched module before reporting; report only verified findings.
+            - Post each finding as an inline comment prefixed with its severity (**blocker** / **should-fix** / **nit**) and a concrete fix.
+            - Finish with one top-level comment: a short summary and the verdict **ready to merge** or **changes needed**.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

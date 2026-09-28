@@ -7,9 +7,8 @@ Base to compare against: $ARGUMENTS (use `main` if empty).
 
 Review the changes in `git diff <base>...HEAD` plus any uncommitted changes.
 
-Use the `code-review` skill. Do not modify files unless the user asks for fixes.
+Do not modify files unless the user asks for fixes.
 
-1. List the changed files grouped by BE / shared / FE / DB / docs / other.
-2. Check each item of the `code-review` checklist, in priority order.
-3. Run `pnpm typecheck && pnpm lint && pnpm test` and include the results.
-4. Output findings as `severity · file:line · problem · fix`, then a verdict: **ready to merge** or **changes needed**.
+1. Delegate the checklist review to the `code-reviewer` subagent (`.claude/agents/code-reviewer.md`) with the base ref, so it reviews in a fresh context. It applies the `code-review` skill.
+2. Meanwhile run `pnpm typecheck && pnpm lint && pnpm test` and include the results.
+3. Output the subagent's findings (`severity · file:line · problem · fix`) plus any command failures, then a verdict: **ready to merge** or **changes needed**.
