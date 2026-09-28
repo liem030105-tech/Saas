@@ -16,7 +16,7 @@ Structure and rules per [architecture/frontend.md](../architecture/frontend.md).
 # Requirements
 1. Package `Trello-Clone-FE` named `@trello-clone/web`; scripts `dev`, `build`, `preview`, `lint`, `typecheck`, `test`.
 2. Tailwind CSS 4 via `@tailwindcss/vite` (CSS-based config, no `tailwind.config.js`); shadcn/ui initialized with `Button`, `Input`, `Dialog`, `DropdownMenu`, `Sonner` in `components/ui`.
-3. Folder skeleton exactly as in frontend.md (`api/`, `components/{ui,layout,feedback}`, `features/`, `pages/`, `hooks/`, `stores/`, `lib/`, `routes/`).
+3. Folder skeleton exactly as in frontend.md (`app/`, `api/`, `config/`, `components/{ui,layout,feedback}`, `features/`, `pages/`, `hooks/`, `stores/`, `lib/`, `routes/`, `testing/`), with `config/env.ts` validating `VITE_*` and `app/provider.tsx` holding every provider. Visual tokens from [design/ui.md](../design/ui.md#visual-tokens-proposed-d-24) in `src/index.css` (`@theme`).
 4. `lib/query-client.ts` (TanStack Query 5) and `routes/router.tsx` (React Router 7 data mode: `createBrowserRouter` from `react-router`) with placeholder pages for `/`, `/login`, `/register`, and a `NotFound` page.
 5. `api/client.ts`: an axios instance with `baseURL = VITE_API_URL` and `withCredentials: true`, plus a typed helper that unwraps `{ data }` and converts the canonical error into an `ApiError`. The auth interceptor comes later (AUTH-003).
 6. `components/feedback/ErrorBoundary.tsx` and the Sonner `Toaster` mounted once at the root.

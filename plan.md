@@ -109,11 +109,12 @@ Durations are **estimates** for one developer with Claude Code. Every task merge
 Every task satisfies the single canonical [Definition of Done](docs/development/definition-of-done.md): architecture boundaries, backend authorization, tenant isolation, validation, tests per the [test matrix](docs/development/testing.md#when-each-test-type-is-required), typecheck, lint, updated docs, no secrets, no unrelated refactoring, green CI.
 
 ## 9. Unresolved decisions
-Open questions needing human approval are tracked in [DECISIONS-REQUIRED.md](docs/decisions/DECISIONS-REQUIRED.md) (`D-01`…`D-23`). Tasks may proceed on proposed defaults unless an item is marked **blocking** for that task. Currently blocking: D-06 (WORKSPACE-001 register hook), D-09 (NOTIFICATIONS-001), D-13 (BILLING-001), D-20 (ATTACHMENTS-001), D-21 and D-22 (DEPLOYMENT-001).
+Open questions needing human approval are tracked in [DECISIONS-REQUIRED.md](docs/decisions/DECISIONS-REQUIRED.md) (`D-01`…`D-24`). Tasks may proceed on proposed defaults unless an item is marked **blocking** for that task. Currently blocking: D-06 (WORKSPACE-001 register hook), D-09 (NOTIFICATIONS-001), D-13 (BILLING-001), D-20 (ATTACHMENTS-001), D-21 and D-22 (DEPLOYMENT-001).
 
 ## 10. Documentation index
 - Architecture: [overview](docs/architecture/overview.md) · [frontend](docs/architecture/frontend.md) · [backend](docs/architecture/backend.md) · [database](docs/architecture/database.md) · [realtime](docs/architecture/realtime.md) · [security](docs/architecture/security.md)
 - API: [conventions & authorization](docs/api/README.md) · [authentication](docs/api/authentication.md) · [workspaces](docs/api/workspaces.md) · [boards](docs/api/boards.md) · [lists](docs/api/lists.md) · [cards](docs/api/cards.md) · [billing](docs/api/billing.md)
+- Design: [UI design](docs/design/ui.md)
 - Database: [schema](docs/database/schema.md) · [relationships & ordering](docs/database/relationships.md)
 - Development: [setup](docs/development/setup.md) · [conventions](docs/development/coding-conventions.md) · [testing](docs/development/testing.md) · [Definition of Done](docs/development/definition-of-done.md) · [troubleshooting](docs/development/troubleshooting.md)
 - Deployment: [local](docs/deployment/local.md) · [staging](docs/deployment/staging.md) · [production](docs/deployment/production.md)

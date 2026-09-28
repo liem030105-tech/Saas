@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-> **Domain:** structure and rules of `Trello-Clone-FE` (`@trello-clone/web`).
+> **Domain:** structure and rules of `Trello-Clone-FE` (`@trello-clone/web`). What screens look like and how they behave: [design/ui.md](../design/ui.md).
 
 ## Stack
 Versions: [plan.md §3](../../plan.md#3-tech-stack) (ADR-015). Version-specific rules that differ from older tutorials:
@@ -14,7 +14,9 @@ Versions: [plan.md §3](../../plan.md#3-tech-stack) (ADR-015). Version-specific 
 ```
 Trello-Clone-FE/
 ├── src/
+│   ├── app/                 # provider.tsx (QueryClient, Router, Toaster, ErrorBoundary), App.tsx
 │   ├── api/                 # axios instance, refresh-token interceptor, apiClient
+│   ├── config/              # env.ts: import.meta.env validated with Zod (VITE_* only)
 │   ├── components/
 │   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input)
 │   │   ├── layout/          # AppLayout, Sidebar, Header
@@ -32,6 +34,7 @@ Trello-Clone-FE/
 │   ├── stores/              # global Zustand stores for UI state (theme, sidebar)
 │   ├── lib/                 # socket client, queryClient, cn(), date formatting
 │   ├── routes/              # router definition, ProtectedRoute, lazy loading
+│   ├── testing/             # MSW handlers + server, renderWithProviders, test data builders
 │   └── main.tsx
 ├── public/
 ├── tests/                   # Playwright E2E + shared test setup
@@ -61,6 +64,11 @@ features/cards/
 | `lib/` | Library setup, pure utilities | React components |
 | `pages/` | Route-bound components composing features | Business logic, direct API calls |
 | `routes/` | Router config, route guards, lazy imports | UI |
+| `app/` | Providers and the root component | Feature logic |
+| `config/` | Validated public env (`VITE_*`) | Secrets (never in the FE) |
+| `testing/` | Test-only helpers and MSW mocks | Production code imports |
+
+**Import direction** (enforced by ESLint `import/no-restricted-paths`, FOUNDATION-001): `components`, `hooks`, `lib`, `config`, `stores` → never import `features`, `pages`, or `app`; a feature imports another feature only through its `index.ts`; `pages` compose features; `app` imports everything.
 
 ## State management
 - **Server state must use TanStack Query.** Query keys: `['boards', workspaceId]`, `['board', boardId]`, `['card', cardId]`; each feature exposes a key factory in `queries.ts`.
