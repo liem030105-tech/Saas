@@ -5,7 +5,7 @@ paths:
 
 # Frontend (Trello-Clone-FE) rules
 
-Loaded automatically when Claude reads matching files. Procedures, references, and checklists: the `frontend` skill.
+Loaded automatically when Claude reads matching files. Procedures, references, and checklists: the `frontend` skill. Screens, states, and interactions: `docs/design/ui.md`.
 
 - Domain code goes in `features/<x>/` (`api.ts`, `queries.ts`, `components/`, `hooks/`). `components/` holds only domain-agnostic UI.
 - Import other features only through their `index.ts`.

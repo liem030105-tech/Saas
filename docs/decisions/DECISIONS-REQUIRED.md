@@ -145,3 +145,10 @@
 ### D-23 Monitoring provider
 - **Proposed default:** Sentry (FE + BE).
 - **Affects:** DEPLOYMENT-001. **Blocking:** no.
+
+## Design
+
+### D-24 Visual design tokens
+- **Proposed default:** the palettes, font, radius, and spacing in [design/ui.md → Visual tokens](../design/ui.md#visual-tokens-proposed-d-24): Trello-like board and label colour presets, system font, 0.5rem radius.
+- **Options:** keep the proposal · supply a brand palette/typography (e.g. from a Figma file) before FOUNDATION-003.
+- **Affects:** FOUNDATION-003, every FE task. **Blocking:** no (tokens live in one CSS file and can change later).

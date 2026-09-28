@@ -17,7 +17,7 @@ Implements the root layout in [plan.md §4](../../plan.md#4-root-folder-structur
 1. Root `package.json` (`"private": true`, `"type": "module"`, `packageManager` pinned to an exact pnpm 10 version, `engines.node` `>=22.12`) with scripts `dev`, `build`, `lint`, `typecheck`, `test`, `format`, `format:check`, `db:up`. Each fans out with `pnpm -r` (they may no-op until packages exist).
 2. `pnpm-workspace.yaml` listing `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/*`, plus `onlyBuiltDependencies: [esbuild, prisma, '@prisma/engines']` (ADR-015; pnpm 10 skips other install scripts).
 3. `tsconfig.base.json` with `strict`, `noUncheckedIndexedAccess`, `module: ESNext`, `moduleResolution: bundler`, `verbatimModuleSyntax`, `noEmit`, extended by every package (ADR-015).
-4. ESLint flat config at the root (`@typescript-eslint`, `import/order`, `no-restricted-imports` blocking FE↔BE imports) and a Prettier config per [coding-conventions.md](../development/coding-conventions.md).
+4. ESLint flat config at the root (`@typescript-eslint`, `import/order`, `no-restricted-imports` blocking FE↔BE imports, and `import/no-restricted-paths` zones for the FE import direction in [frontend.md](../architecture/frontend.md#what-belongs-where) and for BE modules importing another module's non-service files) and a Prettier config per [coding-conventions.md](../development/coding-conventions.md).
 5. `.gitignore` (node_modules, dist, build, coverage, `.env`, `.env.*` except `.env.example`, `**/src/generated/`, `.claude/settings.local.json`, `CLAUDE.local.md`), `.nvmrc` (`24`), `.editorconfig`.
 6. `docker-compose.yml` with `postgres` and `postgres-test` exactly as in [deployment/local.md](../deployment/local.md).
 7. README "Getting started" points to `docs/development/setup.md`.
