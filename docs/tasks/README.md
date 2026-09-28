@@ -45,7 +45,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 
 | # | Task | Phase | Depends on | Can run in parallel with | Blocked by | Status |
 |---|------|-------|------------|--------------------------|------------|--------|
-| 1 | [FOUNDATION-001](FOUNDATION-001-repository-setup.md) repository setup | 0 | – | – | – | Todo |
+| 1 | [FOUNDATION-001](FOUNDATION-001-repository-setup.md) repository setup | 0 | – | – | – | Done |
 | 2 | [FOUNDATION-002](FOUNDATION-002-backend-bootstrap.md) backend bootstrap | 0 | F-001 | F-003 | – | Todo |
 | 3 | [FOUNDATION-003](FOUNDATION-003-frontend-bootstrap.md) frontend bootstrap | 0 | F-001 | F-002 | – | Todo |
 | 4 | [FOUNDATION-004](FOUNDATION-004-database-bootstrap.md) database bootstrap | 0 | F-002 | F-005 | – | Todo |

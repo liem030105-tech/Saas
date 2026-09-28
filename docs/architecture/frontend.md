@@ -68,7 +68,7 @@ features/cards/
 | `config/` | Validated public env (`VITE_*`) | Secrets (never in the FE) |
 | `testing/` | Test-only helpers and MSW mocks | Production code imports |
 
-**Import direction** (enforced by ESLint `import/no-restricted-paths`, FOUNDATION-001): `components`, `hooks`, `lib`, `config`, `stores` → never import `features`, `pages`, or `app`; a feature imports another feature only through its `index.ts`; `pages` compose features; `app` imports everything.
+**Import direction** (enforced in `eslint.config.js` by `import-x/no-restricted-paths` and `no-restricted-imports`, FOUNDATION-001): `components`, `hooks`, `lib`, `config`, `stores` → never import `features`, `pages`, `routes`, or `app`; features never import `pages`, `routes`, or `app`; a feature imports another feature only through its `index.ts` (`@/features/<name>`); `pages` compose features; `app` imports everything.
 
 ## State management
 - **Server state must use TanStack Query.** Query keys: `['boards', workspaceId]`, `['board', boardId]`, `['card', cardId]`; each feature exposes a key factory in `queries.ts`.

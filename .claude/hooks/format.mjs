@@ -13,7 +13,12 @@ try {
   const projectDir = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
   const prettier = path.join(projectDir, 'node_modules', '.bin', 'prettier');
 
-  if (filePath && FORMATTED.has(path.extname(filePath)) && existsSync(prettier) && existsSync(filePath)) {
+  if (
+    filePath &&
+    FORMATTED.has(path.extname(filePath)) &&
+    existsSync(prettier) &&
+    existsSync(filePath)
+  ) {
     execFileSync(prettier, ['--write', '--ignore-unknown', '--log-level', 'warn', filePath], {
       cwd: projectDir,
       stdio: 'ignore',
