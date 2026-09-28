@@ -116,3 +116,9 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** the FE must predict exactly what the BE stores, or cards visibly jump after every drag; one implementation with one test suite guarantees that.
 - **Trade-offs:** shared gains a small `utils/` folder; the rule "no business logic in shared" now has one named exception, limited to pure formulas with no I/O.
 - **Status:** Accepted
+
+### ADR-018: Node floor raised to 22.13
+- **Context:** ADR-015 kept Node 22.12+ supported, but ESLint 10 (chosen in FOUNDATION-001 because ESLint 9 is end-of-life) requires `^20.19.0 || ^22.13.0 || >=24`.
+- **Decision:** the minimum is Node 22.13 (`engines.node >=22.13`); Node 24 LTS stays the target. This supersedes the Node bullet of ADR-015; the rest of ADR-015 stands.
+- **Status:** Accepted
+

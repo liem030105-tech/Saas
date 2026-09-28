@@ -54,7 +54,9 @@ export default defineConfig(
       parserOptions: {
         // Package tsconfigs must include every .ts file they lint (src, tests, prisma);
         // root-level tool configs such as vite.config.ts fall back to the default project.
-        projectService: { allowDefaultProject: ['*.config.ts', '*/*.config.ts'] },
+        projectService: {
+          allowDefaultProject: ['*.config.ts', '*/*.config.ts', 'packages/*/*.config.ts'],
+        },
         tsconfigRootDir: ROOT,
       },
     },
