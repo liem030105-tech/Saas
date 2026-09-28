@@ -36,7 +36,9 @@ const items = await prisma.activity.findMany({
   take: limit + 1,
   ...(cursor && { cursor: { id: cursor }, skip: 1 }),
 });
-const nextCursor = items.length > limit ? items.pop()!.id : null;
+const hasMore = items.length > limit;
+if (hasMore) items.pop();                          // drop the probe row; it starts the next page
+const nextCursor = hasMore ? items[items.length - 1]!.id : null; // id of the last returned item
 ```
 
 ## Avoid N+1

@@ -23,6 +23,8 @@ export async function assertWorkspaceAccess(userId: string, workspaceId: string,
 }
 ```
 
+`requireWorkspaceRole(min)` (middleware for `/workspaces/:workspaceId/*` routes) calls `assertWorkspaceAccess(req.userId, req.params.workspaceId, min)`; services called from other modules use `assertWorkspaceAccess` directly.
+
 ## Board-scoped resources: load and authorize in one query
 Resolve the workspace from the **stored** resource, never from a client-supplied `workspaceId`.
 ```ts

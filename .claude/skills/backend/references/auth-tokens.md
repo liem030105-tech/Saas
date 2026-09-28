@@ -15,29 +15,39 @@ const hashToken = (raw: string) => createHash('sha256').update(raw).digest('hex'
 
 ### Rotation (`POST /auth/refresh`)
 ```ts
-const presented = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(raw) } });
+const presentedRaw = req.cookies.refresh_token;
+const presented = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(presentedRaw) } });
 if (!presented || presented.expiresAt <= new Date()) throw AppError.unauthorized();
 
-if (presented.revokedAt) {                       // replay of a rotated token → kill the whole family
-  await prisma.refreshToken.updateMany({ where: { familyId: presented.familyId, revokedAt: null }, data: { revokedAt: new Date() } });
-  throw new AppError('TOKEN_REUSED', 401, 'Session expired');   // controller also clears the cookie
+const revokeFamily = () =>
+  prisma.refreshToken.updateMany({ where: { familyId: presented.familyId, revokedAt: null }, data: { revokedAt: new Date() } });
+
+if (presented.revokedAt) {                     // replay of a rotated token → kill the whole family
+  await revokeFamily();
+  throw new AppError('TOKEN_REUSED', 401, 'Session expired'); // controller also clears the cookie
 }
 
-const raw2 = newRawToken();
-await prisma.$transaction(async (tx) => {
-  // conditional update: if a concurrent request already rotated this token, count is 0 → treat as reuse
+const nextRaw = newRawToken();
+const rotated = await prisma.$transaction(async (tx) => {
+  // conditional update: if a concurrent request already rotated this token, count is 0
   const { count } = await tx.refreshToken.updateMany({ where: { id: presented.id, revokedAt: null }, data: { revokedAt: new Date() } });
-  if (count !== 1) throw new AppError('TOKEN_REUSED', 401, 'Session expired');
+  if (count !== 1) return false;               // nothing written; handled below, outside the rolled-back transaction
   const next = await tx.refreshToken.create({
-    data: { userId: presented.userId, familyId: presented.familyId, tokenHash: hashToken(raw2), expiresAt: presented.expiresAt }, // absolute expiry, D-02
+    data: { userId: presented.userId, familyId: presented.familyId, tokenHash: hashToken(nextRaw), expiresAt: presented.expiresAt }, // absolute expiry, D-02
   });
   await tx.refreshToken.update({ where: { id: presented.id }, data: { replacedById: next.id } });
+  return true;
 });
+if (!rotated) {                                // the same token was presented twice at once: treat as reuse, per the spec
+  await revokeFamily();
+  throw new AppError('TOKEN_REUSED', 401, 'Session expired');
+}
+// respond with a new access token and set the cookie to nextRaw (never presentedRaw)
 ```
 
 ### Cookie
 ```ts
-res.cookie('refresh_token', raw, {
+res.cookie('refresh_token', nextRaw, { // the newly issued token
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
   sameSite: 'strict',

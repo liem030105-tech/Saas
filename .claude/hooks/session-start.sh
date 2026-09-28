@@ -15,7 +15,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}"
 # 1. Dependencies (only once the workspace exists, FOUNDATION-001+).
 if [ -f package.json ]; then
   corepack enable >/dev/null 2>&1 || true
-  pnpm install --prefer-offline >&2
+  pnpm install --prefer-offline >&2 || echo "session-start: pnpm install failed; continuing so the database still starts" >&2
   if [ -f Trello-Clone-BE/prisma/schema.prisma ]; then
     pnpm --filter @trello-clone/api db:generate >&2 || echo "session-start: prisma generate failed" >&2
   fi

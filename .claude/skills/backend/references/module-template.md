@@ -9,22 +9,27 @@ import { Router } from 'express';
 import { CreateBoardInput, ListBoardsQuery } from '@trello-clone/shared';
 import { authenticate } from '../../middlewares/authenticate';
 import { validate } from '../../middlewares/validate';
+import { requireWorkspaceRole } from '../../middlewares/require-workspace-role';
 import { WorkspaceIdParams } from './boards.schema';
 import * as controller from './boards.controller';
 
 export const boardsRouter = Router();
 
-// authenticate → validate → controller; the role check happens in the service (it needs the loaded resource)
+// authenticate → validate → authorization → controller.
+// Workspace-scoped routes check the role in middleware; board/list/card routes call assertBoardAccess
+// in the service, because the workspace is only known after loading the stored resource.
 boardsRouter.get(
   '/workspaces/:workspaceId/boards',
   authenticate,
   validate({ params: WorkspaceIdParams, query: ListBoardsQuery }),
+  requireWorkspaceRole('VIEWER'), // non-member → 404, lower role → 403
   controller.list,
 );
 boardsRouter.post(
   '/workspaces/:workspaceId/boards',
   authenticate,
   validate({ params: WorkspaceIdParams, body: CreateBoardInput }),
+  requireWorkspaceRole('MEMBER'),
   controller.create,
 );
 ```
@@ -78,12 +83,11 @@ export function validated<P, Q = unknown, B = unknown>(res: Response) {
 ```ts
 import type { CreateBoardInput, ListBoardsQuery, BoardDto } from '@trello-clone/shared';
 import { prisma } from '../../config/prisma';
-import { assertWorkspaceAccess } from '../workspaces/workspaces.service';
 import { logActivity } from './activity';
 import { toBoardDto } from './boards.mapper';
 
 export async function list(userId: string, workspaceId: string, query: ListBoardsQuery): Promise<BoardDto[]> {
-  await assertWorkspaceAccess(userId, workspaceId, 'VIEWER'); // non-member → 404, never 403
+  // role already checked by requireWorkspaceRole('VIEWER') on the route
   const boards = await prisma.board.findMany({
     where: { workspaceId, archived: query.archived },
     orderBy: { createdAt: 'desc' },
@@ -92,7 +96,7 @@ export async function list(userId: string, workspaceId: string, query: ListBoard
 }
 
 export async function create(userId: string, workspaceId: string, input: CreateBoardInput): Promise<BoardDto> {
-  await assertWorkspaceAccess(userId, workspaceId, 'MEMBER'); // VIEWER → 403
+  // role already checked by requireWorkspaceRole('MEMBER') on the route
   const board = await prisma.$transaction(async (tx) => {
     const created = await tx.board.create({ data: { ...input, workspaceId } });
     await logActivity(tx, { type: 'BOARD_CREATED', boardId: created.id, userId, data: { title: created.title } });
