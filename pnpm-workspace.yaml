@@ -13,3 +13,5 @@ onlyBuiltDependencies:
 # Not needed: the TypeScript import resolver ships prebuilt binaries (verified in FOUNDATION-001).
 ignoredBuiltDependencies:
   - unrs-resolver
+  # Its postinstall only copies mockServiceWorker.js for browser mocking; FE tests use MSW's Node server.
+  - msw
