@@ -50,7 +50,7 @@ function positionAt(siblings: { position: number }[], index: number) {
 - Dropping in the same place: no request.
 
 ## Pitfalls
-- Never compute positions from array indexes alone: positions are floats and may be unevenly spaced after rebalances.
+- Never compute positions from array indexes alone: positions are floats that drift closer together as items are inserted between rebalances (a rebalance respaces them evenly).
 - Sort by `position, id` everywhere (the same tie-break as the server).
 - Memoize `SortableCard`: re-rendering every card on each `onDragOver` makes large boards stutter.
 - VIEWER: render without `useSortable` listeners (no drag handles); the API would reject the move anyway.
