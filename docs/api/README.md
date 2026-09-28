@@ -55,11 +55,16 @@ Every error response, without exception:
 | 403 | `FORBIDDEN` | Caller is a workspace member but lacks the required role or ownership |
 | 404 | `NOT_FOUND` | Resource does not exist **or** caller is not a member of its workspace |
 | 409 | `CONFLICT` | Unique conflict (email, slug, existing member/invite) |
-| 413 | `FILE_TOO_LARGE` | Upload exceeds the limit |
+| 413 | `FILE_TOO_LARGE` | Upload exceeds the limit, or a JSON body exceeds 1 MB |
 | 415 | `UNSUPPORTED_FILE_TYPE` | Upload MIME type not allowed |
 | 422 | `BUSINESS_RULE_VIOLATION` | Valid input that breaks a rule (last OWNER, cross-board label, …); `details[0].rule` names the rule |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header set |
 | 500 | `INTERNAL_ERROR` | Unexpected error; no internals exposed |
+
+A malformed JSON body is a `400 VALIDATION_ERROR` with empty `details`. An unknown route is a `404 NOT_FOUND`.
+
+## Health
+`GET /api/v1/health` (**Public**) → `200 { "data": { "status": "ok" } }`. Used by load balancers and smoke tests; it does not touch the database.
 
 ## Pagination
 - **Strategy:** cursor-based, ordered by `(createdAt DESC, id DESC)` unless stated otherwise.
