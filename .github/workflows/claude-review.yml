@@ -4,7 +4,9 @@ name: claude-review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    # Not on every push (`synchronize`): each run uses the owner's Claude plan quota.
+    # To re-review after new commits, comment `@claude review` (handled by claude.yml).
+    types: [opened, ready_for_review, reopened]
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
@@ -35,7 +37,7 @@ jobs:
             PR NUMBER: ${{ github.event.pull_request.number }}
 
             Review this pull request as this repository's reviewer.
-            - Rules: `.claude/CLAUDE.md`. Checklist, priorities, and severities: `.claude/skills/code-review/SKILL.md`. Apply only those; no generic style advice.
+            - Rules: `.claude/CLAUDE.md`. Checklist, priorities, and severities: `.claude/skills/review-checklist/SKILL.md`. Apply only those; no generic style advice.
             - If the PR implements a task spec (`docs/tasks/<TASK-ID>-*.md`, usually named in the title or body), check its Requirements, Out of Scope, and Acceptance Criteria.
             - Read the docs and surrounding code of every touched module before reporting; report only verified findings.
             - Post each finding as an inline comment prefixed with its severity (**blocker** / **should-fix** / **nit**) and a concrete fix.

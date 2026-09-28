@@ -15,7 +15,13 @@
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm --filter * dev:*)",
+      "Bash(pnpm --filter * db:generate:*)",
+      "Bash(pnpm --filter * db:migrate:*)",
+      "Bash(pnpm --filter * db:seed:*)",
+      "Bash(pg_isready:*)"
     ],
     "ask": [
       "Bash(pnpm add:*)",
@@ -58,6 +64,16 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/format.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\""
           }
         ]
       }

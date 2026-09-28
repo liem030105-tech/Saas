@@ -54,4 +54,4 @@ This task is the test.
 WORKSPACE-005.
 
 # Risks
-New endpoints forgetting to register → the code-review skill checklist asks for it.
+New endpoints forgetting to register → the review-checklist skill asks for it.

@@ -16,15 +16,14 @@ This skill adds detail to CLAUDE.md; it never overrides it.
 4. The target module's code: `routes → controller → service → repository`
 
 ## Rules
-- A new module has `<m>.routes.ts`, `<m>.controller.ts`, `<m>.service.ts`, `<m>.test.ts`. Add `<m>.repository.ts` **only** when backend.md's criteria are met.
-- Controller: take validated input → call service → `res.status(x).json({ data })`. No Prisma, no `try/catch` that swallows errors.
-- Service: throw `AppError` with codes from `@trello-clone/shared`. Never touch `req`/`res`.
-- Every non-public route: `authenticate` → `validate(schema)` → authorization (`requireWorkspaceRole` or `assertBoardAccess` in the service).
-- Non-member → `NOT_FOUND`; member without the role → `FORBIDDEN`.
-- Client-supplied foreign keys (listId, labelId, userId) must belong to the same board/workspace.
-- Multi-record changes use `prisma.$transaction`; log `Activity` in the same transaction; emit realtime **after commit** via `realtime/events/*`.
-- Creating plan-limited resources calls `billing.service.assertWithinLimit` first.
-- Request/response Zod schemas come from `@trello-clone/shared`; BE-only schemas (e.g. params) live in `<m>.schema.ts`.
+The always-on rules live in [`.claude/rules/backend.md`](../../rules/backend.md) and load automatically for matching files; follow them. This skill adds the procedure, references, and checklist.
+
+## References
+Read the one that matches the work before writing code; they show the target shape. If the real code differs, the code wins: update the reference in the same PR.
+- [`references/module-template.md`](references/module-template.md): routes → controller → service → schema skeleton (Express 5, Zod 4, validation)
+- [`references/authorization.md`](references/authorization.md): `assertWorkspaceAccess` / `assertBoardAccess`, 404 vs 403, foreign-key checks
+- [`references/prisma-patterns.md`](references/prisma-patterns.md): transactions, select/DTO mapping, Prisma errors, cursor pagination
+- [`references/auth-tokens.md`](references/auth-tokens.md): access JWT, refresh rotation, reuse detection, cookie attributes (AUTH-001…004)
 
 ## May modify
 - `Trello-Clone-BE/src/**`, `Trello-Clone-BE/tests/**`

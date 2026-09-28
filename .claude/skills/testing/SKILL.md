@@ -14,13 +14,13 @@ This skill adds detail to CLAUDE.md; it never overrides it.
 2. The code under test and its `docs/api/<module>.md` (lists required cases per endpoint)
 
 ## Rules
-- Every endpoint: happy path, validation (400), unauthenticated (401), non-member (404), insufficient role (403).
-- BE service/integration tests use the real test Postgres (no Prisma mocks); reset data per file.
-- FE tests mock the network with MSW, not by mocking modules; test behavior, not implementation details.
-- Use factories/helpers from `Trello-Clone-BE/tests/` instead of ad-hoc fixtures.
-- Tests are deterministic: no real timers or network, no ordering dependence between files.
-- A failing test is a bug until proven otherwise. Find the root cause; never "fix" by weakening assertions.
-- Never leave `.skip`, `.only`, or commented-out tests. Never delete a test to get green.
+The always-on rules live in [`.claude/rules/testing.md`](../../rules/testing.md) and load automatically for matching files; follow them. This skill adds the procedure, references, and checklist.
+
+## References
+Read the one that matches the work before writing code; they show the target shape. If the real code differs, the code wins: update the reference in the same PR.
+- [`references/api-test-template.md`](references/api-test-template.md): the 5-case integration test for one endpoint
+- [`references/msw.md`](references/msw.md): FE component/hook tests with MSW and `renderWithProviders`
+- [`references/playwright-cloud.md`](references/playwright-cloud.md): E2E conventions and running Playwright in cloud sessions
 
 ## May modify
 - `**/*.test.ts(x)`, `**/*.spec.ts`, `Trello-Clone-BE/tests/**`, `Trello-Clone-FE/tests/**`

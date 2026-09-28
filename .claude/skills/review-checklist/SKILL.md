@@ -1,9 +1,9 @@
 ---
-name: code-review
+name: review-checklist
 description: Use when reviewing a diff, branch, or pull request in this repository before committing or merging – checking architecture boundaries, authorization, tenant isolation, tests, docs, and scope creep.
 ---
 
-# Skill: Code Review
+# Skill: Review checklist
 
 ## Purpose
 Catch problems before merge using this project's specific rules, not just general style.

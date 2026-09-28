@@ -96,3 +96,16 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** version-pinned docs keep generated code on current APIs. One module system, and no build ordering between packages, removes the most common monorepo failures ("Cannot find module", missing `.js` extensions, stale `dist/`).
 - **Trade-offs:** `tsdown` is a newer tool than `tsc`/`tsup`; if it causes problems, replacing it is confined to the BE `build` script. Consuming `shared` as source means it must stay plain TypeScript with no build-time features.
 - **Status:** Accepted
+
+### ADR-016: Path-scoped rules, skill references, and a verification loop
+- **Context:** area rules lived inside skills, so they applied only when a skill happened to load; skills held rules but no code examples, so every session invented its own patterns; Claude could not run the app or the test database in cloud sessions (no Docker daemon); the project's `/review` command and `code-review` skill collided with Claude Code's built-in `/code-review` (alias `/review`); `claude-review` ran on every push and consumed the owner's plan quota.
+- **Decision:** extend ADR-011 and ADR-014 with:
+  - `.claude/rules/<area>.md` with `paths:` frontmatter (frontend, backend, database, shared, realtime, testing). They load automatically when Claude reads matching files; skills link to them instead of repeating them. CLAUDE.md §9 keeps only rules not stated elsewhere.
+  - `references/` in the `backend`, `database`, and `testing` skills with target code shapes. Once real code exists, the code wins and the reference is updated in the same PR.
+  - Renames: command `/review` → `/check-diff`, skill `code-review` → `review-checklist`.
+  - Verification loop: the `run-app` skill (start DB, API, web; check the change in a browser), `.claude/hooks/session-start.sh` (cloud only: installs dependencies once the workspace exists and starts the preinstalled PostgreSQL 16 on the compose ports), and `.mcp.json` with the Playwright and Context7 MCP servers.
+  - `claude-review` runs on `opened`, `ready_for_review`, and `reopened` only; re-reviews are requested with `@claude review`.
+  - `.github/pull_request_template.md` mirroring the Definition of Done.
+- **Rationale:** rules that load by path are applied consistently; examples produce consistent code; a change is only done when it has been seen working; built-in commands keep their meaning.
+- **Trade-offs:** references can drift from the code (mitigated by the "code wins, update in the same PR" rule); MCP servers are fetched with `npx` and need network access in the session; the session-start hook adds a few seconds to cloud session startup.
+- **Status:** Accepted

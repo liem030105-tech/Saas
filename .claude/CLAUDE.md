@@ -54,26 +54,14 @@ Never skip or delete tests to make CI green.
 - Never commit `.env` or build output. Never force-push to `main`.
 
 ## 9. Rules for Claude Code
+Sections 2–8 apply everywhere; area rules load automatically from `.claude/rules/` when you touch matching files.
 1. Inspect the relevant module (code + docs) **before** modifying it.
-2. Do not modify modules unrelated to the task.
-3. Respect the folder ownership in section 2.
-4. FE changes stay inside `Trello-Clone-FE/` unless shared code is genuinely required.
-5. BE changes stay inside `Trello-Clone-BE/` unless shared code is genuinely required.
-6. Database changes update both the Prisma schema and a migration.
-7. API changes update `docs/api/`.
-8. Shared schema changes must consider both FE and BE (run the repo-wide typecheck).
-9. New features include tests.
-10. Do not add dependencies without a stated justification in the PR or asking the user.
-11. Do not refactor unrelated code while implementing a feature.
-12. Do not create microservices.
-13. Do not duplicate business logic between FE and BE; the BE is the source of truth.
-14. Do not put server state in Zustand.
-15. Do not bypass backend authorization checks.
-16. Never expose secrets in frontend code.
-17. Do not modify `.env` files containing real secrets.
-18. Prefer small, incremental changes.
-19. Run `pnpm typecheck && pnpm lint && pnpm test` after meaningful changes.
-20. Update documentation when the architecture or public API changes.
+2. Stay inside the task: no unrelated modules, refactors, renames, or dependency bumps.
+3. FE and BE changes stay in their own folder; touch `packages/shared` only for contracts both sides use.
+4. A new dependency needs a justification in the PR, or ask the user first.
+5. Never duplicate business logic between FE and BE; the BE is the source of truth.
+6. Prefer small, incremental changes; run `pnpm typecheck && pnpm lint && pnpm test` after meaningful changes.
+7. Verify user-visible changes in the running app (`run-app` skill), not only through tests.
 
 When scope or architecture is unclear: **stop and ask**; do not guess.
 
@@ -82,9 +70,9 @@ Implementation work starts from a task spec: pick the next task per `docs/tasks/
 
 1. Read requirements (the task spec) → 2. Read relevant docs → 3. Identify affected FE/BE/shared modules → 4. Plan (`/plan`)
 → 5. Implement BE → 6. Update shared schemas/types if needed → 7. Implement FE → 8. Add/update tests
-→ 9. `pnpm typecheck` → 10. `pnpm lint` → 11. `pnpm test` → 12. Update docs → 13. Review the diff (`/review`) → 14. Summarize changes.
+→ 9. `pnpm typecheck` → 10. `pnpm lint` → 11. `pnpm test` → 12. Update docs → 13. Review the diff (`/check-diff`) → 14. Summarize changes.
 
-Commands: `/plan`, `/implement`, `/test`, `/review` (in `.claude/commands/`).
+Commands: `/plan`, `/implement`, `/test`, `/check-diff` (in `.claude/commands/`). Built-in `/security-review` is also run for auth, workspace, and billing changes.
 
 ## 11. Skills
 
@@ -95,9 +83,10 @@ Commands: `/plan`, `/implement`, `/test`, `/review` (in `.claude/commands/`).
 | `database` | Changing `schema.prisma`, migrations, seeds, complex queries |
 | `realtime` | Changing Socket.IO (BE `realtime/`) or FE socket synchronization |
 | `testing` | Writing/fixing tests, debugging failing tests |
-| `code-review` | Reviewing a diff/PR before commit or merge |
+| `review-checklist` | Reviewing a diff/PR before commit or merge |
+| `run-app` | Starting the database, API, and web app to check a change in the browser |
 
-Subagent `code-reviewer` (`.claude/agents/`) reviews diffs in a fresh context for `/review` and `/implement`. Hooks in `.claude/hooks/` enforce §4, §5 and §8 mechanically (ADR-014); if a hook blocks a call, follow its message; never work around it.
+Subagent `code-reviewer` (`.claude/agents/`) reviews diffs in a fresh context for `/check-diff` and `/implement`. Hooks in `.claude/hooks/` enforce §4, §5 and §8 mechanically (ADR-014); if a hook blocks a call, follow its message; never work around it.
 
 ## 12. Commands (available after Phase 0)
 ```bash
@@ -107,4 +96,4 @@ pnpm --filter @trello-clone/web test:e2e
 ```
 
 ## 13. Current status
-Specifications, task backlog, and open decisions are in place. **No application code yet.** Next task: `FOUNDATION-001` (see `docs/tasks/README.md`).
+Progress lives only in `docs/tasks/README.md`: the next task is the first **Todo** row whose dependencies are Done.
