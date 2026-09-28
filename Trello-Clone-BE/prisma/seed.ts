@@ -6,7 +6,11 @@ import { prisma } from '../src/config/prisma';
 import { hashPassword } from '../src/lib/password';
 
 const SeedEnv = z.object({
-  SEED_DEMO_PASSWORD: z.string().min(8, 'must be at least 8 characters'),
+  // Same bounds as the API's password rule (docs/api/README.md): bcrypt reads only 72 bytes.
+  SEED_DEMO_PASSWORD: z
+    .string()
+    .min(8, 'must be at least 8 characters')
+    .max(72, 'must be at most 72 characters'),
 });
 
 async function main() {

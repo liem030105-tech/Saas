@@ -4,7 +4,7 @@ import { testDatabaseUrl } from './data/env';
 import { assertTestDatabaseUrl } from './helpers/test-database';
 
 /** Vitest globalSetup: applies the migrations to the test database once per run. */
-export default function setup() {
+export function setup() {
   const url = assertTestDatabaseUrl(testDatabaseUrl);
   execFileSync('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
     cwd: new URL('..', import.meta.url),
