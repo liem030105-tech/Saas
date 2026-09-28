@@ -83,7 +83,7 @@ Full rationale: [ADR log](docs/decisions/README.md).
 6. Float positions with rebalancing for ordering (ADR-008).
 7. Realtime via Socket.IO rooms per board, REST-only mutations, emit after commit (ADR-009).
 8. In-memory access token + rotating refresh token in an httpOnly cookie (ADR-010).
-9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013); hooks, a reviewer subagent, and Claude GitHub workflows as guardrails (ADR-014).
+9. CLAUDE.md + 7 skills + 6 commands; task-spec-driven implementation (ADR-011, ADR-013); hooks, a reviewer subagent, and Claude GitHub workflows as guardrails (ADR-014).
 10. Pinned stack major versions; ESM everywhere; `shared` consumed as TypeScript source; BE bundled with `tsdown` (ADR-015).
 11. Path-scoped rules, skill references, and a run-and-verify loop for Claude Code (ADR-016).
 12. Position helpers shared by FE and BE; rebalancing stays on the BE (ADR-017).
