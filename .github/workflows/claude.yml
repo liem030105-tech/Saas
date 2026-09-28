@@ -1,5 +1,5 @@
 # Lets repository collaborators ask Claude for help by mentioning @claude in an issue or PR (ADR-014).
-# Requires the Claude GitHub App and the ANTHROPIC_API_KEY secret (docs/development/setup.md).
+# Requires the Claude GitHub App and the CLAUDE_CODE_OAUTH_TOKEN secret (docs/development/setup.md).
 name: claude
 
 on:
@@ -35,7 +35,7 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Claude loads .claude/CLAUDE.md, skills, commands, and hooks from the checkout.
           claude_args: |
             --max-turns 30

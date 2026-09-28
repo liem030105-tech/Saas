@@ -82,5 +82,5 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
   - **Subagent** `.claude/agents/code-reviewer.md`: read-only, applies the `code-review` skill in a fresh context; used by `/review` and step 8 of `/implement`.
   - **GitHub workflows:** `.github/workflows/claude.yml` (`@claude` mentions) and `claude-review.yml` (automatic review of ready-for-review PRs against the same skill).
 - **Rationale:** guardrails that must always hold are enforced by the harness, not by instructions; a reviewer that did not write the code catches more.
-- **Trade-offs:** hooks need Node on the developer machine (already a prerequisite); the workflows need the Claude GitHub App and an `ANTHROPIC_API_KEY` secret and consume API credits per PR. The permission deny rules stay as a second layer.
+- **Trade-offs:** hooks need Node on the developer machine (already a prerequisite); the workflows need the Claude GitHub App and a `CLAUDE_CODE_OAUTH_TOKEN` secret, and each run counts against the owner's Claude plan usage. The permission deny rules stay as a second layer.
 - **Status:** Accepted

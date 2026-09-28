@@ -1,5 +1,5 @@
 # Automatic Claude review of every ready-for-review PR against the project rules (ADR-014).
-# Requires the Claude GitHub App and the ANTHROPIC_API_KEY secret (docs/development/setup.md).
+# Requires the Claude GitHub App and the CLAUDE_CODE_OAUTH_TOKEN secret (docs/development/setup.md).
 name: claude-review
 
 on:
@@ -28,7 +28,7 @@ jobs:
       - name: Review PR
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
           prompt: |
             REPO: ${{ github.repository }}
