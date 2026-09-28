@@ -68,7 +68,7 @@ features/cards/
 - **Forms:** React Hook Form + `zodResolver` with schemas from `@trello-clone/shared`.
 
 ## Drag and drop with optimistic updates
-1. `onDragEnd` computes the new `position` with `positionBetween(prev, next)`.
+1. `onDragEnd` computes the new `position` with `positionBetween(prev, next)` from `@trello-clone/shared` (never a local copy).
 2. `onMutate`: cancel in-flight queries, snapshot the cache, update the cache.
 3. Call `PATCH /cards/:id/move`; on error restore the snapshot in `onError`; `onSettled` invalidates.
 

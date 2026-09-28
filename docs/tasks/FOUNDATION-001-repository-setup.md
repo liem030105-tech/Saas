@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | – |
 | Blocked by decisions | none |
 | Skills | – |
@@ -54,7 +53,7 @@ No automated tests. Verify manually: `pnpm install`, `pnpm format:check`, `docke
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 None.

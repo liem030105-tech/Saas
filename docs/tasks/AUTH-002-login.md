@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 (MVP) |
-| Status | Todo |
 | Depends on | AUTH-001 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -51,7 +50,7 @@ No user enumeration (same message, similar timing). `redirectTo` must be a relat
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 AUTH-001 (token helpers, User rows).

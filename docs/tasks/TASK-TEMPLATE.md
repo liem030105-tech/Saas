@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | <0–9> (MVP / Post-MVP) |
-| Status | Todo · In progress · Done |
 | Depends on | <task IDs> |
 | Blocked by decisions | <D-xx or "none"> |
 | Skills | <backend / frontend / database / realtime / testing> |

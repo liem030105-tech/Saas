@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-004, FOUNDATION-005 |
 | Blocked by decisions | none |
 | Skills | testing |
@@ -53,7 +52,7 @@ The workflow itself: open the PR and see `ci` green.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-004 (DB tests) and FOUNDATION-005 (all packages exist).

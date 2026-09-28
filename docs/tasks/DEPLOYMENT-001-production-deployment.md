@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 9 (Post-MVP) |
-| Status | Todo |
 | Depends on | TESTING-001 |
 | Blocked by decisions | **D-21** (hosting), **D-22** (domain/cookies); D-23 has a default |
 | Skills | backend, frontend |
@@ -51,7 +50,7 @@ Smoke test after each deploy (`/health`, login, open a board); optional E2E agai
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 TESTING-001; decisions D-21, D-22.

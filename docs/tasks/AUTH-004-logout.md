@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 (MVP) |
-| Status | Todo |
 | Depends on | AUTH-003 |
 | Blocked by decisions | D-05 (logout-all stays out) |
 | Skills | backend, frontend |
@@ -47,7 +46,7 @@ Integration: 204 with and without a cookie; refresh with the old cookie afterwar
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 AUTH-003 (families and rotation).

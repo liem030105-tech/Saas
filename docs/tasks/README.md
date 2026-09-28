@@ -7,7 +7,7 @@
 1. Pick the **first task in the implementation order below whose status is Todo** and whose dependencies are all Done.
 2. Check its "Blocked by decisions" field; a blocking `D-xx` must be resolved first.
 3. Run `/implement <TASK-ID>`; the task spec plus linked docs are the full requirements.
-4. When merged, set the status to **Done** in the table below (in the same PR).
+4. When merged, set the status to **Done** in the table below (in the same PR). This table is the only place task status is tracked; spec files carry no status.
 
 ## Dependency graph
 

@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 7 (Post-MVP) |
-| Status | Todo |
 | Depends on | REALTIME-001 |
 | Blocked by decisions | **D-13** (pricing); D-08, D-10, D-11, D-12 have defaults |
 | Skills | backend, database, frontend |
@@ -51,7 +50,7 @@ Integration: signature failure, idempotency, each handled event, limit boundarie
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 REALTIME-001 (recommended order); decision D-13.

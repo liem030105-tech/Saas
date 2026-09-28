@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 2 (MVP) |
-| Status | Todo |
 | Depends on | WORKSPACE-001 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -48,7 +47,7 @@ Integration: 5-case baseline for each route; slug conflict → 409; delete casca
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 WORKSPACE-001.

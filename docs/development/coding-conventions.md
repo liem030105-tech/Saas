@@ -18,7 +18,7 @@
 | Constants | UPPER_SNAKE | `PLAN_LIMITS` |
 | Realtime events | `domain:past-tense-verb` | `card:moved` |
 | Routes | kebab-case, plural nouns | `/workspaces/:id/members` |
-| Branches | `feat/…`, `fix/…`, `docs/…`, `chore/…` | `feat/card-move` |
+| Branches | `feat/…`, `fix/…`, `docs/…`, `chore/…`; Claude Code cloud sessions use the `claude/…` branch they are given | `feat/card-move` |
 
 ## Formatting and linting
 - Prettier: 2 spaces, single quotes, semicolons, `printWidth` 100.

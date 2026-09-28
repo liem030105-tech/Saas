@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 3 (MVP) |
-| Status | Todo |
 | Depends on | LIST-001 |
 | Blocked by decisions | none |
 | Skills | backend, database, frontend |
@@ -51,7 +50,7 @@ Integration: role matrix, tenant isolation, append order, `boardId` equals `list
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 LIST-001.

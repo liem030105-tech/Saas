@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 6 (Post-MVP) |
-| Status | Todo |
 | Depends on | REALTIME-001 |
 | Blocked by decisions | **D-20** (storage provider); D-10, D-19 have defaults |
 | Skills | backend, database, frontend |
@@ -50,7 +49,7 @@ Integration with a stubbed storage adapter: 413, 415 (a renamed .exe), delete pe
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 REALTIME-001 (emits); decision D-20.

@@ -58,6 +58,7 @@ packages/shared/
 │   ├── schemas/      # Zod schemas for API request/response (auth.schema.ts, card.schema.ts, …)
 │   ├── types/        # types inferred from schemas (z.infer) + realtime event payload types
 │   ├── constants/    # Role, Plan, ActivityType enums, plan limits, error codes, event names
+│   ├── utils/        # pure helpers both sides must compute identically (position.ts, ADR-017)
 │   └── index.ts      # the only export entry point
 └── package.json      # "exports": { ".": "./src/index.ts" }
 ```
@@ -66,9 +67,10 @@ Shared is an **internal package**: it has no build step. Vite (FE), `tsx` and Vi
 
 | ✅ Allowed | ❌ Forbidden |
 |-----------|-------------|
-| Zod schemas for data crossing the API | Business logic (position math, permission checks, plan limit checks) |
+| Zod schemas for data crossing the API | Business logic (permission checks, plan limit checks, rebalancing) |
 | Types inferred from schemas, realtime payload types | DB access, Prisma types, Express/React code |
 | Enums and constants both sides need | Helpers used by only one side |
 | Tiny pure functions tied to a schema (e.g. `.refine`) | Secrets, environment config |
+| Pure formulas the FE must predict exactly as the BE stores them (position helpers, ADR-017) | Anything with I/O or state |
 
 Rule of thumb: something goes into shared only when **both FE and BE actually import it**. Otherwise it stays in the package that uses it.

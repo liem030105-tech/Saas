@@ -79,7 +79,7 @@ Search (SEARCH-001): start with `ILIKE` scoped by `Card(boardId)`; add a `pg_trg
 
 ## Ordering (position)
 
-Applies to List (within a board), Card (within a list), Checklist (within a card), and ChecklistItem (within a checklist). Constants live in `Trello-Clone-BE/src/lib/position.ts` (pure functions, unit-tested); the FE uses the same formulas for optimistic updates.
+Applies to List (within a board), Card (within a list), Checklist (within a card), and ChecklistItem (within a checklist). The constants and pure helpers live once in `packages/shared/src/utils/position.ts` (unit-tested): the BE uses them for stored positions and the FE for optimistic updates (ADR-017). Rebalancing touches the database and runs only on the BE.
 
 | Case | Position |
 |------|----------|

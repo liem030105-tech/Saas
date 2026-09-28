@@ -1,7 +1,7 @@
 # TaskBoard – Trello Clone SaaS · Project Blueprint
 
 > **High-level blueprint:** product scope, architecture decisions, roadmap. Detailed specifications live in [`docs/`](docs/); the implementation backlog lives in [`docs/tasks/`](docs/tasks/README.md); Claude Code instructions live in [`.claude/`](.claude/CLAUDE.md).
-> Document hierarchy on conflict: **plan.md → ADRs → technical docs → task specs → code**.
+> Precedence on conflict: see [CLAUDE.md](.claude/CLAUDE.md) (top of the file).
 
 ---
 
@@ -39,7 +39,7 @@ Major versions are fixed by [ADR-015](docs/decisions/README.md#adr-015-stack-maj
 ## 4. Root folder structure
 
 ```
-Trello-Clone/                 # = repository root
+Saas/                         # repository root (liem030105-tech/Saas)
 ├── Trello-Clone-FE/          # @trello-clone/web    – frontend code only
 ├── Trello-Clone-BE/          # @trello-clone/api    – backend code only
 ├── packages/shared/          # @trello-clone/shared – shared schemas/types/constants
@@ -85,6 +85,8 @@ Full rationale: [ADR log](docs/decisions/README.md).
 8. In-memory access token + rotating refresh token in an httpOnly cookie (ADR-010).
 9. CLAUDE.md + 6 skills + 4 commands; task-spec-driven implementation (ADR-011, ADR-013); hooks, a reviewer subagent, and Claude GitHub workflows as guardrails (ADR-014).
 10. Pinned stack major versions; ESM everywhere; `shared` consumed as TypeScript source; BE bundled with `tsdown` (ADR-015).
+11. Path-scoped rules, skill references, and a run-and-verify loop for Claude Code (ADR-016).
+12. Position helpers shared by FE and BE; rebalancing stays on the BE (ADR-017).
 
 ## 7. Roadmap
 

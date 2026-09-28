@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 2 (MVP) |
-| Status | Todo |
 | Depends on | AUTH-005 |
 | Blocked by decisions | D-06 (only the register-hook requirement 5) |
 | Skills | backend, database, frontend |
@@ -55,7 +54,7 @@ Every endpoint checks membership via `assertWorkspaceAccess`; non-member → 404
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 AUTH-005 (`authenticate`, ProtectedRoute).

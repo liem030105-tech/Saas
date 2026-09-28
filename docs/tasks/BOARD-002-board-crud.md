@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 3 (MVP) |
-| Status | Todo |
 | Depends on | BOARD-001, WORKSPACE-006 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -50,7 +49,7 @@ Integration: role matrix + tenant isolation for the 3 routes; archive round trip
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 BOARD-001; WORKSPACE-006 (isolation suite to extend).

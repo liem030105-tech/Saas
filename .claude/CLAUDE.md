@@ -1,7 +1,7 @@
 # CLAUDE.md – TaskBoard (Trello Clone SaaS)
 
 The **primary** project-level instruction file for Claude Code. It holds only core rules; details live in `docs/` and `.claude/skills/`.
-Precedence on conflict: **CLAUDE.md > skill > docs**. If docs disagree with code, fix the docs in the same PR.
+Precedence on conflict: for **how to work**, CLAUDE.md > `.claude/rules` > skills > docs; for **what the system does**, code (once it exists) > `plan.md` and ADRs > technical docs > task specs. Any conflict is a bug: fix the losing side in the same PR.
 
 ## 1. Project
 Trello-style Kanban SaaS: workspace → board → list → card, role-based access, realtime, Free/Pro billing.
@@ -20,7 +20,7 @@ Stack major versions are fixed in `plan.md` §3 (ADR-015): write code for those 
 
 ## 3. Architecture rules
 - **FE and BE never import each other.** Both may import `@trello-clone/shared`; shared imports neither.
-- **Shared** contains only schemas, types, and constants that **both sides use**. No business logic, Prisma, React, or Express code.
+- **Shared** contains only schemas, types, constants, and tiny pure formulas (position helpers, ADR-017) that **both sides use**. No business logic, Prisma, React, or Express code.
 - **BE:** Route → Controller → Service → (Repository) → Prisma. Controllers never call Prisma. Repositories only for complex or reused queries. Modules call other modules only through their **service**.
 - **FE:** feature-based. Domain components live in `features/<x>/components`, not `components/`. Server state uses **TanStack Query**; Zustand is for UI state only.
 - **Realtime:** all mutations go through REST. Services emit after commit via `realtime/events/*`.
@@ -72,7 +72,7 @@ Implementation work starts from a task spec: pick the next task per `docs/tasks/
 → 5. Implement BE → 6. Update shared schemas/types if needed → 7. Implement FE → 8. Add/update tests
 → 9. `pnpm typecheck` → 10. `pnpm lint` → 11. `pnpm test` → 12. Update docs → 13. Review the diff (`/check-diff`) → 14. Summarize changes.
 
-Commands: `/plan`, `/implement`, `/test`, `/check-diff` (in `.claude/commands/`). Built-in `/security-review` is also run for auth, workspace, and billing changes.
+Commands: `/next`, `/plan`, `/implement`, `/test`, `/check-diff`, `/decide` (in `.claude/commands/`). Built-in `/security-review` is also run for auth, workspace, and billing changes.
 
 ## 11. Skills
 
