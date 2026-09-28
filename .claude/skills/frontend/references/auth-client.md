@@ -13,7 +13,9 @@ Never put the token in `localStorage`, `sessionStorage`, a cookie, or a Zustand 
 ## `api/client.ts` – one axios instance, one refresh at a time
 ```ts
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+
 import { env } from '@/config/env';
+
 import { getAccessToken, setAccessToken } from './token';
 
 export const http = axios.create({ baseURL: env.VITE_API_URL, withCredentials: true }); // cookie on /auth/*

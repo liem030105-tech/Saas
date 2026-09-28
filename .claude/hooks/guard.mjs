@@ -55,11 +55,16 @@ if (['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool)) {
   if (!filePath) process.exit(0);
 
   if (isSecretEnvName(path.basename(filePath))) {
-    block(`${filePath} may hold real secrets. Only .env.example may be read or edited (CLAUDE.md §5).`);
+    block(
+      `${filePath} may hold real secrets. Only .env.example may be read or edited (CLAUDE.md §5).`,
+    );
   }
   if (tool === 'Read') process.exit(0);
 
-  const rel = path.relative(projectDir, path.resolve(projectDir, filePath)).split(path.sep).join('/');
+  const rel = path
+    .relative(projectDir, path.resolve(projectDir, filePath))
+    .split(path.sep)
+    .join('/');
   if (rel.startsWith(MIGRATIONS_DIR)) {
     let merged = false;
     try {
@@ -81,7 +86,9 @@ if (tool === 'Bash') {
   // Reading or writing real env files through the shell bypasses the Read/Edit deny rules.
   for (const m of cmd.matchAll(/(?:^|[\s/="'])(\.env(?:\.[\w-]+)?)(?=[\s"';|&)<>]|$)/g)) {
     if (isSecretEnvName(m[1])) {
-      block(`the command touches ${m[1]}, which may hold real secrets (CLAUDE.md §5). Ask the user to do this.`);
+      block(
+        `the command touches ${m[1]}, which may hold real secrets (CLAUDE.md §5). Ask the user to do this.`,
+      );
     }
   }
 
@@ -104,7 +111,9 @@ if (tool === 'Bash') {
   }
 
   if (/\bprisma\s+(?:migrate\s+reset|db\s+push)\b/.test(cmd)) {
-    ask('Destroys or bypasses migrations. Only ever against a local database, with explicit user approval (database skill).');
+    ask(
+      'Destroys or bypasses migrations. Only ever against a local database, with explicit user approval (database skill).',
+    );
   }
 }
 

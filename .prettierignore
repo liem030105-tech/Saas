@@ -1,0 +1,10 @@
+# Markdown docs are hand-formatted (tables, ASCII layouts); Prettier would rewrite them.
+*.md
+# Kept byte-for-byte identical to docs/deployment/local.md.
+docker-compose.yml
+
+pnpm-lock.yaml
+**/dist/
+**/build/
+**/coverage/
+**/src/generated/

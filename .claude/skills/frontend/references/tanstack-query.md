@@ -4,8 +4,9 @@ Server data lives only in the Query cache (ADR-005). Each feature owns its keys,
 
 ## `features/boards/api.ts` – typed calls through the shared client
 ```ts
-import type { BoardDetailDto, BoardDto, CreateBoardInput } from '@trello-clone/shared';
 import { apiClient } from '@/api/client';
+
+import type { BoardDetailDto, BoardDto, CreateBoardInput } from '@trello-clone/shared';
 
 export const boardsApi = {
   list: (workspaceId: string) => apiClient.get<BoardDto[]>(`/workspaces/${workspaceId}/boards`),
@@ -19,6 +20,7 @@ export const boardsApi = {
 ## `features/boards/queries.ts` – key factory and hooks
 ```ts
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { boardsApi } from './api';
 
 export const boardKeys = {

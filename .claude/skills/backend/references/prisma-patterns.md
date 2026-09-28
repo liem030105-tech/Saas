@@ -6,6 +6,7 @@ Setup and version details: the `database` skill (`references/prisma-7.md`). Data
 Import the singleton from `src/config/prisma.ts`; never `new PrismaClient()` elsewhere. Types come from the generated client:
 ```ts
 import { prisma } from '../../config/prisma';
+
 import type { Prisma, Role } from '../../generated/prisma/client';
 ```
 

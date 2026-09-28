@@ -4,8 +4,9 @@ The same schema validates in the browser and on the server; never redefine field
 
 ```tsx
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
 import { CreateBoardInput } from '@trello-clone/shared';
+import { useForm } from 'react-hook-form';
+
 import { ApiError } from '@/api/client';
 
 export function CreateBoardForm({ workspaceId, onDone }: Props) {

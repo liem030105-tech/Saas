@@ -43,12 +43,12 @@ packages:
 ### Scripts
 | Location | Scripts |
 |----------|---------|
-| Root | `dev` (FE + BE in parallel), `build`, `lint`, `typecheck`, `test`, `format`, `db:up` (docker compose) |
+| Root | `dev` (FE + BE in parallel), `build`, `lint`, `typecheck`, `test`, `format`, `format:check`, `db:up` (docker compose) |
 | FE | `dev`, `build`, `preview`, `lint`, `typecheck`, `test`, `test:e2e` |
 | BE | `dev`, `build`, `start`, `lint`, `typecheck`, `test`, `db:migrate`, `db:seed`, `db:studio` |
 | shared | `lint`, `typecheck`, `test` (no `build`: consumed as TypeScript source, ADR-015) |
 
-Root scripts fan out with `pnpm -r <script>`, or target one package with `pnpm --filter <pkg> <script>`.
+Root `dev`, `build`, `lint`, `typecheck`, and `test` fan out with `pnpm -r --if-present <script>`; `format`, `format:check`, and `db:up` run once at the root. Target one package with `pnpm --filter <pkg> <script>`.
 
 ## packages/shared
 

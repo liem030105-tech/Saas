@@ -15,6 +15,9 @@ A Kanban-style task management SaaS (workspaces, boards, lists, cards, drag and 
 └── plan.md               # project blueprint and roadmap
 ```
 
+## Getting started
+Prerequisites, installation, environment variables, and daily commands: [`docs/development/setup.md`](docs/development/setup.md).
+
 ## Where to start
 - **Project blueprint & roadmap:** [`plan.md`](plan.md)
 - **Architecture:** [`docs/architecture/overview.md`](docs/architecture/overview.md)

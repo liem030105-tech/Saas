@@ -1,0 +1,15 @@
+packages:
+  - Trello-Clone-FE
+  - Trello-Clone-BE
+  - packages/*
+
+# pnpm 10 skips dependency install scripts unless listed here (ADR-015).
+# Add a package only when ADR-015 lists it or the PR justifies it.
+onlyBuiltDependencies:
+  - esbuild
+  - prisma
+  - '@prisma/engines'
+
+# Not needed: the TypeScript import resolver ships prebuilt binaries (verified in FOUNDATION-001).
+ignoredBuiltDependencies:
+  - unrs-resolver

@@ -14,7 +14,7 @@ A runnable Express 5 + TypeScript (ESM) API skeleton (`@trello-clone/api`) with 
 Structure per [architecture/backend.md](../architecture/backend.md); error format per [api/README.md](../api/README.md#canonical-error-format); HTTP hardening per [security.md](../architecture/security.md#http-hardening).
 
 # Requirements
-1. Package `Trello-Clone-BE` named `@trello-clone/api` (`"type": "module"`) with scripts `dev` (`tsx watch src/server.ts`), `build` (`tsdown`, bundling to `dist/`), `start` (`node dist/server.js`), `lint`, `typecheck` (`tsc --noEmit`), `test` (Vitest) — per ADR-015.
+1. Package `Trello-Clone-BE` named `@trello-clone/api` (`"type": "module"`) with scripts `dev` (`tsx watch src/server.ts`), `build` (`tsdown`, bundling to `dist/`), `start` (`node dist/server.js`), `lint`, `typecheck` (`tsc --noEmit`), `test` (Vitest) — per ADR-015. `tsconfig.json` extends `../tsconfig.base.json` and includes `src`, `tests`, and `prisma` (type-aware linting only accepts files a tsconfig includes; root `*.config.ts` files are covered by the ESLint default project).
 2. `src/config/env.ts`: Zod-validated env (`NODE_ENV`, `PORT`, `CLIENT_URL`, `DATABASE_URL`, `JWT_ACCESS_SECRET`, TTLs). The process exits with a clear message if anything is invalid. `.env.example` lists every variable with empty values.
 3. `src/config/logger.ts`: Pino with `redact` for `password`, `token`, `authorization`, `cookie`, `set-cookie`.
 4. `src/app.ts` builds the app (no `listen`); `src/server.ts` listens. Middleware order: request id → Pino HTTP logger → Helmet → CORS (allowlist `CLIENT_URL`, credentials) → `express.json({ limit: '1mb' })` → cookie parser → routes under `/api/v1` → 404 handler → `errorHandler`.

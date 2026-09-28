@@ -22,7 +22,8 @@
 
 ## Formatting and linting
 - Prettier: 2 spaces, single quotes, semicolons, `printWidth` 100.
-- ESLint: `@typescript-eslint`, `react-hooks`, `import/order`, `no-restricted-imports` (blocks cross-feature/cross-module internals and any FE ↔ BE import).
+- ESLint: one root flat config (`eslint.config.js`) with `typescript-eslint` (type-aware), `react-hooks` (added with the FE), `import-x/order`, `import-x/no-restricted-paths` (FE layer direction), and `no-restricted-imports` (FE ↔ BE, cross-feature and cross-module internals, shared internals).
+- Markdown and `docker-compose.yml` are not formatted by Prettier (`.prettierignore`): docs are hand-formatted.
 - No `console.log` in committed code; the BE uses the logger.
 
 ## Comments

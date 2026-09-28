@@ -4,7 +4,7 @@
 > ⚠️ Code is created in **Phase 0**. The commands below are **planned** and will be updated when Phase 0 lands.
 
 ## Prerequisites
-- Node.js 24 LTS (`.nvmrc`); 22.12+ also works
+- Node.js 24 LTS (`.nvmrc`); 22.13+ also works (ESLint 10's minimum)
 - pnpm 10 (`corepack enable`; the exact version is pinned in `packageManager`)
 - Docker + Docker Compose (PostgreSQL)
 - Git
@@ -19,7 +19,7 @@ cp Trello-Clone-BE/.env.example Trello-Clone-BE/.env
 cp Trello-Clone-FE/.env.example Trello-Clone-FE/.env
 # fill in values (never commit .env)
 
-pnpm db:up                                   # docker compose up -d postgres
+pnpm db:up                                   # docker compose up -d postgres postgres-test
 pnpm --filter @trello-clone/api db:migrate   # run migrations
 pnpm --filter @trello-clone/api db:seed      # seed sample data
 pnpm dev                                     # FE :5173, BE :4000
@@ -55,6 +55,7 @@ pnpm dev                                     # FE :5173, BE :4000
 |---------|--------|
 | `pnpm dev` | Run FE + BE |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | Check the whole repo |
+| `pnpm format` / `pnpm format:check` | Format / check formatting with Prettier |
 | `pnpm --filter @trello-clone/web test:e2e` | Run Playwright |
 | `pnpm --filter @trello-clone/api db:studio` | Open Prisma Studio |
 

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output and reports
+dist/
+build/
+coverage/
+*.tsbuildinfo
+test-results/
+playwright-report/
+
+# Generated code (Prisma 7 client, ADR-015)
+**/src/generated/
+
+# Environment files: only the .env.example templates are committed
+.env
+.env.*
+!.env.example
+
+# Personal Claude Code settings
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS / editor
+.DS_Store
+*.log
