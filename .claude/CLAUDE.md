@@ -96,6 +96,8 @@ Commands: `/plan`, `/implement`, `/test`, `/review` (in `.claude/commands/`).
 | `testing` | Writing/fixing tests, debugging failing tests |
 | `code-review` | Reviewing a diff/PR before commit or merge |
 
+Subagent `code-reviewer` (`.claude/agents/`) reviews diffs in a fresh context for `/review` and `/implement`. Hooks in `.claude/hooks/` enforce §4, §5 and §8 mechanically (ADR-014); if a hook blocks a call, follow its message; never work around it.
+
 ## 12. Commands (available after Phase 0)
 ```bash
 pnpm dev | pnpm typecheck | pnpm lint | pnpm test | pnpm build
