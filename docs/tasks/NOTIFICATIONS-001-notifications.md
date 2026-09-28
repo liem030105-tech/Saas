@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 6 (Post-MVP) |
-| Status | Todo |
 | Depends on | REALTIME-001 |
 | Blocked by decisions | **D-09** (design), D-18 (email) |
 | Skills | backend, database, frontend, realtime |
@@ -47,7 +46,7 @@ Defined by the spec; the baseline DoD applies.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 REALTIME-001; decision D-09.

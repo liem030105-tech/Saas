@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 5 (Post-MVP) |
-| Status | Todo |
 | Depends on | All MVP tasks (Phases 0–4) |
 | Blocked by decisions | none (D-16 has a default) |
 | Skills | realtime, backend, frontend |
@@ -50,7 +49,7 @@ Integration with `socket.io-client`: rejected handshake, rejected join, event re
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 MVP complete (every endpoint that emits exists).

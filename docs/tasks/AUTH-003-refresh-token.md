@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 (MVP) |
-| Status | Todo |
 | Depends on | AUTH-002 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -52,7 +51,7 @@ The comparison uses the hash lookup. Revoke the family on reuse. Concurrent FE r
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 AUTH-002 (issued cookies).

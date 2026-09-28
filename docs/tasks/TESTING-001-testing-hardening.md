@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 8 (Post-MVP) |
-| Status | Todo |
 | Depends on | REALTIME-001, ATTACHMENTS-001, SEARCH-001, NOTIFICATIONS-001, BILLING-001 |
 | Blocked by decisions | none |
 | Skills | testing |
@@ -49,7 +48,7 @@ This task is the test.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 All Phase 5–7 tasks.

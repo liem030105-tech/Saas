@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-002, FOUNDATION-003 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -52,7 +51,7 @@ Unit: `PaginationQuerySchema` defaults and max; `ErrorResponseSchema` parses a r
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-002 and FOUNDATION-003 (both consumers must exist).

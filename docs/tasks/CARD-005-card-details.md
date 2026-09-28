@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 4 (MVP) |
-| Status | Todo |
 | Depends on | CARD-002 |
 | Blocked by decisions | none |
 | Skills | backend, database, frontend |
@@ -57,7 +56,7 @@ Integration per endpoint (5-case baseline + the cases listed in api docs); the r
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
 - [ ] Phase 4 acceptance in plan.md holds → **MVP complete**
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 CARD-002 (modal). The cross-board label cleanup also touches CARD-003 code, so do that part after CARD-003 is merged.

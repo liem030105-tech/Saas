@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 2 (MVP) |
-| Status | Todo |
 | Depends on | WORKSPACE-003 |
 | Blocked by decisions | none (D-17 and D-18 have defaults) |
 | Skills | backend, database, frontend |
@@ -51,7 +50,7 @@ Integration: role matrix; expired; email mismatch; accept twice; re-invite repla
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 WORKSPACE-003 (members page and rules).

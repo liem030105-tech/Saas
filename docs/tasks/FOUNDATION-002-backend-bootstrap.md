@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-001 |
 | Blocked by decisions | none |
 | Skills | backend |
@@ -56,7 +55,7 @@ No stack traces in responses. CORS never `*`. `.env` is git-ignored; only `.env.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-001 (workspace and tooling).

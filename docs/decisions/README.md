@@ -73,7 +73,7 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Decision:** implementation proceeds only through task specs in `docs/tasks/` in the order of `docs/tasks/README.md`. Every task is accepted against one canonical DoD (`docs/development/definition-of-done.md`). Unconfirmed values are tracked in `DECISIONS-REQUIRED.md` and used as proposed defaults unless blocking.
 - **Rationale:** a new Claude Code session can implement without guessing; no competing DoD definitions.
 - **Consequences:** MVP tasks do not emit realtime events and do not enforce plan limits; the activity model arrives in BOARD-001 and its feed in CARD-005.
-- **Status:** Accepted (pending owner approval of the PR that introduced it)
+- **Status:** Accepted
 
 ### ADR-014: Deterministic guardrails, a reviewer subagent, and Claude GitHub workflows
 - **Context:** ADR-011 put every rule in prose (CLAUDE.md, skills). Rules such as "never touch `.env`", "never edit a merged migration", and "never push to `main`" then depend on the model remembering them, and `/implement` reviewed its own diff in the same context that wrote it.
@@ -108,4 +108,11 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
   - `.github/pull_request_template.md` mirroring the Definition of Done.
 - **Rationale:** rules that load by path are applied consistently; examples produce consistent code; a change is only done when it has been seen working; built-in commands keep their meaning.
 - **Trade-offs:** references can drift from the code (mitigated by the "code wins, update in the same PR" rule); MCP servers are fetched with `npx` and need network access in the session; the session-start hook adds a few seconds to cloud session startup.
+- **Status:** Accepted
+
+### ADR-017: Position helpers live in the shared package
+- **Context:** the FE predicts positions for optimistic drag and drop, and the BE stores them. The docs put the helpers in the BE and told the FE to copy the formulas (LIST-001), which contradicted both CLAUDE.md ("never duplicate business logic between FE and BE") and the shared-package rules (which forbade "position math").
+- **Decision:** the position constants and pure helpers (`initialPosition`, `positionAfter`, `positionBefore`, `positionBetween`, `needsRebalance`) live once in `packages/shared/src/utils/position.ts` and are imported by both sides. Rebalancing reads and writes the database, so it stays in the BE (`lib/rebalance.ts`). The server remains authoritative: it validates and may rebalance any client-supplied position.
+- **Rationale:** the FE must predict exactly what the BE stores, or cards visibly jump after every drag; one implementation with one test suite guarantees that.
+- **Trade-offs:** shared gains a small `utils/` folder; the rule "no business logic in shared" now has one named exception, limited to pure formulas with no I/O.
 - **Status:** Accepted

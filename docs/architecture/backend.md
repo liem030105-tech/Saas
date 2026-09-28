@@ -18,7 +18,7 @@ Trello-Clone-BE/
 │   ├── config/              # env.ts (Zod-validated env), logger.ts, prisma.ts
 │   ├── generated/prisma/    # Prisma client output (git-ignored, `db:generate`)
 │   ├── middlewares/         # authenticate, requireWorkspaceRole, validate, errorHandler, rateLimit
-│   ├── lib/                 # AppError, position helpers, pure utilities
+│   ├── lib/                 # AppError, rebalance (DB), BE-only pure utilities
 │   ├── modules/
 │   │   ├── auth/
 │   │   ├── users/

@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 (MVP) |
-| Status | Todo |
 | Depends on | AUTH-002 |
 | Blocked by decisions | D-07 (only the optional password-change part) |
 | Skills | backend, frontend |
@@ -50,7 +49,7 @@ Integration: 401 without/with a bad token, me success, profile validation. FE: P
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 AUTH-002 (tokens exist). Can be built in parallel with AUTH-003/004; ProtectedRoute uses the AUTH-003 bootstrap once merged.

@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 2 (MVP) |
-| Status | Todo |
 | Depends on | WORKSPACE-002, WORKSPACE-004 |
 | Blocked by decisions | none |
 | Skills | backend, frontend, testing |
@@ -49,7 +48,7 @@ The role-matrix harness runs over all workspace endpoints; a unit test checks th
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 WORKSPACE-002, WORKSPACE-004 (all workspace endpoints exist).

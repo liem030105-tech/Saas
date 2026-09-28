@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-002 |
 | Blocked by decisions | none |
 | Skills | database, backend |
@@ -53,7 +52,7 @@ Integration: `resetDb()` empties the tables; `/health` shows `db: ok` against th
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-002 (config and app).

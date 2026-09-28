@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 2 (MVP) |
-| Status | Todo |
 | Depends on | WORKSPACE-005 |
 | Blocked by decisions | none |
 | Skills | testing, backend |
@@ -48,7 +47,7 @@ This task is the test.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 WORKSPACE-005.

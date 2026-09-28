@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 0 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-001 |
 | Blocked by decisions | none |
 | Skills | frontend |
@@ -53,7 +52,7 @@ Vitest + Testing Library + MSW set up; one test that renders the router at `/` a
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-001.

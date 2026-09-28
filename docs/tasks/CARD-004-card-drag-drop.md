@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 3 (MVP) |
-| Status | Todo |
 | Depends on | CARD-003 |
 | Blocked by decisions | none |
 | Skills | frontend, testing |
@@ -16,7 +15,7 @@ FE rules: [frontend.md → Drag and drop](../architecture/frontend.md#drag-and-d
 
 # Requirements
 1. @dnd-kit sortable cards inside the list columns, with cross-container moves (pointer and keyboard sensors, screen-reader announcements).
-2. `useMoveCard` mutation: compute the position with the FE position helpers → optimistic cache update of `['board', boardId]` → call move → replace with the server position → rollback on error with a toast → invalidate on settle.
+2. `useMoveCard` mutation: compute the position with the shared position helpers → optimistic cache update of `['board', boardId]` → call move → replace with the server position → rollback on error with a toast → invalidate on settle.
 3. Drag disabled for VIEWER.
 4. E2E scenario 4.
 
@@ -49,7 +48,7 @@ Hook test: optimistic update, server-position reconciliation, rollback on 403/50
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 CARD-003.

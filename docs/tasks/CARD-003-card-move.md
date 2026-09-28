@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 3 (MVP) |
-| Status | Todo |
 | Depends on | CARD-002, LIST-003 |
 | Blocked by decisions | none |
 | Skills | backend |
@@ -50,7 +49,7 @@ Both the card and the target list are authorized; no client `boardId`; cross-wor
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 CARD-002 (card module), LIST-003 (rebalance helper).

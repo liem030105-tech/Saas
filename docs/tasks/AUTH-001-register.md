@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 (MVP) |
-| Status | Todo |
 | Depends on | FOUNDATION-006 |
 | Blocked by decisions | none |
 | Skills | backend, database, frontend |
@@ -55,7 +54,7 @@ Store only the token hash. Set the cookie attributes exactly as specified. Never
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 FOUNDATION-006 (all foundation tasks).

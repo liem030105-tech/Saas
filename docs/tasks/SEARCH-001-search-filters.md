@@ -3,7 +3,6 @@
 | Field | Value |
 |-------|-------|
 | Phase | 6 (Post-MVP) |
-| Status | Todo |
 | Depends on | REALTIME-001 |
 | Blocked by decisions | none |
 | Skills | backend, frontend |
@@ -47,7 +46,7 @@ Integration: each filter, combined filters, wildcard escaping, role matrix, tena
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied
-- [ ] Status set to **Done** in [docs/tasks/README.md](README.md)
+- [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
 REALTIME-001 (recommended order; no hard code dependency).
