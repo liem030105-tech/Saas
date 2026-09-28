@@ -3,6 +3,8 @@
 > **Domain:** the production environment. Finalized in Phase 9.
 
 ## Infrastructure
+Platforms are pending **D-21** (hosting) and **D-23** (monitoring); the cookie/domain topology is **D-22**.
+
 | Component | Suggested platform |
 |-----------|--------------------|
 | FE | Vercel / Netlify (static + CDN) |
@@ -26,5 +28,5 @@
 - [ ] Sentry and 5xx alerting in place
 
 ## Scaling
-- Multiple BE instances → enable the Socket.IO Redis adapter + sticky sessions ([realtime.md](../architecture/realtime.md#scaling-to-multiple-instances)).
+- Multiple BE instances → enable the Socket.IO Redis adapter + sticky sessions ([realtime.md](../architecture/realtime.md#scaling--redis-adapter-path)).
 - Slow DB: inspect slow queries, add indexes, consider a read replica.

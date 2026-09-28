@@ -1,35 +1,127 @@
-# API – Workspaces & Members
+# API – Workspaces, Members, Invitations
 
-> **Domain:** `workspaces` module. Conventions and role matrix: [README](README.md).
+> **Domain:** `workspaces` module. Conventions, errors, validation, permission matrix: [README](README.md).
 
-| Method | Endpoint | Authorization | Request → Response | Errors |
-|--------|----------|---------------|--------------------|--------|
-| GET | `/workspaces` | Authenticated | → `200 WorkspaceDto[]` (only the caller's workspaces, with `role`) | – |
-| POST | `/workspaces` | Authenticated | `CreateWorkspaceInput { name }` → `201 WorkspaceDto` | `VALIDATION_ERROR` |
-| GET | `/workspaces/:id` | ≥ VIEWER | → `200 WorkspaceDto` | `NOT_FOUND` |
-| PATCH | `/workspaces/:id` | ≥ ADMIN | `UpdateWorkspaceInput { name?, slug? }` → `200` | `FORBIDDEN`, `CONFLICT` (slug) |
-| DELETE | `/workspaces/:id` | OWNER | → `204` | `FORBIDDEN` |
-| GET | `/workspaces/:id/members` | ≥ VIEWER | → `200 MemberDto[]` | `NOT_FOUND` |
-| PATCH | `/workspaces/:id/members/:userId` | ≥ ADMIN | `{ role }` → `200 MemberDto` | `FORBIDDEN`, `BUSINESS_RULE_VIOLATION` (last OWNER, granting a role above your own) |
-| DELETE | `/workspaces/:id/members/:userId` | ≥ ADMIN, or self (leave) | → `204` | `BUSINESS_RULE_VIOLATION` |
-| GET | `/workspaces/:id/invites` | ≥ ADMIN | → `200 InviteDto[]` | – |
-| POST | `/workspaces/:id/invites` | ≥ ADMIN | `CreateInviteInput { email, role }` → `201 InviteDto` | `CONFLICT` (already a member), `PLAN_LIMIT_REACHED` |
-| DELETE | `/workspaces/:id/invites/:inviteId` | ≥ ADMIN | → `204` | – |
-| POST | `/invites/accept` | Authenticated | `{ token }` → `200 WorkspaceDto` | `NOT_FOUND` (invalid/expired token), `CONFLICT` |
+**Shared shapes**
+- `WorkspaceDto = { id, name, slug, plan, createdAt, role }`. `role` is the **caller's** role; the FE uses it only for UI.
+- `MemberDto = { user: { id, name, email, avatarUrl }, role, joinedAt }`
+- `InviteDto = { id, email, role, expiresAt, createdAt, invitedBy: { id, name } }`
 
-## Service responsibilities
-- `workspaces.service`:
-  - `create`: unique slug; the creator becomes OWNER.
-  - `update`, `remove`: edit and delete the workspace.
-  - `changeRole`, `removeMember`: guarantee ≥ 1 OWNER; ADMIN cannot act on an OWNER.
-  - `assertMember(userId, workspaceId, minRole)`: the **shared authorization entry point** used by every other module (backed by `workspaces.repository`).
-- Invites:
-  - Random token, only its hash is stored, expires after 7 days.
-  - Email delivery: Phase 2 logs the link to the console; real email comes later.
-  - Accepting requires the user's email to match the invite email; membership is created in a transaction.
-- Plan limits (member count) are checked when creating and when accepting an invite.
+---
+
+## Workspaces
+
+### GET /workspaces
+| | |
+|--|--|
+| Task | WORKSPACE-001 |
+| Authentication | Bearer |
+| Authorization | Any authenticated user; returns only the caller's workspaces |
+| Success | `200 { data: WorkspaceDto[] }`, ordered by name |
+
+### POST /workspaces
+| | |
+|--|--|
+| Task | WORKSPACE-001 |
+| Authentication | Bearer |
+| Authorization | Any authenticated user |
+| Body | `{ name }` |
+| Success | `201 { data: WorkspaceDto }` (caller becomes OWNER; slug is generated from the name, with a random suffix on collision) |
+| Errors | `400` · `401` |
+
+### GET /workspaces/:workspaceId
+| | |
+|--|--|
+| Task | WORKSPACE-002 |
+| Authorization | ≥ VIEWER |
+| Success | `200 { data: WorkspaceDto }` |
+| Errors | `401` · `404` |
+
+The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. No slug lookup endpoint is needed.
+
+### PATCH /workspaces/:workspaceId
+| | |
+|--|--|
+| Task | WORKSPACE-002 |
+| Authorization | ≥ ADMIN |
+| Body | `{ name?, slug? }` |
+| Success | `200 { data: WorkspaceDto }` |
+| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (slug taken) |
+
+### DELETE /workspaces/:workspaceId
+| | |
+|--|--|
+| Task | WORKSPACE-002 |
+| Authorization | OWNER |
+| Success | `204`. Cascades to all boards and content ([relationships.md](../database/relationships.md#foreign-keys-and-delete-behavior)) |
+| Errors | `401` · `403` · `404` |
+
+## Members
+
+### GET /workspaces/:workspaceId/members
+| | |
+|--|--|
+| Task | WORKSPACE-003 |
+| Authorization | ≥ VIEWER |
+| Success | `200 { data: MemberDto[] }` ordered by role, then name |
+
+### PATCH /workspaces/:workspaceId/members/:userId
+| | |
+|--|--|
+| Task | WORKSPACE-003 |
+| Authorization | ≥ ADMIN, subject to footnotes 1–3 of the [permission matrix](README.md#permission-matrix) |
+| Body | `{ role }` |
+| Success | `200 { data: MemberDto }` |
+| Errors | `400` · `403` (ADMIN acting on an OWNER, or granting OWNER) · `404` (workspace or member not found) · `422` rule `LAST_OWNER` |
+
+### DELETE /workspaces/:workspaceId/members/:userId
+| | |
+|--|--|
+| Task | WORKSPACE-003 |
+| Authorization | ≥ ADMIN (subject to footnotes), **or** `userId` = caller (leave) |
+| Success | `204`. Also removes the user's `CardMember` rows in this workspace (I3) and revokes nothing else |
+| Errors | `403` · `404` · `422` rule `LAST_OWNER` |
+
+## Invitations
+
+Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token is returned **once** on creation. Until email delivery exists (D-18), the inviter copies and shares the link manually.
+
+### GET /workspaces/:workspaceId/invites
+| | |
+|--|--|
+| Task | WORKSPACE-004 |
+| Authorization | ≥ ADMIN |
+| Success | `200 { data: InviteDto[] }`: pending (not accepted, not expired) only |
+
+### POST /workspaces/:workspaceId/invites
+| | |
+|--|--|
+| Task | WORKSPACE-004 |
+| Authorization | ≥ ADMIN; invite `role` ≤ caller's role and never `OWNER` |
+| Body | `{ email, role }` |
+| Success | `201 { data: InviteDto & { inviteUrl: string } }`. A pending invite for the same email is replaced (new token, new expiry) |
+| Errors | `400` · `403` · `404` · `409 CONFLICT` (email already belongs to a member) · `402` (from BILLING-001 only, D-11) |
+
+### DELETE /workspaces/:workspaceId/invites/:inviteId
+| | |
+|--|--|
+| Task | WORKSPACE-004 |
+| Authorization | ≥ ADMIN |
+| Success | `204` |
+| Errors | `403` · `404` |
+
+### POST /invites/accept
+| | |
+|--|--|
+| Task | WORKSPACE-004 |
+| Authentication | Bearer |
+| Authorization | Caller's email must equal the invite email (case-insensitive) |
+| Body | `{ token }` |
+| Success | `200 { data: WorkspaceDto }`. Membership is created with the invite role and `acceptedAt` set, in one transaction |
+| Errors | `404` (unknown, expired, or already-accepted token, or email mismatch; indistinguishable on purpose) · `409 CONFLICT` (already a member) |
 
 ## Required tests
-- Role matrix for every route above (4 roles + non-member → 404).
-- The last OWNER cannot be removed or demoted; an ADMIN cannot promote anyone to OWNER.
-- Expired invite, email mismatch, accepting twice.
+- The full role matrix for each route (OWNER / ADMIN / MEMBER / VIEWER / non-member → 404).
+- `LAST_OWNER` on demote, remove, and leave. An ADMIN cannot change an OWNER or grant OWNER.
+- Invites: expired, email mismatch, accept twice, re-invite replaces the token, the invite role is capped by the caller's role.
+- Removing a member deletes their card assignments in that workspace only.

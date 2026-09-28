@@ -2,6 +2,8 @@
 
 > **Domain:** the staging environment. Finalized in Phase 9.
 
+Platforms are pending **D-21**; FE and API must be same-site for the refresh cookie (**D-22**).
+
 | Component | Platform | Notes |
 |-----------|----------|-------|
 | FE | Vercel (preview deployment per PR) | `VITE_API_URL` points to the staging API |

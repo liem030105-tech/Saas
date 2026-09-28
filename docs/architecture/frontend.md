@@ -76,7 +76,9 @@ features/cards/
 ## Routes
 | Route | Page |
 |-------|------|
-| `/`, `/pricing` | Landing, Pricing |
+| `/` | Signed in: redirect to the first workspace (WORKSPACE-001). Signed out: landing page (BILLING-001, pending D-08) |
+| `/pricing` | Pricing (BILLING-001, pending D-08) |
+| `/invite/:token` | Accept invitation (WORKSPACE-004) |
 | `/login`, `/register` | Auth |
 | `/w/:slug`, `/w/:slug/members`, `/w/:slug/settings` | Workspace |
 | `/b/:boardId`, `/b/:boardId/c/:cardId` | Board, card modal |

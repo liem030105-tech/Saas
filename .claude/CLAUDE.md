@@ -45,6 +45,8 @@ Never skip or delete tests to make CI green.
 - Architecture change → update `docs/architecture/*` and add an ADR.
 - Setup change → update `docs/development/setup.md`.
 - Never duplicate content across files; link to the existing one.
+- A finished task sets its status to Done in `docs/tasks/README.md`.
+- Never state an unconfirmed value as decided; reference its `D-xx` item instead.
 
 ## 8. Git
 - Conventional Commits (`feat(cards): …`). One concern per PR, ideally under ~400 lines.
@@ -75,7 +77,9 @@ Never skip or delete tests to make CI green.
 When scope or architecture is unclear: **stop and ask**; do not guess.
 
 ## 10. Workflow
-1. Read requirements → 2. Read relevant docs → 3. Identify affected FE/BE/shared modules → 4. Plan (`/plan`)
+Implementation work starts from a task spec: pick the next task per `docs/tasks/README.md` and run `/implement <TASK-ID>`. Do not implement anything that has no task spec, and do not start a task that is blocked by an open `D-xx` in `docs/decisions/DECISIONS-REQUIRED.md`. Acceptance is always `docs/development/definition-of-done.md`.
+
+1. Read requirements (the task spec) → 2. Read relevant docs → 3. Identify affected FE/BE/shared modules → 4. Plan (`/plan`)
 → 5. Implement BE → 6. Update shared schemas/types if needed → 7. Implement FE → 8. Add/update tests
 → 9. `pnpm typecheck` → 10. `pnpm lint` → 11. `pnpm test` → 12. Update docs → 13. Review the diff (`/review`) → 14. Summarize changes.
 
@@ -100,4 +104,4 @@ pnpm --filter @trello-clone/web test:e2e
 ```
 
 ## 13. Current status
-Architecture and documentation are done. **No application code yet.** Next step: Phase 0 in `plan.md`.
+Specifications, task backlog, and open decisions are in place. **No application code yet.** Next task: `FOUNDATION-001` (see `docs/tasks/README.md`).

@@ -1,23 +1,24 @@
 ---
-description: Implement an approved plan or small change following the project workflow
-argument-hint: <feature, plan reference, or change description>
+description: Implement a task spec (or a small approved change) following the project workflow
+argument-hint: <TASK-ID, e.g. AUTH-001> | <small change description>
 ---
 
 Implement: $ARGUMENTS
 
 Follow `.claude/CLAUDE.md` (rules in section 9, workflow in section 10) and load the matching skills.
 
-1. If no approved plan exists for this change and it touches more than one module, run the `/plan` steps first and confirm with the user.
+1. **If `$ARGUMENTS` is a task ID:** read `docs/tasks/<TASK-ID>-*.md` and every doc it links. Check `docs/tasks/README.md`: all dependencies must be Done. Check `docs/decisions/DECISIONS-REQUIRED.md`: no blocking decision may be open for this task. If either check fails, stop and report.
+   **Otherwise:** if the change touches more than one module, run the `/plan` steps first and confirm with the user.
 2. Inspect the relevant module(s) before editing.
-3. Implement in order: **BE → shared schemas/types (if needed) → FE**. Stay within the modules named in the plan; no unrelated refactors or new dependencies without justification.
-4. DB change? Update `schema.prisma` and create a migration (`database` skill).
-5. Add/update tests to meet `docs/development/testing.md` (`testing` skill).
+3. Implement only the task's Requirements, in order: **BE → shared schemas/types (if needed) → FE**. Respect "Out of Scope"; no unrelated refactors or new dependencies without justification.
+4. DB change? Update `schema.prisma` and create the migration named in the task (`database` skill).
+5. Add/update tests per the task's Testing section and `docs/development/testing.md` (`testing` skill).
 6. Run, in order, and fix any failure before continuing:
    - `pnpm typecheck`
    - `pnpm lint`
    - `pnpm test`
-7. Update docs affected by the change (`docs/api`, `docs/architecture`, `docs/database`, ADR).
-8. Review your own diff against the `code-review` skill checklist.
-9. Summarize: what changed (by module), tests added, docs updated, commands run and their results, follow-ups.
+7. Update the docs affected by the change, and set the task status to Done in `docs/tasks/README.md`.
+8. Review your own diff against the `code-review` skill checklist and the task's Acceptance Criteria.
+9. Summarize: what changed (by module), tests added, docs updated, commands run and their results, and any acceptance criterion not met.
 
-Stop and ask if the work would cross folder ownership boundaries or change architecture beyond the plan.
+Stop and ask if the work would cross folder ownership boundaries, contradict a spec, or require a decision that is not recorded.

@@ -1,23 +1,236 @@
 # Database Schema
 
-> **Domain:** Prisma model definitions.
-> This is the **interim reference** until `Trello-Clone-BE/prisma/schema.prisma` exists. After that, `schema.prisma` is the source of truth and this file keeps only explanations and a changelog.
-> Relations, cascades, indexes, positions: [relationships.md](relationships.md).
+> **Domain:** the complete data model, entity by entity.
+> This is the **specification** until `Trello-Clone-BE/prisma/schema.prisma` exists; after that `schema.prisma` is the source of truth and this file keeps explanations and the changelog.
+> Relations, cascades, invariants, ordering: [relationships.md](relationships.md) · Access rules: [architecture/database.md](../architecture/database.md).
 
-## Changes from the previous plan
+## Conventions
+
+- **IDs:** `String @id @default(cuid())` unless the table uses a composite key.
+- **Timestamps:**
+  - `createdAt DateTime @default(now())` on every entity a user creates.
+  - `updatedAt DateTime @updatedAt` on every entity that can be edited and is synced in realtime. It serves as the realtime `version`.
+  - Join tables and append-only tables (Activity) have no `updatedAt`.
+- **Nullability:** a field is nullable only when "no value" is a valid state (e.g. `dueDate`).
+- **Soft delete:** `archived Boolean @default(false)` on Board, List, Card. Everything else is hard-deleted.
+- **Ordering:** `position Float` on List, Card, Checklist, ChecklistItem (see [relationships.md → Ordering](relationships.md#ordering-position)).
+- **Introduced in:** the task that first creates the model or field, so the Prisma schema grows incrementally ([task list](../tasks/README.md)).
+
+## Enums
+
+| Enum | Values | Introduced in |
+|------|--------|---------------|
+| `Role` | `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` | WORKSPACE-001 |
+| `Plan` | `FREE`, `PRO` | WORKSPACE-001 (column only; used from BILLING-001) |
+| `ActivityType` | `BOARD_CREATED`, `BOARD_UPDATED`, `LIST_CREATED`, `LIST_UPDATED`, `LIST_MOVED`, `LIST_ARCHIVED`, `CARD_CREATED`, `CARD_UPDATED`, `CARD_MOVED`, `CARD_ARCHIVED`, `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`, `ATTACHMENT_ADDED` | BOARD-001; values added by the task that first logs them |
+| `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `PAST_DUE`, `CANCELED`, `INCOMPLETE` (mirror of Stripe statuses we act on) | BILLING-001 |
+
+Role order for comparisons: `OWNER > ADMIN > MEMBER > VIEWER`.
+
+## Tenant boundary per entity
+
+| Entity | Path to its workspace |
+|--------|-----------------------|
+| Workspace | itself |
+| WorkspaceMember, WorkspaceInvite, Board, Subscription | `workspaceId` |
+| List, Label, Activity | `boardId → Board.workspaceId` |
+| Card | `boardId → Board.workspaceId` (denormalized `boardId`, see below) |
+| CardMember, CardLabel, Checklist, Comment, Attachment | `cardId → Card.boardId → Board.workspaceId` |
+| ChecklistItem | `checklistId → Checklist.cardId → …` |
+| User, RefreshToken | not tenant-scoped (global identity) |
+
+---
+
+## Entities
+
+Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
+
+### User — FOUNDATION-004 (table), AUTH-001 (used)
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| email | String | | | UQ | Stored lower-cased |
+| passwordHash | String | | | | bcrypt |
+| name | String | | | | |
+| avatarUrl | String | ✓ | | | URL only; uploads are out of scope |
+| createdAt / updatedAt | DateTime | | now / auto | | |
+
+### RefreshToken — AUTH-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| userId | String | | | FK → User (Cascade), IX | |
+| tokenHash | String | | | UQ | `sha256(token)`; the raw token is never stored |
+| familyId | String | | | IX | Groups one login's rotations, **required for reuse detection** |
+| expiresAt | DateTime | | | | |
+| revokedAt | DateTime | ✓ | | | Set when rotated, logged out, or family revoked |
+| replacedById | String | ✓ | | | Next token in the rotation chain (audit/debug) |
+| createdAt | DateTime | | now | | |
+
+### Workspace — WORKSPACE-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| name | String | | | | |
+| slug | String | | | UQ | URL `/w/:slug`; generated from the name with a random suffix on collision |
+| plan | Plan | | FREE | | Changed only by billing webhooks (BILLING-001) |
+| createdAt / updatedAt | DateTime | | | | |
+
+### WorkspaceMember — WORKSPACE-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| userId | String | | | PK(userId, workspaceId), FK → User (Cascade), IX | IX serves "my workspaces" |
+| workspaceId | String | | | PK, FK → Workspace (Cascade), IX | |
+| role | Role | | MEMBER | | |
+| joinedAt | DateTime | | now | | Shown on the members page |
+
+### WorkspaceInvite — WORKSPACE-004
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| workspaceId | String | | | FK → Workspace (Cascade) | |
+| email | String | | | UQ(workspaceId, email) | One pending invite per email per workspace |
+| role | Role | | MEMBER | | Never `OWNER` (validation) |
+| tokenHash | String | | | UQ | `sha256(token)` |
+| invitedById | String | | | FK → User (Cascade) | |
+| expiresAt | DateTime | | | | Now + D-17 |
+| acceptedAt | DateTime | ✓ | | | Accepted invites are kept for audit; re-inviting deletes the old row |
+| createdAt | DateTime | | now | | |
+
+### Board — BOARD-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| workspaceId | String | | | FK → Workspace (Cascade), IX(workspaceId, archived) | |
+| title | String | | | | |
+| background | String | | `#0079bf` | | Hex colour |
+| archived | Boolean | | false | | |
+| createdAt / updatedAt | DateTime | | | | |
+
+### List — LIST-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| boardId | String | | | FK → Board (Cascade), IX(boardId, position) | |
+| title | String | | | | |
+| position | Float | | | | |
+| archived | Boolean | | false | | |
+| createdAt / updatedAt | DateTime | | | | |
+
+### Card — CARD-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| boardId | String | | | FK → Board (Cascade), IX | **Denormalized.** Always equals `list.boardId`. Needed for single-query authorization, the realtime room, and search (ADR-006) |
+| listId | String | | | FK → List (Cascade), IX(listId, position) | |
+| title | String | | | | |
+| description | String | ✓ | | | Raw markdown |
+| position | Float | | | | |
+| dueDate | DateTime | ✓ | | | |
+| completed | Boolean | | false | | |
+| coverUrl | String | ✓ | | | **Unused until ATTACHMENTS-001** (kept from the original plan's card-cover feature) |
+| archived | Boolean | | false | | |
+| createdAt / updatedAt | DateTime | | | | |
+
+### CardMember — CARD-005
+| Field | Type | N | Key | Notes |
+|-------|------|---|-----|-------|
+| cardId | String | | PK(cardId, userId), FK → Card (Cascade) | |
+| userId | String | | PK, FK → User (Cascade), IX | IX serves "cards assigned to me" |
+
+### Label — CARD-005
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| boardId | String | | | FK → Board (Cascade), IX | Labels are per board |
+| name | String | | `""` | | May be empty (colour-only label) |
+| color | String | | | | Hex colour |
+
+### CardLabel — CARD-005
+| Field | Type | N | Key |
+|-------|------|---|-----|
+| cardId | String | | PK(cardId, labelId), FK → Card (Cascade) |
+| labelId | String | | PK, FK → Label (Cascade) |
+
+### Checklist — CARD-005
+| Field | Type | N | Default | Key |
+|-------|------|---|---------|-----|
+| id | String | | cuid | PK |
+| cardId | String | | | FK → Card (Cascade), IX |
+| title | String | | | |
+| position | Float | | | |
+
+### ChecklistItem — CARD-005
+| Field | Type | N | Default | Key |
+|-------|------|---|---------|-----|
+| id | String | | cuid | PK |
+| checklistId | String | | | FK → Checklist (Cascade), IX(checklistId, position) |
+| content | String | | | |
+| done | Boolean | | false | |
+| position | Float | | | |
+
+### Comment — CARD-005
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| cardId | String | | | FK → Card (Cascade), IX(cardId, createdAt) | IX serves pagination |
+| authorId | String | | | FK → User (**Restrict**) | Users with comments are anonymized, not deleted |
+| content | String | | | | Raw markdown |
+| createdAt / updatedAt | DateTime | | | | `updatedAt` shows "edited" and is the realtime version |
+
+### Attachment — ATTACHMENTS-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| cardId | String | | | FK → Card (Cascade), IX | |
+| uploaderId | String | | | FK → User (Restrict) | Needed for "uploader may delete" |
+| url | String | | | | Public/serving URL returned by the storage provider |
+| storageKey | String | | | | Provider object key; **needed to delete the file** |
+| fileName | String | | | | Sanitized original name |
+| mimeType | String | | | | Verified MIME; needed for rendering and allowlist |
+| size | Int | | | | Bytes; needed for plan limits |
+| createdAt | DateTime | | now | | |
+
+### Activity — BOARD-001 (`cardId` added in CARD-001)
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| boardId | String | | | FK → Board (Cascade), IX(boardId, createdAt) | |
+| cardId | String | ✓ | | FK → Card (**SetNull**), IX(cardId, createdAt) | Null for board/list events; keeps history when a card is deleted |
+| userId | String | | | FK → User (Restrict) | Actor |
+| type | ActivityType | | | | |
+| data | Json | | | | Event details (e.g. `{ fromListId, toListId }`); shape per type in `@trello-clone/shared` |
+| createdAt | DateTime | | now | | Append-only |
+
+### Subscription — BILLING-001
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| workspaceId | String | | | UQ, FK → Workspace (Cascade) | One subscription per workspace |
+| stripeCustomerId | String | ✓ | | UQ | Null until checkout starts |
+| stripeSubId | String | ✓ | | UQ | Null until checkout completes |
+| status | SubscriptionStatus | | | | |
+| currentPeriodEnd | DateTime | ✓ | | | |
+| updatedAt | DateTime | | auto | | |
+
+Processed Stripe `event.id`s for webhook idempotency: stored in a `StripeEvent(id PK, createdAt)` table **only if** BILLING-001 cannot use Stripe-side idempotency. This is a decision inside BILLING-001, not a new product field.
+
+---
+
+## Changelog vs. the original plan
 | Change | Why |
 |--------|-----|
-| + `RefreshToken` | Required for refresh-token rotation and reuse detection |
-| + `WorkspaceInvite` | The invite API needs somewhere to store invite tokens |
-| + `Card.boardId` | Single-query authorization and realtime routing; must be updated when a card moves across boards |
-| `Activity.type` → `ActivityType` enum; + optional `cardId` | Typed activity; filter activity per card |
+| + `RefreshToken` | Refresh-token rotation and reuse detection |
+| + `WorkspaceInvite` | Invite flow needs token storage |
+| + `Card.boardId` | Single-query authorization and realtime routing |
+| `Activity.type` → enum; + `Activity.cardId` | Typed activity; card-level activity in the card modal |
 | `Subscription.status` → enum | No free-form strings |
-| `Attachment` + `uploaderId`, `mimeType` | Know who uploaded; supports type validation |
-| `Comment` + `updatedAt`; `Card`, `List`, `Board` + `updatedAt` | Used as realtime `version` |
-| New indexes: `WorkspaceMember(userId)`, `Comment(cardId, createdAt)`, `Attachment(cardId)`, `Card(boardId)` | Performance for authorization and child queries |
-| `Comment.author` / `Activity.user`: explicit `onDelete: Restrict` | Users with history are not deleted; account deletion anonymizes instead (see relationships.md) |
+| `Attachment` + `uploaderId`, `mimeType`, `storageKey` | Delete permission, rendering/allowlist, file deletion |
+| `updatedAt` on Board, List, Card, Comment | Realtime `version`; "edited" marker on comments |
+| `Checklist.position` | Ordering multiple checklists on a card |
+| Additional indexes | See [relationships.md → Indexes](relationships.md#indexes-and-key-queries) |
 
-## Schema
+## Reference Prisma schema (target state after Phase 7)
 
 ```prisma
 generator client { provider = "prisma-client-js" }
@@ -53,7 +266,7 @@ model User {
 model RefreshToken {
   id           String    @id @default(cuid())
   userId       String
-  tokenHash    String    @unique          // sha256 of the token
+  tokenHash    String    @unique
   familyId     String
   expiresAt    DateTime
   revokedAt    DateTime?
@@ -86,6 +299,7 @@ model WorkspaceMember {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   @@id([userId, workspaceId])
   @@index([workspaceId])
+  @@index([userId])
 }
 
 model WorkspaceInvite {
@@ -125,6 +339,7 @@ model List {
   title     String
   position  Float
   archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards     Card[]
@@ -133,7 +348,7 @@ model List {
 
 model Card {
   id          String    @id @default(cuid())
-  boardId     String                       // denormalized; must always equal list.boardId
+  boardId     String
   listId      String
   title       String
   description String?
@@ -168,7 +383,7 @@ model CardMember {
 model Label {
   id      String @id @default(cuid())
   boardId String
-  name    String
+  name    String @default("")
   color   String
   board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards   CardLabel[]

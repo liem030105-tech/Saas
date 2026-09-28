@@ -1,38 +1,63 @@
-# API – Billing
+# API – Billing (Post-MVP, Phase 7)
 
-> **Domain:** `billing` module (Phase 7). Conventions: [README](README.md). Webhook security: [security.md](../architecture/security.md#stripe-webhook).
+> **Domain:** `billing` module, delivered by BILLING-001. Conventions, errors, permission matrix: [README](README.md). Webhook security: [security.md](../architecture/security.md#stripe-webhook).
 
-## Plans
+## Plans and limits
+Limit values are proposed defaults (**D-10**); the enforcement timing is **D-11**; the Pro price model is **D-13 (blocking for BILLING-001)**.
 
-| | Free | Pro (demo) |
-|--|------|-----------|
-| Boards per workspace | 5 | Unlimited |
-| Members per workspace | 5 | Unlimited |
+| | Free | Pro |
+|--|------|-----|
+| Boards per workspace | 5 | unlimited |
+| Members per workspace (members + pending invites) | 5 | unlimited |
 | File size | 10 MB | 100 MB |
-| Activity log retention | 7 days | Unlimited |
-| Board templates | ❌ | ✅ |
+| Activity retention | 7 days (D-12) | unlimited |
 
-Limits are defined once in `packages/shared/src/constants/plans.ts`. **The backend enforces them** in services; the FE only uses them to show upgrade prompts.
+Limits are defined once in `packages/shared/src/constants/plans.ts`. **Only the backend enforces them**, through `billing.service.assertWithinLimit(workspaceId, resource)`, called before creating boards, invites, and attachments. The FE uses the same constants only to show upgrade prompts. Downgrading never deletes data; it only blocks new creation.
 
-## Endpoints
+**Shared shape:** `BillingDto = { plan, status: SubscriptionStatus | null, currentPeriodEnd, usage: { boards, members } }`
 
-| Method | Endpoint | Authorization | Request → Response | Errors |
-|--------|----------|---------------|--------------------|--------|
-| GET | `/workspaces/:id/billing` | ≥ ADMIN | → `200 { plan, status, currentPeriodEnd, usage: { boards, members } }` | – |
-| POST | `/workspaces/:id/billing/checkout` | OWNER | → `200 { url }` (Stripe Checkout session) | `FORBIDDEN`, `CONFLICT` (already Pro) |
-| POST | `/workspaces/:id/billing/portal` | OWNER | → `200 { url }` (Customer Portal) | `NOT_FOUND` (no customer yet) |
-| POST | `/billing/webhook` | Public (Stripe signature verified) | raw body → `200` | `400` on invalid signature |
+---
 
-> Checkout/portal moved from `/billing/checkout` (previous plan) to `/workspaces/:id/billing/...` because plans are per workspace. The module has no code yet, so this change is free.
+### GET /workspaces/:workspaceId/billing
+| | |
+|--|--|
+| Authorization | ≥ ADMIN |
+| Success | `200 { data: BillingDto }` |
+| Errors | `401` · `403` · `404` |
 
-## Service responsibilities
-- `billing.service`:
-  - `createCheckout`: create the Stripe customer if missing, set `metadata.workspaceId`.
-  - `handleWebhook`: handles `checkout.session.completed`, `customer.subscription.updated|deleted`, `invoice.payment_failed`, then updates `Subscription` and `Workspace.plan`. Idempotent by `event.id`.
-- `assertWithinLimit(workspaceId, resource)`: called by the boards/workspaces modules before creating resources.
-- Downgrading to Free never deletes data; it only blocks further creation.
+### POST /workspaces/:workspaceId/billing/checkout
+| | |
+|--|--|
+| Authorization | OWNER |
+| Body | none |
+| Success | `200 { data: { url } }`: Stripe Checkout session URL. Creates the Stripe customer if needed, with `metadata.workspaceId` set |
+| Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro) |
+
+### POST /workspaces/:workspaceId/billing/portal
+| | |
+|--|--|
+| Authorization | OWNER |
+| Success | `200 { data: { url } }`: Stripe Customer Portal URL |
+| Errors | `401` · `403` · `404` (no Stripe customer yet) |
+
+### POST /billing/webhook
+| | |
+|--|--|
+| Authentication | Public; the Stripe signature is verified on the **raw** body |
+| Success | `200 {}` |
+| Errors | `400` on an invalid signature (plain response, not the JSON error format, because Stripe is the only caller) |
+
+**Handled events:**
+- `checkout.session.completed` → create/activate the Subscription and set `Workspace.plan = PRO`.
+- `customer.subscription.updated` → sync `status` and `currentPeriodEnd`; `plan` is PRO while status is ACTIVE or TRIALING.
+- `customer.subscription.deleted` → status CANCELED, `plan = FREE`.
+- `invoice.payment_failed` → status PAST_DUE (plan stays PRO until Stripe cancels).
+
+Processing is idempotent by `event.id`. The plan is changed **only** here, never by a FE redirect.
+
+> Path note: the original plan used `/billing/checkout`. It is now `/workspaces/:workspaceId/billing/checkout` because plans are per workspace. No code existed, so nothing breaks.
 
 ## Required tests
-- Invalid webhook signature → 400; the same event delivered twice is processed once.
-- MEMBER/ADMIN calling checkout → 403.
-- `assertWithinLimit` at the boundary: 5th resource OK, 6th → 402; a Pro workspace is unlimited.
+- Invalid signature → 400. The same event delivered twice is applied once.
+- MEMBER or ADMIN calling checkout → 403. Checkout when already Pro → 409.
+- `assertWithinLimit` at the boundary (5th OK, 6th → 402); Pro → unlimited; downgrade keeps data.
