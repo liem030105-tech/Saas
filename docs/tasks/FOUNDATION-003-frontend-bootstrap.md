@@ -14,7 +14,7 @@ A runnable React 19 + Vite + TypeScript app (`@trello-clone/web`) with the folde
 Structure and rules per [architecture/frontend.md](../architecture/frontend.md).
 
 # Requirements
-1. Package `Trello-Clone-FE` named `@trello-clone/web`; scripts `dev`, `build`, `preview`, `lint`, `typecheck`, `test`.
+1. Package `Trello-Clone-FE` named `@trello-clone/web`; scripts `dev`, `build`, `preview`, `lint`, `typecheck`, `test`. `tsconfig.json` extends `../tsconfig.base.json`, maps `@/*` to `src/*`, and includes `src` and `tests`.
 2. Tailwind CSS 4 via `@tailwindcss/vite` (CSS-based config, no `tailwind.config.js`); shadcn/ui initialized with `Button`, `Input`, `Dialog`, `DropdownMenu`, `Sonner` in `components/ui`.
 3. Folder skeleton exactly as in frontend.md (`app/`, `api/`, `config/`, `components/{ui,layout,feedback}`, `features/`, `pages/`, `hooks/`, `stores/`, `lib/`, `routes/`, `testing/`), with `config/env.ts` validating `VITE_*` and `app/provider.tsx` holding every provider. Visual tokens from [design/ui.md](../design/ui.md#visual-tokens-proposed-d-24) in `src/index.css` (`@theme`).
 4. `lib/query-client.ts` (TanStack Query 5) and `routes/router.tsx` (React Router 7 data mode: `createBrowserRouter` from `react-router`) with placeholder pages for `/`, `/login`, `/register`, and a `NotFound` page.

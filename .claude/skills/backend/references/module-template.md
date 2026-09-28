@@ -5,13 +5,14 @@ Once BOARD-001 is merged, `src/modules/boards/` is the real reference: if it dif
 
 ## `boards.routes.ts` – paths and middleware order only
 ```ts
-import { Router } from 'express';
 import { CreateBoardInput, ListBoardsQuery } from '@trello-clone/shared';
-import { authenticate } from '../../middlewares/authenticate';
-import { validate } from '../../middlewares/validate';
-import { requireWorkspaceRole } from '../../middlewares/require-workspace-role';
-import { WorkspaceIdParams } from './boards.schema';
+import { Router } from 'express';
+
 import * as controller from './boards.controller';
+import { WorkspaceIdParams } from './boards.schema';
+import { authenticate } from '../../middlewares/authenticate';
+import { requireWorkspaceRole } from '../../middlewares/require-workspace-role';
+import { validate } from '../../middlewares/validate';
 
 export const boardsRouter = Router();
 
@@ -36,10 +37,11 @@ boardsRouter.post(
 
 ## `boards.controller.ts` – HTTP in, service call, HTTP out
 ```ts
-import type { Request, Response } from 'express';
-import type { CreateBoardInput, ListBoardsQuery } from '@trello-clone/shared';
 import * as boardsService from './boards.service';
 import { validated } from '../../middlewares/validate';
+
+import type { CreateBoardInput, ListBoardsQuery } from '@trello-clone/shared';
+import type { Request, Response } from 'express';
 
 // Express 5: a rejected promise goes to errorHandler automatically. No try/catch, no asyncHandler.
 export async function list(req: Request, res: Response) {
@@ -81,10 +83,11 @@ export function validated<P, Q = unknown, B = unknown>(res: Response) {
 
 ## `boards.service.ts` – business rules, authorization, transactions
 ```ts
-import type { CreateBoardInput, ListBoardsQuery, BoardDto } from '@trello-clone/shared';
-import { prisma } from '../../config/prisma';
 import { logActivity } from './activity';
 import { toBoardDto } from './boards.mapper';
+import { prisma } from '../../config/prisma';
+
+import type { CreateBoardInput, ListBoardsQuery, BoardDto } from '@trello-clone/shared';
 
 export async function list(userId: string, workspaceId: string, query: ListBoardsQuery): Promise<BoardDto[]> {
   // role already checked by requireWorkspaceRole('VIEWER') on the route
@@ -110,8 +113,8 @@ export async function create(userId: string, workspaceId: string, input: CreateB
 
 ## `boards.schema.ts` – BE-only schemas
 ```ts
-import { z } from 'zod';
 import { CuidSchema } from '@trello-clone/shared';
+import { z } from 'zod';
 
 export const WorkspaceIdParams = z.object({ workspaceId: CuidSchema });
 ```

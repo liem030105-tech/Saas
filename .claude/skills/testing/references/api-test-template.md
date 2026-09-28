@@ -5,10 +5,11 @@ Helpers (created in FOUNDATION-004 / AUTH-001 / WORKSPACE-005): `tests/helpers/d
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetDb } from '../helpers/db';
+
+import { createUser, createWorkspace } from '../factories';
 import { api } from '../helpers/app';
 import { loginAs } from '../helpers/auth';
-import { createUser, createWorkspace } from '../factories';
+import { resetDb } from '../helpers/db';
 
 describe('POST /api/v1/workspaces/:workspaceId/boards', () => {
   beforeEach(resetDb);

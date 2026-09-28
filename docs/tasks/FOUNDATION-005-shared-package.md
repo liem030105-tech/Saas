@@ -14,7 +14,7 @@ Create `@trello-clone/shared` and prove that both FE and BE consume it.
 Rules for what may live in shared: [architecture/overview.md → packages/shared](../architecture/overview.md#packagesshared).
 
 # Requirements
-1. `packages/shared` with `src/{schemas,types,constants}/` and a single `src/index.ts` export. Internal package with no build step: `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `lint`, `typecheck`, `test` (ADR-015). `zod` is its only dependency.
+1. `packages/shared` with `src/{schemas,types,constants}/` and a single `src/index.ts` export. Internal package with no build step: `"type": "module"`, `"exports": { ".": "./src/index.ts" }`, scripts `lint`, `typecheck`, `test` (ADR-015); `tsconfig.json` extends `../../tsconfig.base.json` and includes `src`. `zod` is its only dependency.
 2. `constants/error-codes.ts`: every code in the [error table](../api/README.md#canonical-error-format).
 3. `schemas/common.ts`: `CuidSchema`, `PaginationQuerySchema` (`limit` default/max per D-14, optional `cursor`), `ErrorResponseSchema`.
 4. BE `errorHandler` and FE `ApiError` import the error codes from shared (replacing any local copies).

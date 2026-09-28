@@ -5,8 +5,9 @@
 - Response bodies follow the API envelope: `{ data: … }` on success, the canonical `{ error: { code, message, details, requestId } }` on errors. Type them with `@trello-clone/shared` so a contract change breaks the test at compile time.
 
 ```tsx
-import { http, HttpResponse } from 'msw';
 import { screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+
 import { server } from '@/testing/mocks/server';
 import { renderWithProviders } from '@/testing/render';
 

@@ -4,7 +4,7 @@
 > ⚠️ Code is created in **Phase 0**. The commands below are **planned** and will be updated when Phase 0 lands.
 
 ## Prerequisites
-- Node.js 24 LTS (`.nvmrc`); 22.12+ also works
+- Node.js 24 LTS (`.nvmrc`); 22.13+ also works (ESLint 10's minimum)
 - pnpm 10 (`corepack enable`; the exact version is pinned in `packageManager`)
 - Docker + Docker Compose (PostgreSQL)
 - Git

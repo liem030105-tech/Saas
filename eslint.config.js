@@ -1,8 +1,12 @@
 // Root ESLint flat config, shared by every package (FOUNDATION-001).
 // Packages run `eslint .` from their own folder; ESLint finds this file by walking up.
 // Boundaries enforced here: CLAUDE.md §3, docs/architecture/overview.md, frontend.md, backend.md.
+import { existsSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+
 import js from '@eslint/js';
 import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
+import { defineConfig } from 'eslint/config';
 import importX from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
 
@@ -19,12 +23,20 @@ const BE_IMPORTS_FE = {
   group: ['@trello-clone/web', '@trello-clone/web/*', `**/${FE}/**`],
   message: 'FE and BE never import each other; they talk over HTTP/WebSocket (CLAUDE.md §3).',
 };
+const FEATURES_DIR = path.join(ROOT, FE, 'src', 'features');
+// Read at config load, so a new feature folder is covered without editing this file.
+const FEATURES = existsSync(FEATURES_DIR)
+  ? readdirSync(FEATURES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+  : [];
+
 const SHARED_INTERNALS = {
   group: ['@trello-clone/shared/*'],
   message: 'Import only from "@trello-clone/shared" (its single entry point).',
 };
 
-export default tseslint.config(
+export default defineConfig(
   {
     ignores: [
       '**/node_modules/**',
@@ -35,18 +47,26 @@ export default tseslint.config(
     ],
   },
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: ROOT },
+      parserOptions: {
+        // Package tsconfigs must include every .ts file they lint (src, tests, prisma);
+        // root-level tool configs such as vite.config.ts fall back to the default project.
+        projectService: { allowDefaultProject: ['*.config.ts', '*/*.config.ts'] },
+        tsconfigRootDir: ROOT,
+      },
     },
     plugins: { 'import-x': importX },
     settings: {
+      // The FE path alias is internal code even where it cannot be resolved (import-x/order).
+      'import-x/internal-regex': '^@/',
       'import-x/resolver-next': [
         createTypeScriptImportResolver({
           alwaysTryTypes: true,
-          project: [`${FE}/tsconfig.json`, `${BE}/tsconfig.json`, `${SHARED}/tsconfig.json`],
+          project: [FE, BE, SHARED].map((dir) => path.join(ROOT, dir, 'tsconfig.json')),
+          noWarnOnMultipleProjects: true,
         }),
       ],
     },
@@ -101,6 +121,18 @@ export default tseslint.config(
               from: [`./${FE}/src/pages`, `./${FE}/src/app`, `./${FE}/src/routes`],
               message: 'Features must not import pages, routes, or app; compose features in pages.',
             },
+            // A feature reaches another feature only through its index.ts (relative imports too).
+            ...FEATURES.map((feature) => ({
+              target: `./${FE}/src/features/${feature}`,
+              from: `./${FE}/src/features`,
+              except: [
+                `./${feature}`,
+                ...FEATURES.filter((other) => other !== feature).map(
+                  (other) => `./${other}/index.ts`,
+                ),
+              ],
+              message: 'Import another feature only through its index.ts ("@/features/<name>").',
+            })),
           ],
         },
       ],

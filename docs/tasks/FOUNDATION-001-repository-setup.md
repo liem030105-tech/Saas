@@ -14,10 +14,10 @@ Turn the repository into a working pnpm workspace with shared tooling, so the FE
 Implements the root layout in [plan.md §4](../../plan.md#4-root-folder-structure) and the monorepo rules in [architecture/overview.md](../architecture/overview.md#monorepo-pnpm-workspace). No application code.
 
 # Requirements
-1. Root `package.json` (`"private": true`, `"type": "module"`, `packageManager` pinned to an exact pnpm 10 version, `engines.node` `>=22.12`) with scripts `dev`, `build`, `lint`, `typecheck`, `test`, `format`, `format:check`, `db:up`. Each fans out with `pnpm -r` (they may no-op until packages exist).
+1. Root `package.json` (`"private": true`, `"type": "module"`, `packageManager` pinned to an exact pnpm 10 version, `engines.node` `>=22.13`, ESLint 10's minimum) with scripts `dev`, `build`, `lint`, `typecheck`, `test` that fan out with `pnpm -r --if-present` (they no-op until packages exist), plus root-only `format` / `format:check` (Prettier over the whole repo) and `db:up` (Docker Compose).
 2. `pnpm-workspace.yaml` listing `Trello-Clone-FE`, `Trello-Clone-BE`, `packages/*`, plus `onlyBuiltDependencies: [esbuild, prisma, '@prisma/engines']` (ADR-015; pnpm 10 skips other install scripts).
 3. `tsconfig.base.json` with `strict`, `noUncheckedIndexedAccess`, `module: ESNext`, `moduleResolution: bundler`, `verbatimModuleSyntax`, `noEmit`, extended by every package (ADR-015).
-4. ESLint flat config at the root (`@typescript-eslint`, `import-x/order` from `eslint-plugin-import-x`, the maintained fork that supports ESLint 10, `no-restricted-imports` blocking FE↔BE imports, and `import-x/no-restricted-paths` zones for the FE import direction in [frontend.md](../architecture/frontend.md#what-belongs-where) and for BE modules importing another module's non-service files) and a Prettier config per [coding-conventions.md](../development/coding-conventions.md).
+4. ESLint flat config at the root (`@typescript-eslint`, `import-x/order` from `eslint-plugin-import-x`, the maintained fork that supports ESLint 10, `no-restricted-imports` blocking FE↔BE imports, shared internals, deep `@/features/*/*` imports, and BE imports of another module's repository/controller/routes/schema/mapper files; `import-x/no-restricted-paths` zones for the FE import direction in [frontend.md](../architecture/frontend.md#what-belongs-where), including one zone per feature so relative cross-feature imports must go through `index.ts`) and a Prettier config per [coding-conventions.md](../development/coding-conventions.md).
 5. `.gitignore` (node_modules, dist, build, coverage, `.env`, `.env.*` except `.env.example`, `**/src/generated/`, `.claude/settings.local.json`, `CLAUDE.local.md`), `.nvmrc` (`24`), `.editorconfig`.
 6. `docker-compose.yml` with `postgres` and `postgres-test` exactly as in [deployment/local.md](../deployment/local.md).
 7. README "Getting started" points to `docs/development/setup.md`.
@@ -47,7 +47,7 @@ None.
 No automated tests. Verify manually: `pnpm install`, `pnpm format:check`, `docker compose up -d postgres postgres-test` → both healthy.
 
 # Acceptance Criteria
-- [ ] `pnpm install` succeeds on a clean clone with Node 24, and with Node 22.12+.
+- [ ] `pnpm install` succeeds on a clean clone with Node 24, and with Node 22.13+.
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test` run without error (no packages yet).
 - [ ] `docker compose up -d` starts Postgres on 5432 and 5433.
 
