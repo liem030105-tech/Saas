@@ -10,14 +10,17 @@ interface ErrorBody {
   details: ErrorDetail[];
 }
 
-// body-parser errors carry `type` and `status` (malformed JSON, body over the 1 MB limit).
-function isBodyParserError(error: unknown): error is { type: string; status: number } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as { type?: unknown }).type === 'string' &&
-    typeof (error as { status?: unknown }).status === 'number'
-  );
+// Errors from Express and its parsers carry an HTTP status: body-parser (malformed JSON, body
+// over 1 MB, with a `type`) and the router (a path parameter that cannot be URI-decoded).
+function httpClientError(error: unknown): { status: number; type?: unknown } | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const { status, statusCode, type } = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    type?: unknown;
+  };
+  const code = typeof status === 'number' ? status : statusCode;
+  return typeof code === 'number' && code >= 400 && code < 500 ? { status: code, type } : undefined;
 }
 
 function toErrorResponse(error: unknown): { status: number; body: ErrorBody } {
@@ -40,19 +43,18 @@ function toErrorResponse(error: unknown): { status: number; body: ErrorBody } {
       },
     };
   }
-  if (isBodyParserError(error)) {
-    if (error.type === 'entity.too.large') {
-      return {
-        status: 413,
-        body: { code: 'FILE_TOO_LARGE', message: 'Request body is too large', details: [] },
-      };
-    }
-    if (error.status >= 400 && error.status < 500) {
-      return {
-        status: 400,
-        body: { code: 'VALIDATION_ERROR', message: 'Malformed request body', details: [] },
-      };
-    }
+  const clientError = httpClientError(error);
+  if (clientError?.type === 'entity.too.large') {
+    return {
+      status: 413,
+      body: { code: 'FILE_TOO_LARGE', message: 'Request body is too large', details: [] },
+    };
+  }
+  if (clientError) {
+    return {
+      status: 400,
+      body: { code: 'VALIDATION_ERROR', message: 'Malformed request', details: [] },
+    };
   }
   return {
     status: 500,

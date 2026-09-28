@@ -4,7 +4,8 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
-  CLIENT_URL: z.url(),
+  // Normalised to a bare origin: CORS compares it with the browser's Origin header exactly.
+  CLIENT_URL: z.url().transform((url) => new URL(url).origin),
   DATABASE_URL: z.url(),
   JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),
   ACCESS_TOKEN_TTL: z

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseEnv } from './env';
-import { envDefaults, invalidEnvs, minimalEnv, testEnv } from '../../tests/data/env';
+import {
+  clientUrlWithPath,
+  envDefaults,
+  invalidEnvs,
+  minimalEnv,
+  testEnv,
+} from '../../tests/data/env';
 
 describe('parseEnv', () => {
   it('accepts a complete environment', () => {
@@ -12,6 +18,12 @@ describe('parseEnv', () => {
     const result = parseEnv(minimalEnv);
 
     expect(result).toEqual({ success: true, env: expect.objectContaining(envDefaults) });
+  });
+
+  it('reduces CLIENT_URL to its origin so CORS matches the browser Origin header', () => {
+    const result = parseEnv({ ...testEnv, CLIENT_URL: clientUrlWithPath.input });
+
+    expect(result.success && result.env.CLIENT_URL).toBe(clientUrlWithPath.origin);
   });
 
   it('rejects a missing JWT_ACCESS_SECRET with a message naming it', () => {

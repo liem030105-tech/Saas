@@ -26,6 +26,12 @@ export const minimalEnv = {
   PORT: '', // empty, as copied from .env.example
 };
 
+/** A CLIENT_URL with a trailing path; env.ts must reduce it to the bare origin. */
+export const clientUrlWithPath = {
+  input: `${testEnv.CLIENT_URL}/app/`,
+  origin: testEnv.CLIENT_URL,
+};
+
 export const envDefaults = {
   NODE_ENV: 'development',
   PORT: 4000,

@@ -10,6 +10,8 @@ export const RATE_LIMITS = {
   api: { windowMs: 60_000, limit: 300 }, // per user once authenticated, else per IP
 } as const;
 
+// req.ip is the proxy's address until `trust proxy` is configured for the host (DEPLOYMENT-001);
+// set it before these limiters protect production traffic.
 const clientIp = (req: Request) => ipKeyGenerator(req.ip ?? 'unknown');
 
 const common = {
@@ -30,8 +32,6 @@ export const authRateLimit = rateLimit({
 export const apiRateLimit = rateLimit({
   ...common,
   ...RATE_LIMITS.api,
-  keyGenerator: (req, res) => {
-    const userId: unknown = res.locals.userId; // set by `authenticate` (AUTH-005)
-    return typeof userId === 'string' ? `user:${userId}` : clientIp(req);
-  },
+  // Must run after `authenticate` (AUTH-005), which sets req.userId.
+  keyGenerator: (req) => (req.userId ? `user:${req.userId}` : clientIp(req)),
 });
