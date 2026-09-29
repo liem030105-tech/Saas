@@ -1,7 +1,8 @@
 import { ZodError } from 'zod';
 
-import { AppError, type ErrorCode, type ErrorDetail } from '../lib/app-error';
+import { AppError } from '../lib/app-error';
 
+import type { ErrorCode, ErrorDetail } from '@trello-clone/shared';
 import type { NextFunction, Request, Response } from 'express';
 
 interface ErrorBody {

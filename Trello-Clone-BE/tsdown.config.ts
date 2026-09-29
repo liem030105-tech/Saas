@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsdown';
 
-// Production bundle (ADR-015): dependencies stay external; @trello-clone/shared is inlined once it exists.
+// Production bundle (ADR-015): dependencies stay external, except @trello-clone/shared, which
+// ships TypeScript source (no build step) and so must be inlined for `node dist/server.js`.
 export default defineConfig({
+  deps: { alwaysBundle: ['@trello-clone/shared'] },
   entry: ['src/server.ts'],
   format: 'esm',
   platform: 'node',

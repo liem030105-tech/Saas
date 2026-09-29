@@ -1,0 +1,15 @@
+{
+  "cuid": "clx0000000000000000000001",
+  "validQueries": {
+    "empty": { "input": {}, "expected": { "limit": 20 } },
+    "limitAsQueryString": { "input": { "limit": "50" }, "expected": { "limit": 50 } },
+    "maxLimit": { "input": { "limit": "100" }, "expected": { "limit": 100 } }
+  },
+  "invalidQueries": {
+    "aboveMax": { "limit": "101" },
+    "zero": { "limit": "0" },
+    "notANumber": { "limit": "ten" },
+    "fraction": { "limit": "2.5" },
+    "cursorNotACuid": { "cursor": "not a cuid!" }
+  }
+}

@@ -1,21 +1,17 @@
 import { testEnv } from './env';
 
-import type { ApiErrorDetail } from '@/api/client';
+import type { ErrorResponse } from '@trello-clone/shared';
 
 /** Absolute URL for an API path, matching the axios baseURL used in tests. */
 export const apiUrl = (path: string) => `${testEnv.VITE_API_URL}${path}`;
 
 export const sampleResource = { id: 'clx0000000000000000000001', title: 'Sprint 1' };
 
-interface ErrorOverrides {
-  code?: string;
-  message?: string;
-  details?: ApiErrorDetail[];
-  requestId?: string;
-}
-
-/** Builds a canonical error body (docs/api/README.md → Canonical error format). */
-export function buildErrorBody(overrides: ErrorOverrides = {}) {
+/**
+ * Builds a canonical error body (docs/api/README.md → Canonical error format), typed with the
+ * shared contract so a change to it breaks these fixtures at compile time.
+ */
+export function buildErrorBody(overrides: Partial<ErrorResponse['error']> = {}): ErrorResponse {
   return {
     error: {
       code: 'VALIDATION_ERROR',
@@ -26,3 +22,6 @@ export function buildErrorBody(overrides: ErrorOverrides = {}) {
     },
   };
 }
+
+/** An error body that is not the canonical format (e.g. from a proxy); maps to NETWORK_ERROR. */
+export const nonCanonicalErrorBody = { message: 'Bad Gateway' };
