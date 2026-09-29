@@ -60,8 +60,8 @@ Do **not** add E2E tests for internal changes, pure refactors, or API-only behav
 - Chromium for Playwright is preinstalled; never run `playwright install` there. Details: the `testing` skill (`references/playwright-cloud.md`) and the `run-app` skill.
 
 ## CI
-`.github/workflows/ci.yml` runs on every PR and on pushes to `main`, with one run per branch (a new push cancels the previous run). Its two checks are required by the repository ruleset:
+`.github/workflows/ci.yml` runs on every PR and on pushes to `main`. There is one run per PR: a new push cancels the previous run, while runs on `main` are never cancelled. The repository owner adds its two checks as required status checks in the ruleset (manual step, FOUNDATION-006):
 - **`ci`**: `pnpm install --frozen-lockfile → db:generate → format:check → typecheck → lint → test → build`. Integration tests use a `postgres:16-alpine` service; the job waits for its `pg_isready` health check. The workflow sets `DATABASE_URL_TEST` and dummy, non-secret values for the other variables.
-- **`docs`**: `lychee` in offline mode checks every relative link and `#anchor` in the Markdown files; external URLs are not fetched. To run the same check locally: `lychee --offline --include-fragments --exclude-path node_modules './**/*.md'`.
+- **`docs`**: `lychee` in offline mode checks every relative link and `#anchor` in the Markdown files; external URLs are not fetched. CI pins lychee 0.24.2. To run the same check locally: `lychee --offline --include-fragments --exclude-path node_modules './**/*.md'`.
 
 E2E on PRs to `main` from TESTING-001 on.

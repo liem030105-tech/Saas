@@ -1,5 +1,6 @@
 # Quality gates for every PR and for main (FOUNDATION-006, docs/development/testing.md → CI).
-# The repository ruleset requires the `ci` and `docs` checks before merging.
+# They block merging once the repository owner adds `ci` and `docs` as required status checks
+# in the ruleset (manual step, FOUNDATION-006).
 name: ci
 
 on:
@@ -7,10 +8,11 @@ on:
   push:
     branches: [main]
 
-# One run per branch (or PR): a new push cancels the run it replaces.
+# One run per PR (by number, so same-named fork branches never collide): a new push cancels
+# the run it replaces. Runs on main are never cancelled, so every merge commit gets a result.
 concurrency:
-  group: ci-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -89,6 +91,8 @@ jobs:
       - name: Check relative Markdown links
         uses: lycheeverse/lychee-action@v2
         with:
+          # Pinned so CI keeps using the version the local command in testing.md was checked with.
+          lycheeVersion: v0.24.2
           args: >-
             --offline
             --include-fragments
