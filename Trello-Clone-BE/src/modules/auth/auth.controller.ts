@@ -28,10 +28,12 @@ export async function login(_req: Request, res: Response) {
   res.status(200).json({ data });
 }
 
+/** The refresh cookie's value; cookie-parser turns `j:`-prefixed values into JSON, so anything but a non-empty string counts as no cookie. */
+const presentedRefreshToken = (req: Request) =>
+  RefreshCookieSchema.safeParse((req.cookies as Record<string, unknown>)[REFRESH_COOKIE_NAME]).data;
+
 export async function refresh(req: Request, res: Response) {
-  // cookie-parser turns `j:`-prefixed values into JSON: anything but a non-empty string is "no cookie".
-  const cookie: unknown = (req.cookies as Record<string, unknown>)[REFRESH_COOKIE_NAME];
-  const presented = RefreshCookieSchema.safeParse(cookie).data;
+  const presented = presentedRefreshToken(req);
   try {
     const { accessToken, refreshToken } = await authService.refresh(presented);
     setRefreshCookie(res, refreshToken.raw, refreshToken.expiresAt);
@@ -47,4 +49,11 @@ export async function refresh(req: Request, res: Response) {
 export async function me(req: Request, res: Response) {
   const user = await usersService.getMe(currentUserId(req));
   res.status(200).json({ data: user });
+}
+
+/** Always 204 and a cleared cookie, whether or not the cookie was valid (idempotent). */
+export async function logout(req: Request, res: Response) {
+  await authService.logout(presentedRefreshToken(req));
+  clearRefreshCookie(res);
+  res.status(204).end();
 }

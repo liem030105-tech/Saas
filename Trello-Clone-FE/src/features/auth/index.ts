@@ -3,4 +3,5 @@ export { RegisterForm } from './components/RegisterForm';
 export { LoginForm } from './components/LoginForm';
 export { ProfileForm } from './components/ProfileForm';
 export { useCurrentUser } from './queries';
+export { useLogout } from './useLogout';
 export { handleSessionEnd, loginPathFor, restoreSession } from './session';

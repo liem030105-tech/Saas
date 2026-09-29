@@ -130,3 +130,23 @@ export async function refresh(
     refreshToken: { raw, expiresAt: presented.expiresAt },
   };
 }
+
+/**
+ * POST /auth/logout (docs/api/authentication.md): revokes the presented token's family, so no
+ * token of this session can refresh again. Other devices (other families) stay signed in;
+ * logout-all is not supported (D-05). A missing or unknown token is a no-op: logout is idempotent
+ * and needs no access token.
+ */
+export async function logout(presentedRaw: string | undefined): Promise<void> {
+  if (!presentedRaw) return;
+  const presented = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashRefreshToken(presentedRaw) },
+    select: { familyId: true },
+  });
+  if (!presented) return;
+  await revokeFamily(presented.familyId);
+  // A refresh of this family running at the same moment holds the presented row's lock; the
+  // statement above waits for it but cannot see the successor it inserted. Revoking again catches
+  // that successor, so no live token of this session survives the logout.
+  await revokeFamily(presented.familyId);
+}

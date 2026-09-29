@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { setAccessToken } from '@/api/token-store';
+import { getAccessToken, setAccessToken } from '@/api/token-store';
 
 import { authApi } from './api';
+import { setSignedOutByUser } from './session';
 
 import type { AuthResponse } from '@trello-clone/shared';
 
@@ -14,6 +15,7 @@ export const authKeys = {
 function useSignIn() {
   const queryClient = useQueryClient();
   return ({ accessToken, user }: AuthResponse) => {
+    setSignedOutByUser(false);
     setAccessToken(accessToken);
     queryClient.setQueryData(authKeys.me, user);
   };
@@ -31,9 +33,16 @@ export function useLogin() {
   return useMutation({ mutationFn: authApi.login, onSuccess: signIn });
 }
 
-/** GET /auth/me. Only rendered behind ProtectedRoute, so a session exists. */
+/**
+ * GET /auth/me. Rendered behind ProtectedRoute; never fetches without a token (e.g. while a page
+ * is still mounted right after logout cleared the token and the cache).
+ */
 export function useCurrentUser() {
-  return useQuery({ queryKey: authKeys.me, queryFn: authApi.me });
+  return useQuery({
+    queryKey: authKeys.me,
+    queryFn: authApi.me,
+    enabled: getAccessToken() !== null,
+  });
 }
 
 /** PATCH /users/me; the response replaces the cached current user. */
