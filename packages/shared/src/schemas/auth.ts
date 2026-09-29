@@ -63,3 +63,8 @@ export const AuthResponseSchema = z.object({
   user: UserDtoSchema,
   accessToken: z.string().min(1),
 });
+
+/** `data` of POST /auth/refresh: a new access token (the rotated refresh token is a cookie). */
+export const RefreshResponseSchema = z.object({
+  accessToken: z.string().min(1),
+});

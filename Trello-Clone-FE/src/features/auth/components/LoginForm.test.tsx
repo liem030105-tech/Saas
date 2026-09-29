@@ -19,10 +19,14 @@ import { renderApp } from '@/testing/render';
 
 const LOGIN_URL = apiUrl('/auth/login');
 
-function fillAndSubmit(values: { email: string; password: string }) {
+const SUBMIT = 'Log in';
+
+async function fillAndSubmit(values: { email: string; password: string }) {
+  // The page renders once the root loader has tried to restore the session.
+  await screen.findByRole('button', { name: SUBMIT });
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: values.email } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: values.password } });
-  fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+  fireEvent.click(screen.getByRole('button', { name: SUBMIT }));
 }
 
 const loginSucceeds = () =>
@@ -44,7 +48,7 @@ describe('LoginForm', () => {
     );
     renderApp(pageCases.login.path);
 
-    fillAndSubmit(invalidLoginForm.input);
+    await fillAndSubmit(invalidLoginForm.input);
 
     for (const message of Object.values(invalidLoginForm.messages)) {
       expect(await screen.findByText(message)).toBeInTheDocument();
@@ -58,7 +62,7 @@ describe('LoginForm', () => {
     );
     renderApp(pageCases.login.path);
 
-    fillAndSubmit(loginFormInput);
+    await fillAndSubmit(loginFormInput);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       invalidCredentialsBody.error.message,
@@ -75,7 +79,7 @@ describe('LoginForm', () => {
     );
     renderApp(pageCases.login.path);
 
-    fillAndSubmit(loginFormInput);
+    await fillAndSubmit(loginFormInput);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(genericLoginError);
   });
@@ -90,7 +94,7 @@ describe('LoginForm', () => {
     );
     renderApp(pageCases.login.path);
 
-    fillAndSubmit(loginFormInput);
+    await fillAndSubmit(loginFormInput);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),
@@ -103,7 +107,7 @@ describe('LoginForm', () => {
     loginSucceeds();
     const { router } = renderApp(withRedirect(safeRedirect.redirectTo));
 
-    fillAndSubmit(loginFormInput);
+    await fillAndSubmit(loginFormInput);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: pageCases.register.heading }),
@@ -115,7 +119,7 @@ describe('LoginForm', () => {
     loginSucceeds();
     const { router } = renderApp(withRedirect(redirectTo));
 
-    fillAndSubmit(loginFormInput);
+    await fillAndSubmit(loginFormInput);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),

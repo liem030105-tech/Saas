@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuthResponseSchema, LoginInputSchema, RegisterInputSchema, UserDtoSchema } from './auth';
+import {
+  AuthResponseSchema,
+  LoginInputSchema,
+  RefreshResponseSchema,
+  RegisterInputSchema,
+  UserDtoSchema,
+} from './auth';
 import auth from '../../tests/data/auth.json';
 
 describe('RegisterInputSchema', () => {
@@ -58,5 +64,14 @@ describe('UserDtoSchema / AuthResponseSchema', () => {
   it('strips passwordHash if it ever appeared', () => {
     const parsed = UserDtoSchema.parse({ ...auth.userDto, passwordHash: 'x' });
     expect(parsed).not.toHaveProperty('passwordHash');
+  });
+});
+
+describe('RefreshResponseSchema', () => {
+  it('requires a non-empty access token and nothing else', () => {
+    expect(RefreshResponseSchema.parse({ accessToken: 'a.b.c', user: auth.userDto })).toEqual({
+      accessToken: 'a.b.c',
+    });
+    expect(RefreshResponseSchema.safeParse({ accessToken: '' }).success).toBe(false);
   });
 });

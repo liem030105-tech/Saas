@@ -1,6 +1,7 @@
 import type {
   AuthResponseSchema,
   LoginInputSchema,
+  RefreshResponseSchema,
   RegisterInputSchema,
   UserDtoSchema,
 } from '../schemas/auth';
@@ -15,3 +16,4 @@ export type LoginInput = z.input<typeof LoginInputSchema>;
 export type LoginData = z.output<typeof LoginInputSchema>;
 export type UserDto = z.infer<typeof UserDtoSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+export type RefreshResponse = z.infer<typeof RefreshResponseSchema>;

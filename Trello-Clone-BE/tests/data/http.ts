@@ -3,6 +3,7 @@ export const paths = {
   health: '/api/v1/health',
   register: '/api/v1/auth/register',
   login: '/api/v1/auth/login',
+  refresh: '/api/v1/auth/refresh',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',

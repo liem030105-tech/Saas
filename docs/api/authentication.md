@@ -45,6 +45,8 @@ Creating a personal workspace is **not** part of this endpoint; see D-06 / WORKS
 - If the token is valid: in one transaction, revoke it, create its successor in the same family, and link `replacedById`.
 - If the token was already revoked: revoke the entire family.
 
+The successor keeps the family's absolute expiry (D-02), and the cookie's `Max-Age` counts down to it. Two requests presenting the same token at once rotate it once; the other is treated as a replay (`TOKEN_REUSED`). Every `401` from this endpoint also clears the cookie. Schema: `RefreshResponseSchema` (`@trello-clone/shared`).
+
 ### POST /auth/logout
 | | |
 |--|--|

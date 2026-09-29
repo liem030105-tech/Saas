@@ -1,4 +1,8 @@
-import { AuthResponseSchema, ErrorResponseSchema } from '@trello-clone/shared';
+import {
+  AuthResponseSchema,
+  ErrorResponseSchema,
+  RefreshResponseSchema,
+} from '@trello-clone/shared';
 import { jwtVerify } from 'jose';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -16,6 +20,8 @@ import {
   invalidRegisterBodies,
   loginCredentials,
   mixedCaseEmail,
+  jsonRefreshCookies,
+  unknownRefreshToken,
 } from '../data/auth';
 import { testEnv } from '../data/env';
 import { paths } from '../data/http';
@@ -25,6 +31,7 @@ import type { Express } from 'express';
 
 const REGISTER = paths.register;
 const LOGIN = paths.login;
+const REFRESH = paths.refresh;
 
 /** Splits the Set-Cookie header of the refresh cookie into its value and lower-cased attributes. */
 function refreshCookie(res: request.Response) {
@@ -262,4 +269,165 @@ describe('POST /api/v1/auth/login', () => {
     expect(ErrorResponseSchema.parse(res.body).error.code).toBe('RATE_LIMITED');
     expect(res.headers['retry-after']).toEqual(expect.any(String));
   });
+});
+
+describe('POST /api/v1/auth/refresh', () => {
+  const { email, password } = loginCredentials;
+  const key = new TextEncoder().encode(testEnv.JWT_ACCESS_SECRET);
+
+  /** Signs in and returns the raw refresh token from the cookie. */
+  async function signIn() {
+    const res = await request(app).post(LOGIN).send({ email, password }).expect(200);
+    return { raw: refreshCookie(res)!.value, userId: res.body.data.user.id as string };
+  }
+
+  const refreshWith = (raw: string) =>
+    request(app).post(REFRESH).set('Cookie', `${expectedRefreshCookie.name}=${raw}`);
+
+  /** The response cleared the cookie (empty value, expired, same path). */
+  function expectCookieCleared(res: request.Response) {
+    const cookie = refreshCookie(res);
+    expect(cookie?.value).toBe('');
+    expect(cookie?.attributes).toEqual(
+      expect.arrayContaining([
+        `path=${expectedRefreshCookie.path}`,
+        expect.stringMatching(/^expires=thu, 01 jan 1970/),
+      ]),
+    );
+  }
+
+  beforeEach(async () => {
+    await testPrisma.user.create({
+      data: { email, name: 'Grace Hopper', passwordHash: await hashPassword(password) },
+    });
+  });
+
+  it('200: rotates the token in the same family, keeping its expiry, and returns an access token', async () => {
+    const { raw, userId } = await signIn();
+    const before = await testPrisma.refreshToken.findUniqueOrThrow({
+      where: { tokenHash: hashRefreshToken(raw) },
+    });
+
+    const res = await refreshWith(raw);
+
+    expect(res.status).toBe(200);
+    expect(RefreshResponseSchema.parse(res.body.data)).toEqual(res.body.data);
+    const { payload } = await jwtVerify(res.body.data.accessToken, key);
+    expect(payload.sub).toBe(userId);
+
+    const cookie = refreshCookie(res)!;
+    expect(cookie.value).not.toBe(raw);
+    expect(cookie.attributes).toEqual(
+      expect.arrayContaining([
+        'httponly',
+        'secure',
+        'samesite=strict',
+        `path=${expectedRefreshCookie.path}`,
+      ]),
+    );
+    const maxAge = Number(cookie.attributes.find((a) => a.startsWith('max-age='))!.split('=')[1]);
+    expect(maxAge).toBeLessThanOrEqual(expectedRefreshCookie.maxAgeSeconds);
+
+    const old = await testPrisma.refreshToken.findUniqueOrThrow({ where: { id: before.id } });
+    const next = await testPrisma.refreshToken.findUniqueOrThrow({
+      where: { tokenHash: hashRefreshToken(cookie.value) },
+    });
+    expect(old.revokedAt).not.toBeNull();
+    expect(old.replacedById).toBe(next.id);
+    expect(next).toMatchObject({
+      familyId: before.familyId,
+      expiresAt: before.expiresAt,
+      revokedAt: null,
+    });
+  });
+
+  it('the successor can refresh again', async () => {
+    const { raw } = await signIn();
+    const first = await refreshWith(raw).expect(200);
+
+    await refreshWith(refreshCookie(first)!.value).expect(200);
+  });
+
+  it('401 TOKEN_REUSED for a replayed token: the whole family is revoked and the cookie cleared', async () => {
+    const { raw } = await signIn();
+    const other = await signIn(); // another device: a different family
+    const successor = refreshCookie(await refreshWith(raw).expect(200))!.value;
+
+    const replay = await refreshWith(raw);
+
+    expect(replay.status).toBe(401);
+    expect(ErrorResponseSchema.parse(replay.body).error.code).toBe('TOKEN_REUSED');
+    expectCookieCleared(replay);
+
+    const afterReplay = await refreshWith(successor);
+    expect(afterReplay.status).toBe(401);
+    expect(afterReplay.body.error.code).toBe('TOKEN_REUSED');
+
+    const family = await testPrisma.refreshToken.findMany({
+      where: {
+        familyId: (
+          await testPrisma.refreshToken.findUniqueOrThrow({
+            where: { tokenHash: hashRefreshToken(raw) },
+          })
+        ).familyId,
+      },
+    });
+    expect(family.every((token) => token.revokedAt !== null)).toBe(true);
+    await refreshWith(other.raw).expect(200); // other sessions are untouched
+  });
+
+  it('two concurrent refreshes with the same token leave at most one live successor', async () => {
+    const { raw } = await signIn();
+
+    const responses = await Promise.all([refreshWith(raw), refreshWith(raw)]);
+
+    expect(responses.some((res) => res.status === 401)).toBe(true);
+    for (const res of responses.filter((r) => r.status === 401)) {
+      expect(res.body.error.code).toBe('TOKEN_REUSED');
+    }
+    expect(await testPrisma.refreshToken.count({ where: { revokedAt: null } })).toBeLessThanOrEqual(
+      1,
+    );
+  });
+
+  it('401 UNAUTHORIZED for an expired token, and the cookie is cleared', async () => {
+    const { raw } = await signIn();
+    await testPrisma.refreshToken.update({
+      where: { tokenHash: hashRefreshToken(raw) },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+
+    const res = await refreshWith(raw);
+
+    expect(res.status).toBe(401);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('UNAUTHORIZED');
+    expectCookieCleared(res);
+  });
+
+  it('401 UNAUTHORIZED for an unknown token', async () => {
+    const res = await refreshWith(unknownRefreshToken);
+
+    expect(res.status).toBe(401);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('UNAUTHORIZED');
+    expectCookieCleared(res);
+  });
+
+  it('401 UNAUTHORIZED without the cookie', async () => {
+    const res = await request(app).post(REFRESH);
+
+    expect(res.status).toBe(401);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('UNAUTHORIZED');
+    expectCookieCleared(res);
+  });
+
+  it.each(jsonRefreshCookies)(
+    '401 UNAUTHORIZED (not 500) for the non-string cookie %s',
+    async (value) => {
+      const res = await refreshWith(value);
+
+      expect(res.status).toBe(401);
+      expect(ErrorResponseSchema.parse(res.body).error.code).toBe('UNAUTHORIZED');
+      expectCookieCleared(res);
+    },
+  );
 });

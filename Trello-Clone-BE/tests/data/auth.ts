@@ -96,3 +96,9 @@ export const invalidLoginBodies = [
     body: { email: 'a@example.test', password: 'p'.repeat(73) },
   },
 ] as const;
+
+/** A refresh cookie value that was never issued. */
+export const unknownRefreshToken = 'never-issued-refresh-token-value-0000000000';
+
+/** Cookie values cookie-parser turns into JSON (`j:` prefix); they must count as no token. */
+export const jsonRefreshCookies = ['j:{}', 'j:1', 'j:["a"]'];
