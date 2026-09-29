@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { SignJWT } from 'jose';
+import { jwtVerify, SignJWT } from 'jose';
 
 import { env } from '../../config/env';
 
@@ -19,6 +19,16 @@ export function issueAccessToken(userId: string): Promise<string> {
     .setIssuedAt()
     .setExpirationTime(env.ACCESS_TOKEN_TTL)
     .sign(accessKey);
+}
+
+/**
+ * Verifies an access token (HS256 only, signature and `exp`) and returns its user id. Throws on an
+ * expired, malformed, or wrongly signed token, or one without a `sub`.
+ */
+export async function verifyAccessToken(token: string): Promise<string> {
+  const { payload } = await jwtVerify(token, accessKey, { algorithms: ['HS256'] });
+  if (typeof payload.sub !== 'string' || payload.sub === '') throw new Error('Token without sub');
+  return payload.sub;
 }
 
 /** 256-bit random value, base64url. Only its hash is stored; the raw value goes to the cookie. */

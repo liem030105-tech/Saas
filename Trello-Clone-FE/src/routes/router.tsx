@@ -5,7 +5,10 @@ import { restoreSession } from '@/features/auth';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 import { RegisterPage } from '@/pages/RegisterPage';
+
+import { ProtectedRoute } from './ProtectedRoute';
 
 // Exported so tests can mount the same tree in a memory router (src/testing/render.tsx).
 export const routes: RouteObject[] = [
@@ -19,6 +22,11 @@ export const routes: RouteObject[] = [
       { path: '/', element: <HomePage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
+      {
+        // Signed in only: otherwise /login?redirectTo=<here>.
+        element: <ProtectedRoute />,
+        children: [{ path: '/settings/profile', element: <ProfilePage /> }],
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

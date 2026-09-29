@@ -3,7 +3,9 @@ import { z } from 'zod';
 import * as authService from './auth.service';
 import { clearRefreshCookie, REFRESH_COOKIE_NAME, setRefreshCookie } from './cookie';
 import { AppError } from '../../lib/app-error';
+import { currentUserId } from '../../middlewares/authenticate';
 import { validated } from '../../middlewares/validate';
+import * as usersService from '../users/users.service';
 
 import type { AuthResponse, LoginData, RefreshResponse, RegisterData } from '@trello-clone/shared';
 import type { Request, Response } from 'express';
@@ -40,4 +42,9 @@ export async function refresh(req: Request, res: Response) {
     if (error instanceof AppError && error.status === 401) clearRefreshCookie(res);
     throw error;
   }
+}
+
+export async function me(req: Request, res: Response) {
+  const user = await usersService.getMe(currentUserId(req));
+  res.status(200).json({ data: user });
 }

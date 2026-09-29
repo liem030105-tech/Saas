@@ -2,7 +2,7 @@
 declare global {
   namespace Express {
     interface Request {
-      /** Set by `authenticate` (AUTH-005) once the access token is verified. */
+      /** Set by `authenticate` once the access token is verified; read it with `currentUserId(req)`. */
       userId?: string;
     }
   }

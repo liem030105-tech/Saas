@@ -85,6 +85,7 @@ features/cards/
 - Access token is kept **in memory** (inside `api/`), never in localStorage.
 - Interceptor: on 401, call `/auth/refresh` exactly once (concurrent failures share one promise), then retry. If the refresh returns 401, the query cache is cleared and the user goes to `/login?redirectTo=…`.
 - Session restore: the root route's loader (`restoreSession`, `features/auth/session.ts`) calls `/auth/refresh` once before any page renders; a 401 means signed out, any other failure shows the error page with a reload button.
+- `routes/ProtectedRoute.tsx` wraps signed-in pages: without an access token (after the restore) it redirects to `/login?redirectTo=<page>`; otherwise it renders `AppLayout` (header with the user's avatar menu) around the page.
 - Hiding buttons by role is **UX only**; real authorization is always enforced by the backend.
 
 ## Routes

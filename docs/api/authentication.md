@@ -60,20 +60,22 @@ The successor keeps the family's absolute expiry (D-02), and the cookie's `Max-A
 | | |
 |--|--|
 | Task | AUTH-005 |
-| Authentication | Bearer |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Success | `200 { data: UserDto }` |
-| Errors | `401` |
+| Errors | `401` · `429 RATE_LIMITED` |
+
+**Behavior:** `authenticate` accepts only `Authorization: Bearer <jwt>` signed with HS256 by this API and not expired; anything else (missing header, another scheme, malformed, wrong signature, `alg: none`, no `sub`) → `401 UNAUTHORIZED` with the same body. A valid token whose user was deleted also gets `401`.
 
 ### PATCH /users/me
 | | |
 |--|--|
 | Task | AUTH-005 |
-| Authentication | Bearer |
-| Body | `{ name?, avatarUrl? }` (at least one field) |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Body | `{ name?, avatarUrl? }` (at least one field; `avatarUrl: null` removes the avatar) |
 | Success | `200 { data: UserDto }` |
-| Errors | `400` · `401` |
+| Errors | `400` · `401` · `429 RATE_LIMITED` |
 
-Email changes are out of scope.
+Email changes are out of scope: an `email` field is stripped like any unknown field, so a body with only `email` is a `400`. Schema: `UpdateProfileInputSchema` (`@trello-clone/shared`).
 
 ### POST /users/me/password  *(MVP inclusion pending D-07)*
 | | |

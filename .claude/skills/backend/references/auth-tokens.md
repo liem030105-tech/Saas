@@ -4,7 +4,7 @@ Spec: [architecture/security.md → Authentication flow](../../../../docs/archit
 
 ## Access token
 - JWT HS256 with `JWT_ACCESS_SECRET`, payload `{ sub: userId }`, lifetime `ACCESS_TOKEN_TTL` (D-01). No roles inside.
-- `authenticate` middleware: read `Authorization: Bearer <jwt>`, verify, set `req.userId` (typed via `src/types/express.d.ts`). Any failure → `401 UNAUTHORIZED`.
+- `authenticate` middleware (`src/middlewares/authenticate.ts`): read `Authorization: Bearer <jwt>`, verify with `verifyAccessToken` (HS256 only), set `req.userId` (typed via `src/types/express.d.ts`). Any failure → `401 UNAUTHORIZED`. Handlers read the id with `currentUserId(req)`; protected routes run `authenticate → apiRateLimit → validate → …`.
 
 ## Refresh token
 ```ts

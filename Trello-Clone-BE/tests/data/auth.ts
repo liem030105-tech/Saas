@@ -71,6 +71,9 @@ export const expectedRefreshCookie = {
 /** Access token lifetime from ACCESS_TOKEN_TTL=15m in tests/data/env.ts (D-01). */
 export const accessTokenTtlSeconds = 15 * 60;
 
+/** The seeded user's name (tests/helpers/auth.ts → seedLoginUser). */
+export const seededUserName = 'Grace Hopper';
+
 /** A registered user's credentials for the login tests (the user is created with this password). */
 export const loginCredentials = {
   email: 'grace.hopper@example.test',
@@ -102,3 +105,38 @@ export const unknownRefreshToken = 'never-issued-refresh-token-value-0000000000'
 
 /** Cookie values cookie-parser turns into JSON (`j:` prefix); they must count as no token. */
 export const jsonRefreshCookies = ['j:{}', 'j:1', 'j:["a"]'];
+
+/** An email sent to PATCH /users/me: stripped, since email changes are out of scope. */
+export const strippedEmail = 'new@example.test';
+
+/** Profile updates for PATCH /users/me. */
+export const profileUpdates = {
+  name: { input: { name: '  Grace B. Hopper ' }, stored: 'Grace B. Hopper' },
+  avatarUrl: 'https://cdn.example.test/avatars/grace.png',
+};
+
+/** One invalid PATCH /users/me body per rule; each must fail with 400. */
+export const invalidProfileBodies = [
+  { case: 'no fields', body: {} },
+  { case: 'only an email (email changes are out of scope)', body: { email: strippedEmail } },
+  { case: 'blank name', body: { name: '   ' } },
+  { case: 'name over 100 chars', body: { name: 'n'.repeat(101) } },
+  { case: 'http avatar URL', body: { avatarUrl: 'http://cdn.example.test/a.png' } },
+  { case: 'javascript: avatar URL', body: { avatarUrl: 'javascript:alert(1)' } },
+  {
+    case: 'avatar URL over 2048 chars',
+    body: { avatarUrl: `https://cdn.example.test/${'a'.repeat(2030)}` },
+  },
+] as const;
+
+/** A secret other than testEnv.JWT_ACCESS_SECRET, for wrongly signed tokens. */
+export const foreignJwtSecret = 'someone-elses-secret-0123456789abcdef';
+
+/** Authorization header values that are not `Bearer <jwt>`. */
+export const malformedAuthHeaders = [
+  'Bearer',
+  'Bearer not-a-jwt',
+  'Basic dXNlcjpwYXNz',
+  'bearer a.b.c',
+  'Bearer a.b.c d',
+];
