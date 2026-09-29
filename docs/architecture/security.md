@@ -49,7 +49,7 @@
 ### Frontend token handling
 - The access token lives in a module-scoped variable in `src/api`; the refresh token is never readable by JS.
 - On app start the FE calls `/auth/refresh` once to restore the session.
-- On `401 UNAUTHORIZED`, a single shared refresh promise is used; concurrent requests wait for it, then retry once. If the refresh fails → clear state and redirect to `/login`.
+- On `401 UNAUTHORIZED`, a single shared refresh promise is used; concurrent requests wait for it, then retry once. If the refresh returns 401 → clear state and redirect to `/login`; a 5xx or network error leaves the session as is and surfaces as an error.
 - `TOKEN_REUSED` → force logout and show "session expired".
 - A request that fails with a token already replaced by a concurrent refresh retries with the new token instead of refreshing again.
 - Known limitation (accepted for the MVP): two browser tabs refreshing the same cookie at the same moment trip reuse detection and sign the user out. A short grace window would fix it and needs an ADR.

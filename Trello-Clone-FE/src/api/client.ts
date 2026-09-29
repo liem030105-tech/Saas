@@ -74,9 +74,13 @@ const SESSION_ENDPOINTS = ['/auth/register', '/auth/login', '/auth/refresh', '/a
 
 let refreshing: Promise<string> | null = null;
 
+/** The refresh cookie is missing, invalid, expired, or was replayed (401 from /auth/refresh). */
+export const isSessionOver = (error: unknown) => error instanceof ApiError && error.status === 401;
+
 /**
  * POST /auth/refresh, shared by every caller while it is in flight: two parallel refreshes would
  * rotate the same cookie twice and trip reuse detection. Stores and returns the new access token.
+ * Rejects with an ApiError; only a 401 means the session is over (see `isSessionOver`).
  */
 export function refreshAccessToken(): Promise<string> {
   refreshing ??= http
@@ -86,8 +90,10 @@ export function refreshAccessToken(): Promise<string> {
       return data.data.accessToken;
     })
     .catch((error: unknown) => {
-      setAccessToken(null);
-      throw toApiError(error);
+      const apiError = toApiError(error);
+      // A 5xx or a network error says nothing about the cookie: keep the session state.
+      if (isSessionOver(apiError)) setAccessToken(null);
+      throw apiError;
     })
     .finally(() => {
       refreshing = null;
@@ -125,6 +131,8 @@ http.interceptors.response.use(undefined, async (error: unknown) => {
   try {
     await refreshAccessToken();
   } catch (refreshError) {
+    // Only a 401 ends the session; an outage or a dropped connection surfaces as that error.
+    if (!isSessionOver(refreshError)) throw refreshError;
     const reused = refreshError instanceof ApiError && refreshError.code === 'TOKEN_REUSED';
     sessionEndedHandler(reused ? 'reused' : 'expired');
     throw error;

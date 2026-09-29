@@ -117,3 +117,10 @@ export const forbiddenBody = buildErrorBody({
   message: 'You do not have permission to do this',
   details: [],
 });
+
+/** The API is down: a 5xx from /auth/refresh says nothing about the session. */
+export const serverErrorBody = buildErrorBody({
+  code: 'INTERNAL_ERROR',
+  message: 'Something went wrong',
+  details: [],
+});

@@ -7,6 +7,7 @@ import {
   freshAccessToken,
   protectedPath,
   refreshUnauthorizedBody,
+  serverErrorBody,
   staleAccessToken,
   tokenReusedBody,
 } from '@/testing/data/auth';
@@ -139,6 +140,24 @@ describe('access token and refresh interceptor', () => {
     expect(getAccessToken()).toBeNull();
     expect(sessionEnded).toHaveBeenCalledWith('expired');
   });
+
+  it.each([
+    ['a 5xx', () => HttpResponse.json(serverErrorBody, { status: 500 })],
+    ['a network error', () => HttpResponse.error()],
+  ])(
+    '%s from the refresh keeps the session and rejects with that error',
+    async (_case, respond) => {
+      protectedEndpoint();
+      refreshEndpoint(respond);
+
+      const error: unknown = await apiClient.get(protectedPath).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).not.toBe(401);
+      expect(getAccessToken()).toBe(staleAccessToken);
+      expect(sessionEnded).not.toHaveBeenCalled();
+    },
+  );
 
   it('TOKEN_REUSED from the refresh ends the session as reused', async () => {
     protectedEndpoint();

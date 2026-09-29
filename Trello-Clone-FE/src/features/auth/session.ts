@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 
-import { onSessionEnded, refreshAccessToken } from '@/api/client';
+import { isSessionOver, onSessionEnded, refreshAccessToken } from '@/api/client';
 import { getAccessToken } from '@/api/token-store';
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -16,15 +16,16 @@ export const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Log in again.'
 
 /**
  * Restores the session on app start (docs/architecture/security.md → Frontend token handling):
- * one /auth/refresh with the HttpOnly cookie. A failure just means "signed out". Used as the root
- * route's loader, so pages render only after it settles.
+ * one /auth/refresh with the HttpOnly cookie. A 401 means "signed out". Any other failure (API
+ * down, network error) is thrown, so the route's error page offers a reload instead of showing a
+ * signed-in user as signed out. Used as the root route's loader: pages render after it settles.
  */
 export async function restoreSession(): Promise<null> {
   if (getAccessToken()) return null;
   try {
     await refreshAccessToken();
-  } catch {
-    // No valid refresh cookie: the user is signed out.
+  } catch (error) {
+    if (!isSessionOver(error)) throw error;
   }
   return null;
 }

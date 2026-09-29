@@ -9,6 +9,7 @@ import {
   freshAccessToken,
   protectedPath,
   refreshUnauthorizedBody,
+  serverErrorBody,
   sessionExpiredMessage,
   staleAccessToken,
 } from '@/testing/data/auth';
@@ -39,6 +40,14 @@ describe('session', () => {
     it('treats a failed refresh as signed out, without throwing', async () => {
       await expect(restoreSession()).resolves.toBeNull();
       expect(getAccessToken()).toBeNull();
+    });
+
+    it('throws when the API is down, instead of reporting a signed-out user', async () => {
+      server.use(
+        mswHttp.post(REFRESH_URL, () => HttpResponse.json(serverErrorBody, { status: 500 })),
+      );
+
+      await expect(restoreSession()).rejects.toMatchObject({ status: 500 });
     });
 
     it('does nothing when a token is already in memory', async () => {
@@ -73,6 +82,19 @@ describe('session', () => {
     ).toBeInTheDocument();
     expect(getAccessToken()).toBe(freshAccessToken);
     expect(calls).toBe(1);
+  });
+
+  it('on app start with the API down, shows the error page with a reload button', async () => {
+    server.use(
+      mswHttp.post(REFRESH_URL, () => HttpResponse.json(serverErrorBody, { status: 500 })),
+    );
+
+    renderApp(pageCases.login.path);
+
+    expect(await screen.findByRole('button', { name: 'Reload' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: pageCases.login.heading }),
+    ).not.toBeInTheDocument();
   });
 
   it('when a request cannot refresh, shows "session expired" and goes to /login?redirectTo=…', async () => {
