@@ -12,14 +12,36 @@ datasource db {
 
 /// Global identity; not tenant-scoped. Introduced in FOUNDATION-004, used from AUTH-001.
 model User {
-  id           String   @id @default(cuid())
+  id            String         @id @default(cuid())
   /// Stored lower-cased.
-  email        String   @unique
+  email         String         @unique
   /// bcrypt hash; never returned by the API.
-  passwordHash String
-  name         String
+  passwordHash  String
+  name          String
   /// URL only; uploads are out of scope.
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  avatarUrl     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+}
+
+/// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String
+  /// sha256 of the raw token (hex); the raw token is never stored.
+  tokenHash    String    @unique
+  /// Groups one login's rotations; required for reuse detection.
+  familyId     String
+  /// Absolute expiry of the family, kept across rotations (D-02).
+  expiresAt    DateTime
+  /// Set when rotated, logged out, or the family is revoked.
+  revokedAt    DateTime?
+  /// Next token in the rotation chain (audit/debug).
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
 }

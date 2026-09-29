@@ -9,6 +9,7 @@ import { logger } from './config/logger';
 import { errorHandler } from './middlewares/error-handler';
 import { notFound } from './middlewares/not-found';
 import { requestId } from './middlewares/request-id';
+import { authRouter } from './modules/auth/auth.routes';
 import { healthRouter } from './modules/health/health.routes';
 
 export const API_PREFIX = '/api/v1';
@@ -33,6 +34,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
 
   const api = Router();
   api.use(healthRouter);
+  api.use(authRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

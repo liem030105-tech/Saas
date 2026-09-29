@@ -49,7 +49,7 @@ if (!rotated) {                                // the same token was presented t
 ```ts
 res.cookie('refresh_token', nextRaw, { // the newly issued token
   httpOnly: true,
-  secure: env.NODE_ENV === 'production',
+  secure: env.NODE_ENV !== 'development', // dropped only in development (http://localhost); see modules/auth/cookie.ts
   sameSite: 'strict',
   path: '/api/v1/auth',
   maxAge: remainingMs, // until the family's absolute expiry

@@ -2,7 +2,7 @@
 
 Spec: [security.md → Frontend token handling](../../../../docs/architecture/security.md#frontend-token-handling). The refresh token is an httpOnly cookie the FE never sees; the access token lives only in memory.
 
-## `api/token.ts`
+## `api/token-store.ts` (AUTH-001)
 ```ts
 let accessToken: string | null = null;
 export const getAccessToken = () => accessToken;
@@ -16,7 +16,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import { env } from '@/config/env';
 
-import { getAccessToken, setAccessToken } from './token';
+import { getAccessToken, setAccessToken } from './token-store';
 
 export const http = axios.create({ baseURL: env.VITE_API_URL, withCredentials: true }); // cookie on /auth/*
 

@@ -1,4 +1,4 @@
-import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
+import { ipKeyGenerator, MemoryStore, rateLimit } from 'express-rate-limit';
 
 import { AppError } from '../lib/app-error';
 
@@ -23,11 +23,18 @@ const common = {
   },
 } as const;
 
+// Counters live in process memory (no Redis without an ADR); a restart resets them.
+const authStore = new MemoryStore();
+
 export const authRateLimit = rateLimit({
   ...common,
   ...RATE_LIMITS.auth,
   keyGenerator: clientIp,
+  store: authStore,
 });
+
+/** Clears the auth counters, so each test starts with a fresh budget. */
+export const resetAuthRateLimit = () => authStore.resetAll();
 
 export const apiRateLimit = rateLimit({
   ...common,
