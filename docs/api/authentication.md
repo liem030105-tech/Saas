@@ -18,7 +18,7 @@
 | Success | `201 { data: { user: UserDto, accessToken: string } }` + sets refresh cookie |
 | Errors | `400 VALIDATION_ERROR` · `409 CONFLICT` (email already registered) · `429 RATE_LIMITED` |
 
-**Behavior:** normalize the email → hash the password (bcrypt, D-03) → create the user and a new refresh-token family in one transaction → issue the access token.
+**Behavior:** normalize the email → hash the password (bcrypt, D-03) → create the user and a new refresh-token family in one transaction → issue the access token. Schemas: `RegisterInputSchema`, `AuthResponseSchema` (`@trello-clone/shared`). The `409` message is `An account with this email already exists`; the FE shows it above the submit button. Two concurrent registrations of the same email are settled by the unique index (the loser gets `409`).
 Creating a personal workspace is **not** part of this endpoint; see D-06 / WORKSPACE-001.
 
 ### POST /auth/login
