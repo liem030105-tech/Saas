@@ -83,7 +83,8 @@ features/cards/
 
 ## Auth on the FE
 - Access token is kept **in memory** (inside `api/`), never in localStorage.
-- Interceptor: on 401, call `/auth/refresh` exactly once (concurrent failures share one promise), then retry.
+- Interceptor: on 401, call `/auth/refresh` exactly once (concurrent failures share one promise), then retry. If the refresh fails, the query cache is cleared and the user goes to `/login?redirectTo=…`.
+- Session restore: the root route's loader (`restoreSession`, `features/auth/session.ts`) calls `/auth/refresh` once before any page renders; a failure just means signed out.
 - Hiding buttons by role is **UX only**; real authorization is always enforced by the backend.
 
 ## Routes

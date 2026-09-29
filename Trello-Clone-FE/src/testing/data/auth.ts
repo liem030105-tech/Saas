@@ -80,3 +80,40 @@ export const unsafeRedirects = [
   'relative/path',
   '',
 ];
+
+/** The BE's 401 for /auth/refresh without a valid cookie: a signed-out visitor. */
+export const refreshUnauthorizedBody = buildErrorBody({
+  code: 'UNAUTHORIZED',
+  message: 'Authentication required',
+  details: [],
+});
+
+/** The BE's 401 for a replayed refresh token (the whole family was revoked). */
+export const tokenReusedBody = buildErrorBody({
+  code: 'TOKEN_REUSED',
+  message: 'Your session has expired. Log in again.',
+  details: [],
+});
+
+/** Access tokens before and after a refresh. */
+export const staleAccessToken = 'stale.access.token';
+export const freshAccessToken = 'fresh.access.token';
+
+/** A protected API path used by the interceptor tests (any non-auth endpoint). */
+export const protectedPath = '/workspaces';
+
+export const sessionExpiredMessage = 'Your session has expired. Log in again.';
+
+/** The BE's 401 for a protected endpoint called with an expired access token. */
+export const accessTokenExpiredBody = buildErrorBody({
+  code: 'UNAUTHORIZED',
+  message: 'Authentication required',
+  details: [],
+});
+
+/** A 403 from a protected endpoint: not a session problem, so never a refresh. */
+export const forbiddenBody = buildErrorBody({
+  code: 'FORBIDDEN',
+  message: 'You do not have permission to do this',
+  details: [],
+});

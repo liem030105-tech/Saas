@@ -17,11 +17,15 @@ import { renderApp } from '@/testing/render';
 
 const REGISTER_URL = apiUrl('/auth/register');
 
-function fillAndSubmit(values: { name: string; email: string; password: string }) {
+const SUBMIT = 'Create account';
+
+async function fillAndSubmit(values: { name: string; email: string; password: string }) {
+  // The page renders once the root loader has tried to restore the session.
+  await screen.findByRole('button', { name: SUBMIT });
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: values.name } });
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: values.email } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: values.password } });
-  fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  fireEvent.click(screen.getByRole('button', { name: SUBMIT }));
 }
 
 describe('RegisterForm', () => {
@@ -37,7 +41,7 @@ describe('RegisterForm', () => {
     );
     renderApp(pageCases.register.path);
 
-    fillAndSubmit(invalidRegisterForm.input);
+    await fillAndSubmit(invalidRegisterForm.input);
 
     for (const message of Object.values(invalidRegisterForm.messages)) {
       expect(await screen.findByText(message)).toBeInTheDocument();
@@ -52,7 +56,7 @@ describe('RegisterForm', () => {
     );
     renderApp(pageCases.register.path);
 
-    fillAndSubmit(registerFormInput);
+    await fillAndSubmit(registerFormInput);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(emailTakenBody.error.message);
     expect(screen.getByRole('heading', { name: pageCases.register.heading })).toBeInTheDocument();
@@ -67,7 +71,7 @@ describe('RegisterForm', () => {
     );
     renderApp(pageCases.register.path);
 
-    fillAndSubmit(registerFormInput);
+    await fillAndSubmit(registerFormInput);
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(genericRegisterError);
@@ -84,7 +88,7 @@ describe('RegisterForm', () => {
     );
     renderApp(pageCases.register.path);
 
-    fillAndSubmit(registerFormInput);
+    await fillAndSubmit(registerFormInput);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),

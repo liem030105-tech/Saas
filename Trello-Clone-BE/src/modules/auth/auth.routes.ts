@@ -21,3 +21,6 @@ authRouter.post(
   validate({ body: LoginInputSchema }),
   controller.login,
 );
+
+// Public: authenticated by the refresh cookie only (SameSite=Strict + CORS allowlist, no body).
+authRouter.post('/auth/refresh', controller.refresh);
