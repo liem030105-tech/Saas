@@ -60,6 +60,7 @@ packages/shared/
 │   ├── constants/    # Role, Plan, ActivityType enums, plan limits, error codes, event names
 │   ├── utils/        # pure helpers both sides must compute identically (position.ts, ADR-017)
 │   └── index.ts      # the only export entry point
+├── tests/data/       # JSON test fixtures (not exported)
 └── package.json      # "exports": { ".": "./src/index.ts" }
 ```
 

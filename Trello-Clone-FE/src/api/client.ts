@@ -1,54 +1,39 @@
+import { ErrorResponseSchema, type ErrorCode, type ErrorDetail } from '@trello-clone/shared';
 import axios, { type AxiosRequestConfig } from 'axios';
 
 import { env } from '@/config/env';
 
-// Canonical error envelope (docs/api/README.md). The codes move to @trello-clone/shared in FOUNDATION-005.
-export interface ApiErrorDetail {
-  path?: string;
-  message: string;
-  [key: string]: unknown;
-}
-
-interface ErrorEnvelope {
-  error: { code: string; message: string; details: ApiErrorDetail[]; requestId?: string };
-}
-
-/** Code used when the response is not the canonical error (network failure, proxy HTML, …). */
+/**
+ * FE-only code for failures that carry no canonical error body (network down, proxy HTML, …).
+ * Not an API code, so it is not in @trello-clone/shared's ERROR_CODES.
+ */
 export const NETWORK_ERROR_CODE = 'NETWORK_ERROR';
+
+export type ApiErrorCode = ErrorCode | typeof NETWORK_ERROR_CODE;
 
 export class ApiError extends Error {
   override readonly name = 'ApiError';
 
   constructor(
     readonly status: number,
-    readonly code: string,
+    readonly code: ApiErrorCode,
     message: string,
-    readonly details: ApiErrorDetail[] = [],
+    readonly details: ErrorDetail[] = [],
     readonly requestId?: string,
   ) {
     super(message);
   }
 }
 
-function isErrorEnvelope(body: unknown): body is ErrorEnvelope {
-  if (typeof body !== 'object' || body === null || !('error' in body)) return false;
-  const { error } = body as { error: unknown };
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as { code?: unknown }).code === 'string' &&
-    typeof (error as { message?: unknown }).message === 'string'
-  );
-}
-
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error;
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 0;
-    const body: unknown = error.response?.data;
-    if (isErrorEnvelope(body)) {
-      const { code, message, details, requestId } = body.error;
-      return new ApiError(status, code, message, Array.isArray(details) ? details : [], requestId);
+    // The shared schema is the contract the BE's errorHandler produces (docs/api/README.md).
+    const parsed = ErrorResponseSchema.safeParse(error.response?.data);
+    if (parsed.success) {
+      const { code, message, details, requestId } = parsed.data.error;
+      return new ApiError(status, code, message, details, requestId);
     }
     return new ApiError(status, NETWORK_ERROR_CODE, error.message);
   }

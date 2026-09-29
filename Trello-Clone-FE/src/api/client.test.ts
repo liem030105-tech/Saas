@@ -1,6 +1,6 @@
 import { http as mswHttp, HttpResponse } from 'msw';
 
-import { apiUrl, buildErrorBody, sampleResource } from '@/testing/data/api';
+import { apiUrl, buildErrorBody, nonCanonicalErrorBody, sampleResource } from '@/testing/data/api';
 import { testEnv } from '@/testing/data/env';
 import { server } from '@/testing/mocks/server';
 
@@ -61,6 +61,21 @@ describe('apiClient', () => {
       name: 'ApiError',
       status: 0,
       code: NETWORK_ERROR_CODE,
+    });
+  });
+
+  it('keeps the status but not the body when an error response is not canonical', async () => {
+    server.use(
+      mswHttp.get(apiUrl('/things/1'), () =>
+        HttpResponse.json(nonCanonicalErrorBody, { status: 502 }),
+      ),
+    );
+
+    await expect(apiClient.get('/things/1')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 502,
+      code: NETWORK_ERROR_CODE,
+      details: [],
     });
   });
 });

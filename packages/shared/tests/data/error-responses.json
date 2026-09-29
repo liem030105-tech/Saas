@@ -1,0 +1,43 @@
+{
+  "_source": "Captured from the running API (FOUNDATION-002/004) on 2026-09-29; validationWithDetails is the body of the BE integration test for validate().",
+  "real": {
+    "notFound": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Route not found",
+        "details": [],
+        "requestId": "6b35d2a5-0254-4012-aedf-ac228ea3e18a"
+      }
+    },
+    "malformedJson": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Malformed request",
+        "details": [],
+        "requestId": "ca54f3f6-d429-4ef5-9571-fddc56612ba7"
+      }
+    },
+    "validationWithDetails": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Request validation failed",
+        "details": [
+          { "path": "title", "message": "Too small: expected string to have >=1 characters" }
+        ],
+        "requestId": "client-req-0001"
+      }
+    }
+  },
+  "invalid": {
+    "unknownCode": {
+      "error": { "code": "TEAPOT", "message": "x", "details": [], "requestId": "r" }
+    },
+    "missingRequestId": {
+      "error": { "code": "NOT_FOUND", "message": "x", "details": [] }
+    },
+    "detailsNotArray": {
+      "error": { "code": "NOT_FOUND", "message": "x", "details": {}, "requestId": "r" }
+    },
+    "notAnErrorBody": { "data": { "status": "ok" } }
+  }
+}

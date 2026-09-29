@@ -1,3 +1,4 @@
+import { ErrorResponseSchema, type ErrorCode } from '@trello-clone/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -24,8 +25,10 @@ import type { Express } from 'express';
 
 const testPath = (path: string) => `${API_PREFIX}${path}`;
 
-function expectCanonicalError(res: request.Response, status: number, code: string) {
+function expectCanonicalError(res: request.Response, status: number, code: ErrorCode) {
   expect(res.status).toBe(status);
+  // The shared contract the FE parses errors with (FOUNDATION-005).
+  expect(ErrorResponseSchema.safeParse(res.body).success).toBe(true);
   expect(res.body).toEqual({
     error: {
       code,

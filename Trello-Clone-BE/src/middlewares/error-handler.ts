@@ -1,14 +1,12 @@
 import { ZodError } from 'zod';
 
-import { AppError, type ErrorCode, type ErrorDetail } from '../lib/app-error';
+import { AppError } from '../lib/app-error';
 
+import type { ErrorResponse } from '@trello-clone/shared';
 import type { NextFunction, Request, Response } from 'express';
 
-interface ErrorBody {
-  code: ErrorCode;
-  message: string;
-  details: ErrorDetail[];
-}
+/** The shared contract minus requestId, which errorHandler adds from the request. */
+type ErrorBody = Omit<ErrorResponse['error'], 'requestId'>;
 
 // Errors from Express and its parsers carry an HTTP status: body-parser (malformed JSON, body
 // over 1 MB, with a `type`) and the router (a path parameter that cannot be URI-decoded).
@@ -70,5 +68,6 @@ export function errorHandler(error: unknown, req: Request, res: Response, next: 
   }
   const { status, body } = toErrorResponse(error);
   if (status >= 500) req.log.error({ err: error }, 'Unhandled error');
-  res.status(status).json({ error: { ...body, requestId: res.locals.requestId as string } });
+  const payload: ErrorResponse = { error: { ...body, requestId: res.locals.requestId as string } };
+  res.status(status).json(payload);
 }
