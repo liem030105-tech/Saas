@@ -1,4 +1,4 @@
-// Paths and payloads for the app-level integration tests (tests/integration/app.test.ts).
+// Paths and payloads for the integration tests (tests/integration/*).
 export const paths = {
   health: '/api/v1/health',
   register: '/api/v1/auth/register',
