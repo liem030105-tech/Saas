@@ -36,6 +36,19 @@ export const RegisterInputSchema = z.object({
   name: UserNameSchema,
 });
 
+/**
+ * POST /auth/login body. The password is only checked for presence and the 72-character cap, not
+ * the register minimum: a sign-in never reveals password rules, and a wrong password of any
+ * length gets the same 401 INVALID_CREDENTIALS.
+ */
+export const LoginInputSchema = z.object({
+  email: EmailSchema,
+  password: z
+    .string({ error: 'Enter your password' })
+    .min(1, 'Enter your password')
+    .max(72, 'Password must be at most 72 characters'),
+});
+
 /** A user as the API returns it; `passwordHash` never leaves the server. */
 export const UserDtoSchema = z.object({
   id: CuidSchema,

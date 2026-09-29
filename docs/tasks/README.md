@@ -52,7 +52,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 5 | [FOUNDATION-005](FOUNDATION-005-shared-package.md) shared package | 0 | F-002, F-003 | F-004 | – | Done |
 | 6 | [FOUNDATION-006](FOUNDATION-006-ci-quality-gates.md) CI quality gates | 0 | F-004, F-005 | – | – | Done |
 | 7 | [AUTH-001](AUTH-001-register.md) register | 1 | F-006 | – | – | Done |
-| 8 | [AUTH-002](AUTH-002-login.md) login | 1 | AUTH-001 | – | – | Todo |
+| 8 | [AUTH-002](AUTH-002-login.md) login | 1 | AUTH-001 | – | – | Done |
 | 9 | [AUTH-003](AUTH-003-refresh-token.md) refresh token | 1 | AUTH-002 | AUTH-005 | – | Todo |
 | 10 | [AUTH-004](AUTH-004-logout.md) logout | 1 | AUTH-003 | AUTH-005 | – | Todo |
 | 11 | [AUTH-005](AUTH-005-current-user.md) current user & profile | 1 | AUTH-002 | AUTH-003, AUTH-004 | D-07 (optional part only) | Todo |

@@ -79,7 +79,7 @@ Shared rules applied through Zod. The length limits are proposed defaults (D-15)
 |-------|------|
 | Any `…Id` param/body field | cuid string |
 | `email` | trimmed, lower-cased, valid email, ≤ 254 chars |
-| `password` | 8–72 chars (bcrypt limit) |
+| `password` | 8–72 chars (bcrypt limit); login only requires 1–72 |
 | User `name` | trimmed, 1–100 chars |
 | `avatarUrl` | `https` URL, ≤ 2048 chars, or `null` |
 | Workspace `name` | trimmed, 1–100 chars |

@@ -1,4 +1,4 @@
-import { RegisterInputSchema } from '@trello-clone/shared';
+import { LoginInputSchema, RegisterInputSchema } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './auth.controller';
@@ -13,4 +13,11 @@ authRouter.post(
   authRateLimit,
   validate({ body: RegisterInputSchema }),
   controller.register,
+);
+
+authRouter.post(
+  '/auth/login',
+  authRateLimit,
+  validate({ body: LoginInputSchema }),
+  controller.login,
 );

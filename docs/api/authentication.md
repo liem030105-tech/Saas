@@ -30,6 +30,8 @@ Creating a personal workspace is **not** part of this endpoint; see D-06 / WORKS
 | Success | `200 { data: { user: UserDto, accessToken } }` + sets refresh cookie (new family) |
 | Errors | `400` · `401 INVALID_CREDENTIALS` (identical for unknown email and wrong password; a dummy bcrypt compare equalizes timing) · `429` |
 
+**Behavior:** normalize the email → look the user up → one bcrypt compare, against the user's hash or, for an unknown email, a dummy hash of the same cost → on success start a **new** refresh-token family (other sessions stay valid) and issue the access token. Schemas: `LoginInputSchema`, `AuthResponseSchema`. The password is only checked for presence and the 72-character cap (not the register minimum), so any wrong password gets the same `401`, whose message is `Incorrect email or password` for both cases; the FE shows it above the submit button. Register and login share one per-IP rate-limit counter (D-04).
+
 ### POST /auth/refresh
 | | |
 |--|--|

@@ -70,3 +70,29 @@ export const expectedRefreshCookie = {
 
 /** Access token lifetime from ACCESS_TOKEN_TTL=15m in tests/data/env.ts (D-01). */
 export const accessTokenTtlSeconds = 15 * 60;
+
+/** A registered user's credentials for the login tests (the user is created with this password). */
+export const loginCredentials = {
+  email: 'grace.hopper@example.test',
+  password: 'correct horse battery',
+  /** How the user may type the email: login normalizes it like register. */
+  typedEmail: '  Grace.Hopper@Example.TEST ',
+  wrongPassword: 'incorrect horse battery',
+  unknownEmail: 'nobody@example.test',
+};
+
+/** The one message for an unknown email and a wrong password (no user enumeration). */
+export const invalidCredentialsMessage = 'Incorrect email or password';
+
+/** One invalid login body per rule; each must fail with 400 and a detail for `field`. */
+export const invalidLoginBodies = [
+  { case: 'missing email', field: 'email', body: { password: 'correct horse' } },
+  { case: 'email not an email', field: 'email', body: { email: 'nope', password: 'x' } },
+  { case: 'missing password', field: 'password', body: { email: 'a@example.test' } },
+  { case: 'empty password', field: 'password', body: { email: 'a@example.test', password: '' } },
+  {
+    case: 'password over 72 chars',
+    field: 'password',
+    body: { email: 'a@example.test', password: 'p'.repeat(73) },
+  },
+] as const;

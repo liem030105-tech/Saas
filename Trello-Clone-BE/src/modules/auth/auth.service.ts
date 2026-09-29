@@ -2,10 +2,10 @@ import { createRefreshFamily, issueAccessToken, type IssuedRefreshToken } from '
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
-import { hashPassword } from '../../lib/password';
+import { hashPassword, verifyPassword } from '../../lib/password';
 import { toUserDto } from '../users/users.service';
 
-import type { RegisterData, UserDto } from '@trello-clone/shared';
+import type { LoginData, RegisterData, UserDto } from '@trello-clone/shared';
 
 export interface AuthResult {
   user: UserDto;
@@ -14,6 +14,10 @@ export interface AuthResult {
 }
 
 const emailTaken = () => new AppError('CONFLICT', 409, 'An account with this email already exists');
+
+/** One error for an unknown email and a wrong password: the response never reveals which. */
+const invalidCredentials = () =>
+  new AppError('INVALID_CREDENTIALS', 401, 'Incorrect email or password');
 
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
@@ -45,4 +49,17 @@ export async function register(input: RegisterData): Promise<AuthResult> {
     if (isUniqueViolation(error)) throw emailTaken();
     throw error;
   }
+}
+
+/**
+ * POST /auth/login (docs/api/authentication.md). An unknown email still runs one bcrypt compare
+ * (against the dummy hash), so it fails like a wrong password, with similar timing.
+ */
+export async function login(input: LoginData): Promise<AuthResult> {
+  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const valid = await verifyPassword(input.password, user?.passwordHash ?? null);
+  if (!user || !valid) throw invalidCredentials();
+
+  const refreshToken = await createRefreshFamily(prisma, user.id);
+  return { user: toUserDto(user), accessToken: await issueAccessToken(user.id), refreshToken };
 }

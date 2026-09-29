@@ -11,3 +11,11 @@ export function useRegister() {
     onSuccess: ({ accessToken }) => setAccessToken(accessToken),
   });
 }
+
+/** Signs in: the access token goes to memory only (the refresh token is an HttpOnly cookie). */
+export function useLogin() {
+  return useMutation({
+    mutationFn: authApi.login,
+    onSuccess: ({ accessToken }) => setAccessToken(accessToken),
+  });
+}

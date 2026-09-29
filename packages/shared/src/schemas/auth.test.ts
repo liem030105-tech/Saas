@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuthResponseSchema, RegisterInputSchema, UserDtoSchema } from './auth';
+import { AuthResponseSchema, LoginInputSchema, RegisterInputSchema, UserDtoSchema } from './auth';
 import auth from '../../tests/data/auth.json';
 
 describe('RegisterInputSchema', () => {
@@ -26,6 +26,24 @@ describe('RegisterInputSchema', () => {
     expect(result.error?.issues).toEqual([
       expect.objectContaining({ path: ['password'], message: expect.stringMatching(/^Password/) }),
     ]);
+  });
+});
+
+describe('LoginInputSchema', () => {
+  it('normalizes the email and accepts any non-empty password up to 72 characters', () => {
+    expect(LoginInputSchema.parse(auth.login.validInput)).toEqual(auth.login.normalized);
+    const atCap = { ...auth.login.normalized, password: auth.boundaries.password72 };
+    expect(LoginInputSchema.safeParse(atCap).success).toBe(true);
+  });
+
+  it.each(Object.entries(auth.login.invalidInputs))('rejects %s', (_name, input) => {
+    expect(LoginInputSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('strips unknown fields', () => {
+    expect(LoginInputSchema.parse({ ...auth.login.normalized, name: 'Ada' })).toEqual(
+      auth.login.normalized,
+    );
   });
 });
 

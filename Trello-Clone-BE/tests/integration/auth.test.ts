@@ -5,12 +5,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
+import { hashPassword } from '../../src/lib/password';
 import { RATE_LIMITS, resetAuthRateLimit } from '../../src/middlewares/rate-limit';
 import { hashRefreshToken } from '../../src/modules/auth/tokens';
 import {
   buildRegisterInput,
   expectedRefreshCookie,
+  invalidCredentialsMessage,
+  invalidLoginBodies,
   invalidRegisterBodies,
+  loginCredentials,
   mixedCaseEmail,
 } from '../data/auth';
 import { testEnv } from '../data/env';
@@ -20,6 +24,7 @@ import { resetDb, testPrisma } from '../helpers/db';
 import type { Express } from 'express';
 
 const REGISTER = paths.register;
+const LOGIN = paths.login;
 
 /** Splits the Set-Cookie header of the refresh cookie into its value and lower-cased attributes. */
 function refreshCookie(res: request.Response) {
@@ -34,21 +39,21 @@ function refreshCookie(res: request.Response) {
   };
 }
 
+let app: Express;
+
+beforeAll(() => {
+  app = createApp();
+});
+beforeEach(async () => {
+  await resetDb();
+  await resetAuthRateLimit();
+});
+afterAll(async () => {
+  await prisma.$disconnect();
+  await testPrisma.$disconnect();
+});
+
 describe('POST /api/v1/auth/register', () => {
-  let app: Express;
-
-  beforeAll(() => {
-    app = createApp();
-  });
-  beforeEach(async () => {
-    await resetDb();
-    await resetAuthRateLimit();
-  });
-  afterAll(async () => {
-    await prisma.$disconnect();
-    await testPrisma.$disconnect();
-  });
-
   it('201: creates the user and returns the user and a valid access token', async () => {
     const input = buildRegisterInput();
 
@@ -163,6 +168,95 @@ describe('POST /api/v1/auth/register', () => {
     }
 
     const res = await request(app).post(REGISTER).send(buildRegisterInput());
+
+    expect(res.status).toBe(429);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('RATE_LIMITED');
+    expect(res.headers['retry-after']).toEqual(expect.any(String));
+  });
+});
+
+describe('POST /api/v1/auth/login', () => {
+  const { email, password, typedEmail, wrongPassword, unknownEmail } = loginCredentials;
+
+  beforeEach(async () => {
+    await testPrisma.user.create({
+      data: { email, name: 'Grace Hopper', passwordHash: await hashPassword(password) },
+    });
+  });
+
+  it('200: returns the user and a valid access token, and starts a new token family', async () => {
+    const res = await request(app).post(LOGIN).send({ email: typedEmail, password });
+
+    expect(res.status).toBe(200);
+    const { data } = res.body as { data: unknown };
+    expect(AuthResponseSchema.parse(data)).toEqual(data);
+    expect(res.body.data.user.email).toBe(email);
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+
+    const key = new TextEncoder().encode(testEnv.JWT_ACCESS_SECRET);
+    const { payload } = await jwtVerify(res.body.data.accessToken, key);
+    expect(payload.sub).toBe(res.body.data.user.id);
+
+    const cookie = refreshCookie(res);
+    expect(cookie?.attributes).toEqual(
+      expect.arrayContaining([
+        'httponly',
+        'secure',
+        'samesite=strict',
+        `path=${expectedRefreshCookie.path}`,
+        `max-age=${expectedRefreshCookie.maxAgeSeconds}`,
+      ]),
+    );
+    const tokens = await testPrisma.refreshToken.findMany();
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]!.tokenHash).toBe(hashRefreshToken(cookie!.value));
+  });
+
+  it('each login is its own family (other sessions stay valid)', async () => {
+    await request(app).post(LOGIN).send({ email, password }).expect(200);
+    await request(app).post(LOGIN).send({ email, password }).expect(200);
+
+    const tokens = await testPrisma.refreshToken.findMany();
+    expect(tokens).toHaveLength(2);
+    expect(new Set(tokens.map((token) => token.familyId)).size).toBe(2);
+    expect(tokens.every((token) => token.revokedAt === null)).toBe(true);
+  });
+
+  it('401 INVALID_CREDENTIALS: identical bodies for a wrong password and an unknown email', async () => {
+    const wrong = await request(app).post(LOGIN).send({ email, password: wrongPassword });
+    const unknown = await request(app).post(LOGIN).send({ email: unknownEmail, password });
+
+    for (const res of [wrong, unknown]) {
+      expect(res.status).toBe(401);
+      expect(ErrorResponseSchema.parse(res.body).error).toMatchObject({
+        code: 'INVALID_CREDENTIALS',
+        message: invalidCredentialsMessage,
+        details: [],
+      });
+      expect(refreshCookie(res)).toBeUndefined();
+    }
+    const withoutRequestId = (res: request.Response) => ({ ...res.body.error, requestId: null });
+    expect(withoutRequestId(wrong)).toEqual(withoutRequestId(unknown));
+    expect(await testPrisma.refreshToken.count()).toBe(0);
+  });
+
+  it.each(invalidLoginBodies)('400 for $case', async ({ field, body }) => {
+    const res = await request(app).post(LOGIN).send(body);
+
+    expect(res.status).toBe(400);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: field })]),
+    );
+    expect(refreshCookie(res)).toBeUndefined();
+  });
+
+  it('429 RATE_LIMITED with Retry-After once the per-IP limit is used up', async () => {
+    for (let i = 0; i < RATE_LIMITS.auth.limit; i += 1) {
+      await request(app).post(LOGIN).send({ email, password: wrongPassword }).expect(401);
+    }
+
+    const res = await request(app).post(LOGIN).send({ email, password });
 
     expect(res.status).toBe(429);
     expect(ErrorResponseSchema.parse(res.body).error.code).toBe('RATE_LIMITED');
