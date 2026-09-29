@@ -50,7 +50,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 3 | [FOUNDATION-003](FOUNDATION-003-frontend-bootstrap.md) frontend bootstrap | 0 | F-001 | F-002 | – | Done |
 | 4 | [FOUNDATION-004](FOUNDATION-004-database-bootstrap.md) database bootstrap | 0 | F-002 | F-005 | – | Done |
 | 5 | [FOUNDATION-005](FOUNDATION-005-shared-package.md) shared package | 0 | F-002, F-003 | F-004 | – | Done |
-| 6 | [FOUNDATION-006](FOUNDATION-006-ci-quality-gates.md) CI quality gates | 0 | F-004, F-005 | – | – | Todo |
+| 6 | [FOUNDATION-006](FOUNDATION-006-ci-quality-gates.md) CI quality gates | 0 | F-004, F-005 | – | – | Done |
 | 7 | [AUTH-001](AUTH-001-register.md) register | 1 | F-006 | – | – | Todo |
 | 8 | [AUTH-002](AUTH-002-login.md) login | 1 | AUTH-001 | – | – | Todo |
 | 9 | [AUTH-003](AUTH-003-refresh-token.md) refresh token | 1 | AUTH-002 | AUTH-005 | – | Todo |

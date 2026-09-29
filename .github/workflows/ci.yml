@@ -1,0 +1,103 @@
+# Quality gates for every PR and for main (FOUNDATION-006, docs/development/testing.md → CI).
+# They block merging once the repository owner adds `ci` and `docs` as required status checks
+# in the ruleset (manual step, FOUNDATION-006).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# One run per PR (by number, so same-named fork branches never collide): a new push cancels
+# the run it replaces. Each push to main gets its own group (by commit), so no run there is
+# cancelled or replaced and every merge commit gets a result.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trello
+          POSTGRES_PASSWORD: trello # throwaway CI database, not a secret
+          POSTGRES_DB: trello_test
+        ports: ['5432:5432']
+        # The tests start only once Postgres accepts connections.
+        options: >-
+          --health-cmd "pg_isready -U trello -d trello_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Test-only values; nothing here is a real credential.
+    env:
+      DATABASE_URL_TEST: postgresql://trello:trello@localhost:5432/trello_test
+      DATABASE_URL: postgresql://trello:trello@localhost:5432/trello_test
+      CLIENT_URL: http://localhost:5173
+      JWT_ACCESS_SECRET: ci-only-access-secret-0123456789abcdef
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6 # version from "packageManager" in package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @trello-clone/api db:generate
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Offline: only relative links and their #anchors, so external sites never make CI flaky.
+      - name: Check relative Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Pinned so CI keeps using the version the local command in testing.md was checked with.
+          lycheeVersion: v0.24.2
+          args: >-
+            --offline
+            --include-fragments
+            --no-progress
+            --exclude-path node_modules
+            './**/*.md'
+          fail: true
