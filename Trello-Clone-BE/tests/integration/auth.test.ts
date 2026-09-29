@@ -14,11 +14,12 @@ import {
   mixedCaseEmail,
 } from '../data/auth';
 import { testEnv } from '../data/env';
+import { paths } from '../data/http';
 import { resetDb, testPrisma } from '../helpers/db';
 
 import type { Express } from 'express';
 
-const REGISTER = '/api/v1/auth/register';
+const REGISTER = paths.register;
 
 /** Splits the Set-Cookie header of the refresh cookie into its value and lower-cased attributes. */
 function refreshCookie(res: request.Response) {
@@ -61,7 +62,8 @@ describe('POST /api/v1/auth/register', () => {
       name: input.name,
       avatarUrl: null,
     });
-    expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|correct horse/);
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+    expect(JSON.stringify(res.body)).not.toContain(input.password);
 
     const key = new TextEncoder().encode(testEnv.JWT_ACCESS_SECRET);
     const { payload } = await jwtVerify(res.body.data.accessToken, key);
@@ -135,6 +137,22 @@ describe('POST /api/v1/auth/register', () => {
     expect(res.status).toBe(409);
     expect(ErrorResponseSchema.parse(res.body).error.code).toBe('CONFLICT');
     expect(refreshCookie(res)).toBeUndefined();
+    expect(await testPrisma.user.count()).toBe(1);
+    expect(await testPrisma.refreshToken.count()).toBe(1);
+  });
+
+  it('409 for the loser when the same email registers twice at once (unique index)', async () => {
+    const input = buildRegisterInput();
+
+    const responses = await Promise.all([
+      request(app).post(REGISTER).send(input),
+      request(app).post(REGISTER).send(input),
+    ]);
+
+    expect(responses.map((res) => res.status).sort()).toEqual([201, 409]);
+    const loser = responses.find((res) => res.status === 409)!;
+    expect(ErrorResponseSchema.parse(loser.body).error.code).toBe('CONFLICT');
+    expect(refreshCookie(loser)).toBeUndefined();
     expect(await testPrisma.user.count()).toBe(1);
     expect(await testPrisma.refreshToken.count()).toBe(1);
   });

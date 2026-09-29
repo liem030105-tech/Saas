@@ -13,7 +13,11 @@ export const EmailSchema = z
   .max(254, 'Email must be at most 254 characters')
   .pipe(z.email('Enter a valid email address'));
 
-/** 8–72 characters: bcrypt only reads the first 72 bytes. */
+/**
+ * 8–72 characters (docs/api/README.md). The cap follows bcrypt's 72-byte input limit; it counts
+ * characters, so multibyte passwords near the cap can still exceed 72 bytes (a byte-based rule
+ * would be a D-15 change).
+ */
 export const PasswordSchema = z
   .string({ error: 'Enter a password' })
   .min(8, 'Password must be at least 8 characters')

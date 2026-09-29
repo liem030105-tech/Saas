@@ -5,7 +5,9 @@ import { getAccessToken, setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
 import {
   emailTakenBody,
+  genericRegisterError,
   invalidRegisterForm,
+  proxyErrorPage,
   registerFormInput,
   registerResponse,
 } from '@/testing/data/auth';
@@ -55,6 +57,21 @@ describe('RegisterForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(emailTakenBody.error.message);
     expect(screen.getByRole('heading', { name: pageCases.register.heading })).toBeInTheDocument();
     expect(getAccessToken()).toBeNull();
+  });
+
+  it('shows the generic message, not technical text, when the response has no API error body', async () => {
+    server.use(
+      mswHttp.post(REGISTER_URL, () =>
+        HttpResponse.html(proxyErrorPage.html, { status: proxyErrorPage.status }),
+      ),
+    );
+    renderApp(pageCases.register.path);
+
+    fillAndSubmit(registerFormInput);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(genericRegisterError);
+    expect(alert).not.toHaveTextContent(String(proxyErrorPage.status));
   });
 
   it('signs in on success: keeps the access token in memory and goes to /', async () => {

@@ -27,6 +27,13 @@ export const emailTakenBody = buildErrorBody({
   details: [],
 });
 
+/** What a proxy returns when the API is down: no canonical error body. */
+export const proxyErrorPage = { status: 502, html: '<html><body>502 Bad Gateway</body></html>' };
+
+/** Shown whenever the error carries no user-facing message. */
+export const genericRegisterError =
+  "Couldn't create your account. Check your connection and try again.";
+
 /** Form input the shared schema rejects, with the message shown under each field. */
 export const invalidRegisterForm = {
   input: { name: '   ', email: 'not-an-email', password: 'short' },

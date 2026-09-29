@@ -1,6 +1,7 @@
 // Paths and payloads for the app-level integration tests (tests/integration/app.test.ts).
 export const paths = {
   health: '/api/v1/health',
+  register: '/api/v1/auth/register',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',

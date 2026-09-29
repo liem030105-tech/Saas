@@ -3,7 +3,7 @@ import { RegisterInputSchema, type RegisterData, type RegisterInput } from '@tre
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 
-import { ApiError } from '@/api/client';
+import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,15 +30,18 @@ export function RegisterForm() {
       await registerUser.mutateAsync(values);
       await navigate('/');
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'VALIDATION_ERROR' && error.details.length) {
+      if (error instanceof ApiError && error.code === 'VALIDATION_ERROR') {
         // Same schema on both sides, so this is rare; map the server's field errors back anyway.
-        for (const { path, message } of error.details) {
-          if (isField(path)) form.setError(path, { message });
-        }
-        return;
+        const fieldErrors = error.details.filter((detail) => isField(detail.path));
+        for (const { path, message } of fieldErrors) form.setError(path as Field, { message });
+        if (fieldErrors.length) return;
       }
-      // 409 and other known API errors carry a message written for users; anything else is generic.
-      const message = error instanceof ApiError && error.status > 0 ? error.message : GENERIC_ERROR;
+      // Canonical API errors (409, …) carry a message written for users. Failures without one
+      // (network down, a proxy's HTML error page) get the generic copy: no technical text in the UI.
+      const message =
+        error instanceof ApiError && error.code !== NETWORK_ERROR_CODE
+          ? error.message
+          : GENERIC_ERROR;
       form.setError('root', { message });
     }
   });
