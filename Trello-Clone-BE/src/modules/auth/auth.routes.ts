@@ -2,7 +2,8 @@ import { LoginInputSchema, RegisterInputSchema } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './auth.controller';
-import { authRateLimit } from '../../middlewares/rate-limit';
+import { authenticate } from '../../middlewares/authenticate';
+import { apiRateLimit, authRateLimit } from '../../middlewares/rate-limit';
 import { validate } from '../../middlewares/validate';
 
 export const authRouter = Router();
@@ -24,3 +25,6 @@ authRouter.post(
 
 // Public: authenticated by the refresh cookie only (SameSite=Strict + CORS allowlist, no body).
 authRouter.post('/auth/refresh', controller.refresh);
+
+// Bearer: authenticate → rate limit (per user, D-04) → controller.
+authRouter.get('/auth/me', authenticate, apiRateLimit, controller.me);

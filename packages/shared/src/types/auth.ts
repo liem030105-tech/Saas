@@ -3,6 +3,7 @@ import type {
   LoginInputSchema,
   RefreshResponseSchema,
   RegisterInputSchema,
+  UpdateProfileInputSchema,
   UserDtoSchema,
 } from '../schemas/auth';
 import type { z } from 'zod';
@@ -17,3 +18,6 @@ export type LoginData = z.output<typeof LoginInputSchema>;
 export type UserDto = z.infer<typeof UserDtoSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type RefreshResponse = z.infer<typeof RefreshResponseSchema>;
+/** What the profile form sends (before trimming). */
+export type UpdateProfileInput = z.input<typeof UpdateProfileInputSchema>;
+export type UpdateProfileData = z.output<typeof UpdateProfileInputSchema>;

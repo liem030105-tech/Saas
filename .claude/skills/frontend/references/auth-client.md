@@ -19,7 +19,7 @@ The code is in `src/api/client.ts`; the rules it follows:
 - `apiClient` (FOUNDATION-003) is a thin typed wrapper over `http` that unwraps `{ data }`; features use `apiClient`, never `http` or a new axios instance.
 
 ## Session restore and session end (`features/auth/session.ts`)
-- `restoreSession` is the root route's `loader` (`shouldRevalidate: () => false`): one `/auth/refresh` on app start before any page renders; a 401 means "signed out"; any other failure is thrown to the route's error page (reload), so an outage never looks like a sign-out. `ProtectedRoute` (AUTH-005) can therefore read the result synchronously.
+- `restoreSession` is the root route's `loader` (`shouldRevalidate: () => false`): one `/auth/refresh` on app start before any page renders; a 401 means "signed out"; any other failure is thrown to the route's error page (reload), so an outage never looks like a sign-out. `ProtectedRoute` therefore reads the result synchronously (`getAccessToken()`): no token means signed out, never "still loading".
 - `handleSessionEnd(router, queryClient)` is registered by `app/provider.tsx`: it clears the query cache, shows "Your session has expired. Log in again." (one toast id), and navigates to `/login?redirectTo=<current path>`.
 
 ## Logout

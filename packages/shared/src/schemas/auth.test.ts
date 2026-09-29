@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AuthResponseSchema,
+  AvatarUrlSchema,
   LoginInputSchema,
   RefreshResponseSchema,
   RegisterInputSchema,
+  UpdateProfileInputSchema,
   UserDtoSchema,
 } from './auth';
 import auth from '../../tests/data/auth.json';
@@ -73,5 +75,31 @@ describe('RefreshResponseSchema', () => {
       accessToken: 'a.b.c',
     });
     expect(RefreshResponseSchema.safeParse({ accessToken: '' }).success).toBe(false);
+  });
+});
+
+describe('AvatarUrlSchema', () => {
+  it.each(auth.profile.validAvatarUrls)('accepts %s', (url) => {
+    expect(AvatarUrlSchema.safeParse(url).success).toBe(true);
+  });
+
+  it.each(auth.profile.invalidAvatarUrls)('rejects %s', (url) => {
+    expect(AvatarUrlSchema.safeParse(url).success).toBe(false);
+  });
+});
+
+describe('UpdateProfileInputSchema', () => {
+  it.each(Object.entries(auth.profile.validInputs))('accepts %s', (_name, input) => {
+    expect(UpdateProfileInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it('trims the name', () => {
+    expect(UpdateProfileInputSchema.parse(auth.profile.validInputs.nameOnly)).toEqual({
+      name: 'Ada King',
+    });
+  });
+
+  it.each(Object.entries(auth.profile.invalidInputs))('rejects %s', (_name, input) => {
+    expect(UpdateProfileInputSchema.safeParse(input).success).toBe(false);
   });
 });

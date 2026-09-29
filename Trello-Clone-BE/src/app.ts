@@ -11,6 +11,7 @@ import { notFound } from './middlewares/not-found';
 import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
 import { healthRouter } from './modules/health/health.routes';
+import { usersRouter } from './modules/users/users.routes';
 
 export const API_PREFIX = '/api/v1';
 
@@ -35,6 +36,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   const api = Router();
   api.use(healthRouter);
   api.use(authRouter);
+  api.use(usersRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

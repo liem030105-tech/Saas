@@ -2,6 +2,7 @@ import {
   AuthResponseSchema,
   ErrorResponseSchema,
   RefreshResponseSchema,
+  UserDtoSchema,
 } from '@trello-clone/shared';
 import { jwtVerify } from 'jose';
 import request from 'supertest';
@@ -9,7 +10,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/config/prisma';
-import { hashPassword } from '../../src/lib/password';
 import { RATE_LIMITS, resetAuthRateLimit } from '../../src/middlewares/rate-limit';
 import { hashRefreshToken } from '../../src/modules/auth/tokens';
 import {
@@ -19,19 +19,23 @@ import {
   invalidLoginBodies,
   invalidRegisterBodies,
   loginCredentials,
+  malformedAuthHeaders,
   mixedCaseEmail,
   jsonRefreshCookies,
   unknownRefreshToken,
 } from '../data/auth';
 import { testEnv } from '../data/env';
 import { paths } from '../data/http';
+import { loginAs, seedLoginUser } from '../helpers/auth';
 import { resetDb, testPrisma } from '../helpers/db';
+import { buildRejectedTokens } from '../helpers/tokens';
 
 import type { Express } from 'express';
 
 const REGISTER = paths.register;
 const LOGIN = paths.login;
 const REFRESH = paths.refresh;
+const ME = paths.me;
 
 /** Splits the Set-Cookie header of the refresh cookie into its value and lower-cased attributes. */
 function refreshCookie(res: request.Response) {
@@ -185,11 +189,7 @@ describe('POST /api/v1/auth/register', () => {
 describe('POST /api/v1/auth/login', () => {
   const { email, password, typedEmail, wrongPassword, unknownEmail } = loginCredentials;
 
-  beforeEach(async () => {
-    await testPrisma.user.create({
-      data: { email, name: 'Grace Hopper', passwordHash: await hashPassword(password) },
-    });
-  });
+  beforeEach(seedLoginUser);
 
   it('200: returns the user and a valid access token, and starts a new token family', async () => {
     const res = await request(app).post(LOGIN).send({ email: typedEmail, password });
@@ -272,13 +272,12 @@ describe('POST /api/v1/auth/login', () => {
 });
 
 describe('POST /api/v1/auth/refresh', () => {
-  const { email, password } = loginCredentials;
   const key = new TextEncoder().encode(testEnv.JWT_ACCESS_SECRET);
 
   /** Signs in and returns the raw refresh token from the cookie. */
   async function signIn() {
-    const res = await request(app).post(LOGIN).send({ email, password }).expect(200);
-    return { raw: refreshCookie(res)!.value, userId: res.body.data.user.id as string };
+    const { res, userId } = await loginAs(app);
+    return { raw: refreshCookie(res)!.value, userId };
   }
 
   const refreshWith = (raw: string) =>
@@ -296,11 +295,7 @@ describe('POST /api/v1/auth/refresh', () => {
     );
   }
 
-  beforeEach(async () => {
-    await testPrisma.user.create({
-      data: { email, name: 'Grace Hopper', passwordHash: await hashPassword(password) },
-    });
-  });
+  beforeEach(seedLoginUser);
 
   it('200: rotates the token in the same family, keeping its expiry, and returns an access token', async () => {
     const { raw, userId } = await signIn();
@@ -430,4 +425,52 @@ describe('POST /api/v1/auth/refresh', () => {
       expectCookieCleared(res);
     },
   );
+});
+
+describe('GET /api/v1/auth/me (and the authenticate middleware)', () => {
+  const { email } = loginCredentials;
+
+  function expectUnauthorized(res: request.Response) {
+    expect(res.status).toBe(401);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('UNAUTHORIZED');
+  }
+
+  beforeEach(seedLoginUser);
+
+  it('200: returns the signed-in user', async () => {
+    const { accessToken, userId } = await loginAs(app);
+
+    const res = await request(app).get(ME).set('Authorization', `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(UserDtoSchema.parse(res.body.data)).toEqual(res.body.data);
+    expect(res.body.data).toMatchObject({ id: userId, email });
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+  });
+
+  it('401 without an Authorization header', async () => {
+    expectUnauthorized(await request(app).get(ME));
+  });
+
+  it.each(malformedAuthHeaders)('401 for the header %j', async (header) => {
+    expectUnauthorized(await request(app).get(ME).set('Authorization', header));
+  });
+
+  it('401 for expired, wrongly signed, unsigned (alg none), tampered, and sub-less tokens', async () => {
+    const { userId } = await loginAs(app);
+    const tokens = await buildRejectedTokens(userId);
+
+    for (const [kind, token] of Object.entries(tokens)) {
+      const res = await request(app).get(ME).set('Authorization', `Bearer ${token}`);
+      expect(res.status, kind).toBe(401);
+      expect(res.body.error.code, kind).toBe('UNAUTHORIZED');
+    }
+  });
+
+  it('401 when the user no longer exists', async () => {
+    const { accessToken, userId } = await loginAs(app);
+    await testPrisma.user.delete({ where: { id: userId } });
+
+    expectUnauthorized(await request(app).get(ME).set('Authorization', `Bearer ${accessToken}`));
+  });
 });

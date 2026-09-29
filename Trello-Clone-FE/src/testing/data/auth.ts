@@ -1,6 +1,6 @@
 import { buildErrorBody } from './api';
 
-import type { AuthResponse } from '@trello-clone/shared';
+import type { AuthResponse, UserDto } from '@trello-clone/shared';
 
 /** What a user types into the register form. */
 export const registerFormInput = {
@@ -124,3 +124,27 @@ export const serverErrorBody = buildErrorBody({
   message: 'Something went wrong',
   details: [],
 });
+
+/** The signed-in user GET /auth/me returns in profile and route-guard tests. */
+export const currentUser: UserDto = {
+  id: 'clx0000000000000000000002',
+  email: 'grace@example.test',
+  name: 'Grace Hopper',
+  avatarUrl: null,
+  createdAt: '2026-09-29T10:00:00.000Z',
+};
+
+/** Profile edits and what PATCH /users/me receives for them. */
+export const profileEdit = {
+  typed: { name: '  Grace B. Hopper ', avatarUrl: 'https://cdn.example.test/grace.png' },
+  sent: { name: 'Grace B. Hopper', avatarUrl: 'https://cdn.example.test/grace.png' },
+};
+
+/** Profile input the shared rules reject, with the message shown under each field. */
+export const invalidProfileForm = {
+  input: { name: '   ', avatarUrl: 'http://cdn.example.test/grace.png' },
+  messages: { name: 'Enter your name', avatarUrl: 'Enter an https:// image URL' },
+};
+
+export const genericProfileError =
+  "Couldn't save your profile. Check your connection and try again.";

@@ -39,6 +39,6 @@ export const resetAuthRateLimit = () => authStore.resetAll();
 export const apiRateLimit = rateLimit({
   ...common,
   ...RATE_LIMITS.api,
-  // Must run after `authenticate` (AUTH-005), which sets req.userId.
+  // Must run after `authenticate`, which sets req.userId.
   keyGenerator: (req) => (req.userId ? `user:${req.userId}` : clientIp(req)),
 });

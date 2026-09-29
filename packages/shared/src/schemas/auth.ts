@@ -29,6 +29,11 @@ export const UserNameSchema = z
   .min(1, 'Enter your name')
   .max(100, 'Name must be at most 100 characters');
 
+/** An https URL of at most 2048 characters (docs/api/README.md → Validation rules). */
+export const AvatarUrlSchema = z
+  .url({ protocol: /^https$/, error: 'Enter an https:// image URL' })
+  .max(2048, 'The URL must be at most 2048 characters');
+
 /** POST /auth/register body. */
 export const RegisterInputSchema = z.object({
   email: EmailSchema,
@@ -68,3 +73,16 @@ export const AuthResponseSchema = z.object({
 export const RefreshResponseSchema = z.object({
   accessToken: z.string().min(1),
 });
+
+/**
+ * PATCH /users/me body: `name` and/or `avatarUrl` (`null` removes the avatar). Email changes are
+ * out of scope.
+ */
+export const UpdateProfileInputSchema = z
+  .object({
+    name: UserNameSchema.optional(),
+    avatarUrl: AvatarUrlSchema.nullable().optional(),
+  })
+  .refine((input) => input.name !== undefined || input.avatarUrl !== undefined, {
+    error: 'Change at least one field',
+  });
