@@ -56,7 +56,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 9 | [AUTH-003](AUTH-003-refresh-token.md) refresh token | 1 | AUTH-002 | AUTH-005 | – | Done |
 | 10 | [AUTH-004](AUTH-004-logout.md) logout | 1 | AUTH-003 | AUTH-005 | – | Done |
 | 11 | [AUTH-005](AUTH-005-current-user.md) current user & profile | 1 | AUTH-002 | AUTH-003, AUTH-004 | D-07 (optional part only) | Done |
-| 12 | [AUTH-006](AUTH-006-auth-e2e.md) auth E2E | 1 | AUTH-004, AUTH-005 | WORKSPACE-001 | – | Todo |
+| 12 | [AUTH-006](AUTH-006-auth-e2e.md) auth E2E | 1 | AUTH-004, AUTH-005 | WORKSPACE-001 | – | Done |
 | 13 | [WORKSPACE-001](WORKSPACE-001-create-workspace.md) create/list workspaces | 2 | AUTH-005 | AUTH-006 | D-06 (register hook only) | Todo |
 | 14 | [WORKSPACE-002](WORKSPACE-002-workspace-crud.md) workspace CRUD | 2 | W-001 | W-003 | – | Todo |
 | 15 | [WORKSPACE-003](WORKSPACE-003-members.md) members | 2 | W-001 | W-002 | – | Todo |

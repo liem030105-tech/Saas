@@ -46,6 +46,9 @@
 
 Do **not** add E2E tests for internal changes, pure refactors, or API-only behavior already covered by integration tests.
 
+### Running E2E
+`pnpm --filter @trello-clone/web test:e2e` (config: `Trello-Clone-FE/playwright.config.ts`, AUTH-006). It needs the test Postgres (`pnpm db:up`; `DATABASE_URL_TEST` or the compose default, name ending in `_test`), then starts its own API on port 4100 (after `prisma migrate deploy`) and web app on port 5174, waiting for `/api/v1/health`, so it can run next to `pnpm dev`, but not at the same time as `pnpm test`: both use the test database, and the BE tests truncate it. Specs create their own users (`tests/e2e/data/`). Locally, install the browser once with `pnpm --filter @trello-clone/web exec playwright install chromium`. E2E is not in CI yet (TESTING-001).
+
 ## Rules
 - BE service and integration tests run against a real Postgres (`postgres-test` in compose, `DATABASE_URL_TEST`); do not mock Prisma. Vitest's `globalSetup` (`tests/global-setup.ts`) applies the migrations once and refuses any database whose name does not end in `_test`. Reset data per test file with `resetDb()` from `tests/helpers/db.ts` (`TRUNCATE … CASCADE` on every table) and use its `testPrisma` client; files run serially (`fileParallelism: false`).
 - FE tests mock the network with MSW; test behavior, not implementation details.
@@ -57,7 +60,7 @@ Do **not** add E2E tests for internal changes, pure refactors, or API-only behav
 
 ## Claude Code cloud sessions
 - There is no Docker daemon. `.claude/hooks/session-start.sh` starts the preinstalled PostgreSQL 16 with the same ports, user, and databases as `docker-compose.yml` (5432 `trello`, 5433 `trello_test`), so the commands above work unchanged.
-- Chromium for Playwright is preinstalled; never run `playwright install` there. Details: the `testing` skill (`references/playwright-cloud.md`) and the `run-app` skill.
+- Chromium for Playwright is preinstalled; never run `playwright install` there: run E2E with `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`. Details: the `testing` skill (`references/playwright-cloud.md`) and the `run-app` skill.
 
 ## CI
 `.github/workflows/ci.yml` runs on every PR and on pushes to `main`. There is one run per PR: a new push cancels the previous run, while runs on `main` are never cancelled. The repository owner adds its two checks as required status checks in the ruleset (manual step, FOUNDATION-006):
