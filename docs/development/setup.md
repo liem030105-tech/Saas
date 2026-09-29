@@ -57,7 +57,7 @@ pnpm dev                                     # FE :5173, BE :4000
 | `pnpm dev` | Run FE + BE |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | Check the whole repo |
 | `pnpm format` / `pnpm format:check` | Format / check formatting with Prettier |
-| `pnpm --filter @trello-clone/web test:e2e` | Run Playwright |
+| `pnpm --filter @trello-clone/web test:e2e` | Run Playwright E2E (needs the test DB and, once, `pnpm --filter @trello-clone/web exec playwright install chromium`; see [testing.md → Running E2E](testing.md#running-e2e)) |
 | `pnpm --filter @trello-clone/api db:studio` | Open Prisma Studio |
 
 ## Claude Code

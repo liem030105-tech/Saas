@@ -14,7 +14,7 @@ Playwright is set up and E2E scenario 1 (register → login → reload → logou
 E2E scenarios: [testing.md](../development/testing.md#e2e-scenarios-added-by-the-task-that-delivers-the-flow).
 
 # Requirements
-1. Playwright config in `Trello-Clone-FE/tests/e2e` that starts the API (test DB) and the FE.
+1. Playwright config (`Trello-Clone-FE/playwright.config.ts`, specs in `tests/e2e`) that starts the API (test DB) and the FE.
 2. Scenario 1: register → lands on `/` → reload keeps the session → logout → `/login` → login again.
 3. Script `pnpm --filter @trello-clone/web test:e2e`.
 
