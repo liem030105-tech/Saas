@@ -26,14 +26,16 @@ export function initials(name: string) {
 }
 
 // docs/design/ui.md → App shell: a 48px header. The workspace switcher, search, and sidebar toggle
-// arrive with their tasks. `user` is undefined while it loads; `userError` when it could not load.
-export function Header({
-  user,
-  userError = false,
-}: {
+// arrive with their tasks. `user` is undefined while it loads.
+interface HeaderProps {
   user: HeaderUser | undefined;
+  /** The user could not be loaded. */
   userError?: boolean;
-}) {
+  onLogout: () => void;
+  loggingOut?: boolean;
+}
+
+export function Header({ user, userError = false, onLogout, loggingOut = false }: HeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-4">
       <Link to="/" className="font-semibold">
@@ -61,12 +63,25 @@ export function Header({
             <DropdownMenuItem asChild>
               <Link to="/settings/profile">Profile</Link>
             </DropdownMenuItem>
+            <DropdownMenuItem disabled={loggingOut} onSelect={onLogout}>
+              {loggingOut ? 'Logging out…' : 'Log out'}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ) : userError ? (
-        <Link to="/settings/profile" className="text-sm font-medium underline underline-offset-4">
-          Account
-        </Link>
+        <div className="flex items-center gap-4 text-sm font-medium">
+          <Link to="/settings/profile" className="underline underline-offset-4">
+            Account
+          </Link>
+          <button
+            type="button"
+            className="underline underline-offset-4"
+            disabled={loggingOut}
+            onClick={onLogout}
+          >
+            Log out
+          </button>
+        </div>
       ) : (
         <div aria-hidden="true" className="size-8 animate-pulse rounded-full bg-muted" />
       )}

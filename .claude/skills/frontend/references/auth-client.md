@@ -23,7 +23,9 @@ The code is in `src/api/client.ts`; the rules it follows:
 - `handleSessionEnd(router, queryClient)` is registered by `app/provider.tsx`: it clears the query cache, shows "Your session has expired. Log in again." (one toast id), and navigates to `/login?redirectTo=<current path>`.
 
 ## Logout
-`POST /auth/logout`, then `setAccessToken(null)`, `queryClient.clear()`, navigate to `/login`. Clearing the cache prevents the next user on the same browser from seeing the previous user's data.
+`features/auth/useLogout.ts` (AUTH-004), from the header's user menu: `POST /auth/logout`, then, whatever the server answered, `setSignedOutByUser(true)`, `setAccessToken(null)`, `queryClient.clear()`, and navigate to `/login`. The flag (reset on the next sign-in) makes `loginPathFor` return a plain `/login`, so a protected page that re-renders during the navigation never adds a `redirectTo` to the previous user's page. Clearing the cache prevents the next user on the same browser from seeing the previous user's data. If the request fails, a toast says the server session may survive (a reload could restore it).
+
+`ProtectedRoute` reads the token on render and does not subscribe to it: whoever clears the token also navigates away (`handleSessionEnd`, `useLogout`), so a protected page is never left showing without a session.
 
 ## Tests
 Hook/interceptor tests with MSW: two concurrent 401s trigger exactly one `/auth/refresh`; a failed refresh redirects to `/login`; `TOKEN_REUSED` forces logout. E2E scenario 1 covers reload keeping the session.

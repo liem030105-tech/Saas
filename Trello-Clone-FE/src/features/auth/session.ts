@@ -30,9 +30,19 @@ export async function restoreSession(): Promise<null> {
   return null;
 }
 
-/** `/login?redirectTo=<where the user was>`, so signing in again returns there. */
+/**
+ * True from a deliberate logout until the next sign-in. The page the user was on is then not
+ * remembered (no `redirectTo`): the next person to sign in on this browser starts from `/`.
+ */
+let signedOutByUser = false;
+
+export function setSignedOutByUser(value: boolean) {
+  signedOutByUser = value;
+}
+
+/** `/login?redirectTo=<where the user was>`, so signing in again returns there (not after logout). */
 export function loginPathFor({ pathname, search, hash }: Router['state']['location']) {
-  if (pathname === LOGIN_PATH) return LOGIN_PATH;
+  if (pathname === LOGIN_PATH || signedOutByUser) return LOGIN_PATH;
   const redirectTo = encodeURIComponent(`${pathname}${search}${hash}`);
   return `${LOGIN_PATH}?redirectTo=${redirectTo}`;
 }

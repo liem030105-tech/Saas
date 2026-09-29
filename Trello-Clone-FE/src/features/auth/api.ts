@@ -13,6 +13,8 @@ export const authApi = {
   register: (input: RegisterInput) => apiClient.post<AuthResponse>('/auth/register', input),
   /** POST /auth/login: starts a new session; the refresh cookie is set the same way. */
   login: (input: LoginInput) => apiClient.post<AuthResponse>('/auth/login', input),
+  /** POST /auth/logout: revokes this device's session and clears the refresh cookie (always 204). */
+  logout: () => apiClient.post<void>('/auth/logout'),
   /** GET /auth/me: the signed-in user. */
   me: () => apiClient.get<UserDto>('/auth/me'),
   /** PATCH /users/me: name and/or avatar URL. */

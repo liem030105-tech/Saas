@@ -28,3 +28,6 @@ authRouter.post('/auth/refresh', controller.refresh);
 
 // Bearer: authenticate → rate limit (per user, D-04) → controller.
 authRouter.get('/auth/me', authenticate, apiRateLimit, controller.me);
+
+// Public: the refresh cookie only, so it works with an expired access token. Always 204.
+authRouter.post('/auth/logout', controller.logout);

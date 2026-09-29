@@ -36,6 +36,7 @@ const REGISTER = paths.register;
 const LOGIN = paths.login;
 const REFRESH = paths.refresh;
 const ME = paths.me;
+const LOGOUT = paths.logout;
 
 /** Splits the Set-Cookie header of the refresh cookie into its value and lower-cased attributes. */
 function refreshCookie(res: request.Response) {
@@ -472,5 +473,92 @@ describe('GET /api/v1/auth/me (and the authenticate middleware)', () => {
     await testPrisma.user.delete({ where: { id: userId } });
 
     expectUnauthorized(await request(app).get(ME).set('Authorization', `Bearer ${accessToken}`));
+  });
+});
+
+describe('POST /api/v1/auth/logout', () => {
+  beforeEach(seedLoginUser);
+
+  const withCookie = (raw: string) =>
+    request(app).post(LOGOUT).set('Cookie', `${expectedRefreshCookie.name}=${raw}`);
+
+  function expectLoggedOut(res: request.Response) {
+    expect(res.status).toBe(204);
+    expect(res.text).toBe('');
+    const cookie = refreshCookie(res);
+    expect(cookie?.value).toBe('');
+    expect(cookie?.attributes).toEqual(
+      expect.arrayContaining([
+        `path=${expectedRefreshCookie.path}`,
+        expect.stringMatching(/^expires=thu, 01 jan 1970/),
+      ]),
+    );
+  }
+
+  it('204: revokes the whole family, clears the cookie, and the old cookie cannot refresh', async () => {
+    const { res: login } = await loginAs(app);
+    const first = refreshCookie(login)!.value;
+    // Rotate once, so the family has a revoked and a live token.
+    const current = refreshCookie(
+      await request(app)
+        .post(REFRESH)
+        .set('Cookie', `${expectedRefreshCookie.name}=${first}`)
+        .expect(200),
+    )!.value;
+
+    expectLoggedOut(await withCookie(current));
+
+    const tokens = await testPrisma.refreshToken.findMany();
+    expect(tokens).toHaveLength(2);
+    expect(tokens.every((token) => token.revokedAt !== null)).toBe(true);
+    const afterLogout = await request(app)
+      .post(REFRESH)
+      .set('Cookie', `${expectedRefreshCookie.name}=${current}`);
+    expect(afterLogout.status).toBe(401);
+  });
+
+  it('works without an access token and leaves other devices signed in', async () => {
+    const thisDevice = refreshCookie((await loginAs(app)).res)!.value;
+    const otherDevice = refreshCookie((await loginAs(app)).res)!.value;
+
+    expectLoggedOut(await withCookie(thisDevice)); // no Authorization header
+
+    await request(app)
+      .post(REFRESH)
+      .set('Cookie', `${expectedRefreshCookie.name}=${otherDevice}`)
+      .expect(200);
+  });
+
+  it('204 and a cleared cookie without a cookie (idempotent)', async () => {
+    expectLoggedOut(await request(app).post(LOGOUT));
+  });
+
+  it.each([unknownRefreshToken, ...jsonRefreshCookies])(
+    '204 for an unknown or non-string cookie %s, revoking nothing',
+    async (value) => {
+      await loginAs(app);
+
+      expectLoggedOut(await withCookie(value));
+
+      expect(await testPrisma.refreshToken.count({ where: { revokedAt: null } })).toBe(1);
+    },
+  );
+
+  it('a refresh racing the logout leaves no live token in the family', async () => {
+    const raw = refreshCookie((await loginAs(app)).res)!.value;
+
+    await Promise.all([
+      request(app).post(REFRESH).set('Cookie', `${expectedRefreshCookie.name}=${raw}`),
+      withCookie(raw),
+    ]);
+
+    expect(await testPrisma.refreshToken.count({ where: { revokedAt: null } })).toBe(0);
+  });
+
+  it('204 when logging out twice', async () => {
+    const raw = refreshCookie((await loginAs(app)).res)!.value;
+
+    expectLoggedOut(await withCookie(raw));
+    expectLoggedOut(await withCookie(raw));
   });
 });
