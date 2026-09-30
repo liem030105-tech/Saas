@@ -2,8 +2,9 @@ import request from 'supertest';
 
 import { testPrisma } from './db';
 import { bearer, createUserWithToken } from './users';
+import { boardData } from '../data/boards';
 import { paths } from '../data/http';
-import { boardData, tenantData } from '../data/workspaces';
+import { tenantData } from '../data/workspaces';
 
 import type { Express } from 'express';
 

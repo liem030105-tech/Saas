@@ -34,6 +34,8 @@ export const newBoard = {
   } satisfies BoardDto,
 };
 
+/** A title that is only spaces, and the field message it gets. */
+export const blankBoardTitle = '   ';
 export const blankBoardTitleMessage = 'Enter a board title';
 
 export const boardPathFor = (board: Pick<BoardDto, 'id'>) => `/b/${board.id}`;

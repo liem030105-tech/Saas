@@ -4,8 +4,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { assertBoardAccess } from '../../src/modules/boards/boards.service';
+import { boardData, invalidBoardBodies } from '../data/boards';
 import { paths } from '../data/http';
-import { boardData, invalidBoardBodies, unknownWorkspaceId } from '../data/workspaces';
+import { unknownWorkspaceId } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { createTestApp } from '../helpers/test-app';
 import { bearer, createUserWithToken } from '../helpers/users';
@@ -121,7 +122,7 @@ describe('POST /api/v1/workspaces/:workspaceId/boards', () => {
     const owner = await createUserWithToken();
     const workspaceId = await workspaceOf(owner);
 
-    const res = await request(app).post(boardsPath(workspaceId)).send({ title: 'x' });
+    const res = await request(app).post(boardsPath(workspaceId)).send(boardData.anyBody);
 
     expect(res.status).toBe(401);
   });
@@ -168,7 +169,7 @@ describe('GET /api/v1/workspaces/:workspaceId/boards', () => {
     const workspaceId = await workspaceOf(owner);
 
     const res = await request(app)
-      .get(`${boardsPath(workspaceId)}?archived=maybe`)
+      .get(`${boardsPath(workspaceId)}?${boardData.invalidArchivedQuery}`)
       .set(bearer(owner.token));
 
     expect(res.status).toBe(400);
@@ -222,7 +223,7 @@ describe('assertBoardAccess', () => {
     const { boardId } = await boardWith('OWNER');
     const outsider = await createUserWithToken();
 
-    for (const id of [boardId, unknownWorkspaceId]) {
+    for (const id of [boardId, boardData.unknownBoardId]) {
       await expect(assertBoardAccess(outsider.user.id, id, 'board.view')).rejects.toMatchObject({
         status: 404,
       });

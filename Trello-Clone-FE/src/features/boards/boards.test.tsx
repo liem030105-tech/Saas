@@ -5,6 +5,7 @@ import { setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import {
+  blankBoardTitle,
   blankBoardTitleMessage,
   boardPathFor,
   newBoard,
@@ -101,7 +102,9 @@ describe('boards grid on /w/:slug', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Create board' }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Board title'), { target: { value: '   ' } });
+    fireEvent.change(within(dialog).getByLabelText('Board title'), {
+      target: { value: blankBoardTitle },
+    });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create board' }));
 
     expect(await within(dialog).findByText(blankBoardTitleMessage)).toBeInTheDocument();

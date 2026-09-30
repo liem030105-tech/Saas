@@ -2,8 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { boardData } from '../data/boards';
 import { paths } from '../data/http';
-import { boardData, roleMatrixData } from '../data/workspaces';
+import { roleMatrixData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { describeRoleMatrix, type MatrixContext } from '../helpers/role-matrix';
 import { createTestApp } from '../helpers/test-app';

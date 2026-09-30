@@ -2,8 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { boardData } from '../data/boards';
 import { paths } from '../data/http';
-import { boardData, tenantData } from '../data/workspaces';
+import { tenantData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { createTestApp } from '../helpers/test-app';
 import { createTwoTenants, snapshotWorkspace, type Tenant } from '../helpers/two-tenants';
@@ -62,6 +63,7 @@ const expectNoTraceOf = (res: request.Response, b: Tenant) => {
     b.member.user.id,
     b.inviteId,
     b.boardId,
+    boardData.tenantBoard.b,
     tenantData.inviteEmail.b,
   ]) {
     expect(body).not.toContain(value);

@@ -8,6 +8,7 @@ export interface ActivityEntry {
   /** The actor. */
   userId: string;
   type: ActivityType;
+  // `cardId?` joins with CARD-001, when the column exists (docs/database/schema.md → Activity).
   /** Event details; keep them small and free of secrets. */
   data: Prisma.InputJsonObject;
 }
