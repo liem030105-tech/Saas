@@ -14,3 +14,6 @@ export const canManageMember = (actor: Role, target: Role) =>
 /** Footnote 2: only an OWNER grants OWNER. */
 export const assignableRoles = (actor: Role): readonly Role[] =>
   actor === 'OWNER' ? ROLE_ORDER : ROLE_ORDER.filter((role) => role !== 'OWNER');
+
+/** Invitations: create, list, revoke (≥ ADMIN). */
+export const canInvite = canEditWorkspace;

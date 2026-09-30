@@ -98,41 +98,47 @@ The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. 
 
 ## Invitations
 
-Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token is returned **once** on creation. Until email delivery exists (D-18), the inviter copies and shares the link manually.
+Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bits, base64url) is returned **once** on creation, inside `inviteUrl`; the database keeps only its sha256, and it is never logged. Until email delivery exists (D-18), the inviter copies and shares the link manually. Links expire after 7 days (D-17, proposed default).
 
 ### GET /workspaces/:workspaceId/invites
 | | |
 |--|--|
 | Task | WORKSPACE-004 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN |
-| Success | `200 { data: InviteDto[] }`: pending (not accepted, not expired) only |
+| Success | `200 { data: InviteDto[] }`: pending (not accepted, not expired) only, newest first. Never a token or its hash |
+| Errors | `401` · `403` · `404` · `429 RATE_LIMITED` |
 
 ### POST /workspaces/:workspaceId/invites
 | | |
 |--|--|
 | Task | WORKSPACE-004 |
-| Authorization | ≥ ADMIN; invite `role` ≤ caller's role and never `OWNER` |
-| Body | `{ email, role }` |
-| Success | `201 { data: InviteDto & { inviteUrl: string } }`. A pending invite for the same email is replaced (new token, new expiry) |
-| Errors | `400` · `403` · `404` · `409 CONFLICT` (email already belongs to a member) · `402` (from BILLING-001 only, D-11) |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ ADMIN; invite `role` ≤ caller's role and never `OWNER` (I5: the schema rejects it with `400`) |
+| Body | `{ email, role }` (email trimmed and lower-cased) |
+| Success | `201 { data: InviteDto & { inviteUrl: string } }`. Any earlier invite for the same email in this workspace (pending, expired, or accepted) is replaced: new token, new expiry, and the old link stops working |
+| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (email already belongs to a member, or a concurrent invite for it won) · `429 RATE_LIMITED` · `402` (from BILLING-001 only, D-11) |
 
 ### DELETE /workspaces/:workspaceId/invites/:inviteId
 | | |
 |--|--|
 | Task | WORKSPACE-004 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN |
-| Success | `204` |
-| Errors | `403` · `404` |
+| Success | `204`; the link stops working |
+| Errors | `401` · `403` · `404` (unknown, already accepted, or another workspace's invite) · `429 RATE_LIMITED` |
 
 ### POST /invites/accept
 | | |
 |--|--|
 | Task | WORKSPACE-004 |
-| Authentication | Bearer |
-| Authorization | Caller's email must equal the invite email (case-insensitive) |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | Caller's email must equal the invite email (both stored lower-cased) |
 | Body | `{ token }` |
-| Success | `200 { data: WorkspaceDto }`. Membership is created with the invite role and `acceptedAt` set, in one transaction |
-| Errors | `404` (unknown, expired, or already-accepted token, or email mismatch; indistinguishable on purpose) · `409 CONFLICT` (already a member) |
+| Success | `200 { data: WorkspaceDto }` (with the caller's new role). The invite is marked accepted only if still pending and the membership is created with the invite role, in one transaction, so a link works once |
+| Errors | `400` · `401` · `404` (unknown, expired, or already-accepted token, or email mismatch; identical bodies on purpose) · `409 CONFLICT` (already a member; the invite stays pending) · `429 RATE_LIMITED` |
+
+Schemas: `CreateInviteInputSchema`, `InviteDtoSchema`, `CreatedInviteDtoSchema`, `AcceptInviteInputSchema` (`@trello-clone/shared`).
 
 ## Required tests
 - The full role matrix for each route (OWNER / ADMIN / MEMBER / VIEWER / non-member → 404).

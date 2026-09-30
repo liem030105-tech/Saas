@@ -6,13 +6,19 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/features/auth';
 
 import { ConfirmDialog } from './ConfirmDialog';
+import { InviteDialog } from './InviteDialog';
 import { MemberRow } from './MemberRow';
+import { PendingInvites } from './PendingInvites';
 import { memberErrorMessage } from '../memberErrors';
+import { canInvite } from '../permissions';
 import { useLeaveWorkspace, useMembers } from '../queries';
 
 const LEAVE_ERROR = "Couldn't leave the workspace. Check your connection and try again.";
 
-/** The body of `/w/:slug/members` (WORKSPACE-003): the member list and "Leave workspace". */
+/**
+ * The body of `/w/:slug/members`: invites (≥ ADMIN, WORKSPACE-004), the member list, and "Leave
+ * workspace" (WORKSPACE-003).
+ */
 export function MembersList({ workspace }: { workspace: WorkspaceDto }) {
   const { data: members, isPending, isError, refetch } = useMembers(workspace.id);
   const { data: me } = useCurrentUser();
@@ -43,6 +49,7 @@ export function MembersList({ workspace }: { workspace: WorkspaceDto }) {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
+      {canInvite(workspace.role) && <InviteDialog workspace={workspace} />}
       <ul aria-label="Members" className="divide-y">
         {members.map((member) => (
           <MemberRow
@@ -53,6 +60,7 @@ export function MembersList({ workspace }: { workspace: WorkspaceDto }) {
           />
         ))}
       </ul>
+      {canInvite(workspace.role) && <PendingInvites workspace={workspace} />}
       {me && <LeaveWorkspace workspace={workspace} userId={me.id} />}
     </div>
   );

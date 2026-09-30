@@ -2,6 +2,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router';
 
 import { ErrorFallback } from '@/components/feedback/ErrorBoundary';
 import { restoreSession } from '@/features/auth';
+import { AcceptInvitePage } from '@/pages/AcceptInvitePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProfilePage } from '@/pages/ProfilePage';
@@ -31,6 +32,7 @@ export const routes: RouteObject[] = [
         element: <ProtectedRoute />,
         children: [
           { path: '/settings/profile', element: <ProfilePage /> },
+          { path: '/invite/:token', element: <AcceptInvitePage /> },
           { path: '/w/:slug', element: <WorkspacePage /> },
           { path: '/w/:slug/members', element: <WorkspaceMembersPage /> },
           { path: '/w/:slug/settings', element: <WorkspaceSettingsPage /> },

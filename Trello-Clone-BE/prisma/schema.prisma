@@ -24,6 +24,7 @@ model User {
   updatedAt     DateTime          @updatedAt
   refreshTokens RefreshToken[]
   memberships   WorkspaceMember[]
+  invitesSent   WorkspaceInvite[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -71,6 +72,7 @@ model Workspace {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   members   WorkspaceMember[]
+  invites   WorkspaceInvite[]
 }
 
 /// A user's membership and role in a workspace. WORKSPACE-001.
@@ -85,4 +87,25 @@ model WorkspaceMember {
   @@id([userId, workspaceId])
   @@index([workspaceId])
   @@index([userId])
+}
+
+/// A pending (or accepted, kept for audit) invitation by email. WORKSPACE-004.
+model WorkspaceInvite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  /// Stored lower-cased; one row per email per workspace (re-inviting replaces it).
+  email       String
+  /// Never OWNER (I5; enforced by validation).
+  role        Role      @default(MEMBER)
+  /// sha256 of the raw token (hex); the raw token is only in the invite link.
+  tokenHash   String    @unique
+  invitedById String
+  /// Now + D-17 (7 days).
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, email])
 }

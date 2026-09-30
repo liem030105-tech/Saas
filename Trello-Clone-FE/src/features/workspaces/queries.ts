@@ -5,13 +5,20 @@ import { getAccessToken } from '@/api/token-store';
 
 import { workspacesApi } from './api';
 
-import type { MemberDto, Role, UpdateWorkspaceInput, WorkspaceDto } from '@trello-clone/shared';
+import type {
+  CreateInviteInput,
+  MemberDto,
+  Role,
+  UpdateWorkspaceInput,
+  WorkspaceDto,
+} from '@trello-clone/shared';
 
 const all = ['workspaces'] as const;
 
 export const workspaceKeys = {
   all,
   members: (workspaceId: string) => [...all, workspaceId, 'members'] as const,
+  invites: (workspaceId: string) => [...all, workspaceId, 'invites'] as const,
 };
 
 /** The caller's workspaces. Rendered only when signed in; never fetches without a token. */
@@ -148,6 +155,54 @@ export function useLeaveWorkspace(workspaceId: string, userId: string) {
       queryClient.setQueryData<WorkspaceDto[]>(workspaceKeys.all, (list = []) =>
         list.filter((workspace) => workspace.id !== workspaceId),
       );
+      await queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });
+    },
+  });
+}
+
+/** Pending invites (≥ ADMIN only: others get 403, so the query is off for them). */
+export function useInvites(workspaceId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: workspaceKeys.invites(workspaceId),
+    queryFn: () => workspacesApi.listInvites(workspaceId),
+    enabled,
+  });
+}
+
+/** POST …/invites; the pending list is refetched (a re-invite replaces the old row). */
+export function useCreateInvite(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateInviteInput) => workspacesApi.createInvite(workspaceId, input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.invites(workspaceId) }),
+  });
+}
+
+/** DELETE …/invites/:inviteId; the invite leaves the cached list first. */
+export function useRevokeInvite(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) => workspacesApi.revokeInvite(workspaceId, inviteId),
+    onSuccess: async (_data, inviteId) => {
+      queryClient.setQueryData<{ id: string }[]>(workspaceKeys.invites(workspaceId), (list = []) =>
+        list.filter((invite) => invite.id !== inviteId),
+      );
+      await queryClient.invalidateQueries({ queryKey: workspaceKeys.invites(workspaceId) });
+    },
+  });
+}
+
+/** POST /invites/accept. The joined workspace goes into the cached list before the refetch. */
+export function useAcceptInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: workspacesApi.acceptInvite,
+    onSuccess: async (joined) => {
+      queryClient.setQueryData<WorkspaceDto[]>(workspaceKeys.all, (list = []) => [
+        ...list.filter((workspace) => workspace.id !== joined.id),
+        joined,
+      ]);
       await queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });
     },
   });

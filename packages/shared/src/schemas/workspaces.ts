@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { UserDtoSchema } from './auth';
+import { EmailSchema, UserDtoSchema } from './auth';
 import { CuidSchema } from './common';
 import { PLANS, ROLE_ORDER } from '../constants/roles';
 
@@ -55,4 +55,33 @@ export const MemberDtoSchema = z.object({
   user: UserDtoSchema.pick({ id: true, name: true, email: true, avatarUrl: true }),
   role: RoleSchema,
   joinedAt: z.iso.datetime(),
+});
+
+/** Invites never grant OWNER (I5); the API also caps the role at the caller's own. */
+export const InviteRoleSchema = RoleSchema.exclude(['OWNER']);
+
+/** POST /workspaces/:workspaceId/invites body. */
+export const CreateInviteInputSchema = z.object({
+  email: EmailSchema,
+  role: InviteRoleSchema,
+});
+
+/** A pending invitation as the API returns it (docs/api/workspaces.md → InviteDto). */
+export const InviteDtoSchema = z.object({
+  id: CuidSchema,
+  email: z.email(),
+  role: InviteRoleSchema,
+  expiresAt: z.iso.datetime(),
+  createdAt: z.iso.datetime(),
+  invitedBy: UserDtoSchema.pick({ id: true, name: true }),
+});
+
+/** `data` of POST …/invites: the invite plus its link, which holds the raw token (shown once). */
+export const CreatedInviteDtoSchema = InviteDtoSchema.extend({
+  inviteUrl: z.url(),
+});
+
+/** POST /invites/accept body: the token from the invite link. */
+export const AcceptInviteInputSchema = z.object({
+  token: z.string().min(1).max(200),
 });

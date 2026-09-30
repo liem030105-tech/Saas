@@ -1,5 +1,9 @@
 import type {
+  AcceptInviteInputSchema,
   ChangeMemberRoleInputSchema,
+  CreatedInviteDtoSchema,
+  CreateInviteInputSchema,
+  InviteDtoSchema,
   CreateWorkspaceInputSchema,
   MemberDtoSchema,
   UpdateWorkspaceInputSchema,
@@ -16,3 +20,9 @@ export type UpdateWorkspaceData = z.output<typeof UpdateWorkspaceInputSchema>;
 export type WorkspaceDto = z.infer<typeof WorkspaceDtoSchema>;
 export type ChangeMemberRoleInput = z.infer<typeof ChangeMemberRoleInputSchema>;
 export type MemberDto = z.infer<typeof MemberDtoSchema>;
+/** What the invite form holds (before trimming and lower-casing the email). */
+export type CreateInviteInput = z.input<typeof CreateInviteInputSchema>;
+export type CreateInviteData = z.output<typeof CreateInviteInputSchema>;
+export type InviteDto = z.infer<typeof InviteDtoSchema>;
+export type CreatedInviteDto = z.infer<typeof CreatedInviteDtoSchema>;
+export type AcceptInviteInput = z.infer<typeof AcceptInviteInputSchema>;

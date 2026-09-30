@@ -60,7 +60,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 13 | [WORKSPACE-001](WORKSPACE-001-create-workspace.md) create/list workspaces | 2 | AUTH-005 | AUTH-006 | – | Done |
 | 14 | [WORKSPACE-002](WORKSPACE-002-workspace-crud.md) workspace CRUD | 2 | W-001 | W-003 | – | Done |
 | 15 | [WORKSPACE-003](WORKSPACE-003-members.md) members | 2 | W-001 | W-002 | – | Done |
-| 16 | [WORKSPACE-004](WORKSPACE-004-invitations.md) invitations | 2 | W-003 | W-002 | – | Todo |
+| 16 | [WORKSPACE-004](WORKSPACE-004-invitations.md) invitations | 2 | W-003 | W-002 | – | Done |
 | 17 | [WORKSPACE-005](WORKSPACE-005-rbac.md) RBAC consolidation | 2 | W-002, W-004 | – | – | Todo |
 | 18 | [WORKSPACE-006](WORKSPACE-006-tenant-isolation.md) tenant isolation suite | 2 | W-005 | BOARD-001 | – | Todo |
 | 19 | [BOARD-001](BOARD-001-create-board.md) create/list boards | 3 | W-005 | W-006 | – | Todo |

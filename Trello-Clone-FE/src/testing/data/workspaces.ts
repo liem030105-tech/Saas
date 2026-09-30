@@ -1,7 +1,7 @@
 import { buildErrorBody } from './api';
 import { currentUser } from './auth';
 
-import type { MemberDto, WorkspaceDto } from '@trello-clone/shared';
+import type { CreatedInviteDto, InviteDto, MemberDto, WorkspaceDto } from '@trello-clone/shared';
 
 /** Workspaces as GET /workspaces returns them (ordered by name). */
 export const acmeWorkspace: WorkspaceDto = {
@@ -108,5 +108,43 @@ export const lastOwnerError = buildErrorBody({
 export const forbiddenError = buildErrorBody({
   code: 'FORBIDDEN',
   message: 'You do not have permission to do this',
+  details: [],
+});
+
+/** Invitations (WORKSPACE-004). */
+export const inviteToken = 'dGVzdC1pbnZpdGUtdG9rZW4';
+export const invitePathFor = (token: string) => `/invite/${token}`;
+
+export const newInvite = {
+  typed: { email: '  New.Person@Example.TEST ', role: 'Admin' },
+  sent: { email: 'new.person@example.test', role: 'ADMIN' },
+};
+
+export const pendingInvite: InviteDto = {
+  id: 'clx0000000000000000000031',
+  email: 'pending@example.test',
+  role: 'MEMBER',
+  expiresAt: '2026-10-07T10:00:00.000Z',
+  createdAt: '2026-09-30T10:00:00.000Z',
+  invitedBy: { id: 'clx0000000000000000000002', name: 'Grace Hopper' },
+};
+
+export const createdInvite: CreatedInviteDto = {
+  ...pendingInvite,
+  id: 'clx0000000000000000000032',
+  email: newInvite.sent.email,
+  role: 'ADMIN',
+  inviteUrl: `http://localhost:5173/invite/${inviteToken}`,
+};
+
+export const inviteNotFoundError = buildErrorBody({
+  code: 'NOT_FOUND',
+  message: 'This invite is invalid or has expired',
+  details: [],
+});
+
+export const alreadyMemberError = buildErrorBody({
+  code: 'CONFLICT',
+  message: 'This person is already a member of the workspace',
   details: [],
 });

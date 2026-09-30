@@ -10,6 +10,7 @@ import {
   proxyErrorPage,
   registerFormInput,
   registerResponse,
+  safeRedirect,
 } from '@/testing/data/auth';
 import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
@@ -95,5 +96,20 @@ describe('RegisterForm', () => {
     ).toBeInTheDocument();
     expect(sentBody).toEqual(registerFormInput);
     await waitFor(() => expect(getAccessToken()).toBe(registerResponse.accessToken));
+  });
+
+  it('after signing up, returns to a safe redirectTo (e.g. an invite link)', async () => {
+    server.use(
+      mswHttp.post(REGISTER_URL, () =>
+        HttpResponse.json({ data: registerResponse }, { status: 201 }),
+      ),
+    );
+    const { router } = renderApp(
+      `${pageCases.register.path}?redirectTo=${encodeURIComponent(safeRedirect.redirectTo)}`,
+    );
+
+    await fillAndSubmit(registerFormInput);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(safeRedirect.path));
   });
 });

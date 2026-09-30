@@ -47,6 +47,11 @@ Grid of board tiles (board colour background, title in white, 4 per row on deskt
 ### Workspace members `/w/:slug/members`
 Linked from the workspace page next to Settings (WORKSPACE-003). One row per member: avatar, name ("(you)" for the caller), email, and role. The caller sees a role dropdown and "Remove" only on rows they may manage (an OWNER: everyone else, with Owner among the roles; an ADMIN: members up to Admin, without Owner); other rows show the role as text. "Remove" and "Leave workspace" (shown to everyone) ask for confirmation in an `AlertDialog`; leaving opens `/`. When the rules refuse an action (e.g. the last owner leaving), the reason is shown ("A workspace needs an owner. Make another member an owner first.").
 
+**Invitations** (WORKSPACE-004, ≥ ADMIN only): "Invite people" opens a dialog with the email and a role menu (Admin, Member, Viewer; never Owner). "Create invite link" then shows the link in a read-only field with "Copy link", its expiry, and "You won't see this link again." (no email is sent, D-18). Below the members, "Pending invites" lists email, role, and expiry with "Revoke" (confirmed in an `AlertDialog`); empty state "No pending invites."
+
+### Accept invite `/invite/:token`
+Signed in only: a signed-out visitor goes to `/login?redirectTo=/invite/<token>`, and "Sign up" keeps that `redirectTo`, so a new user returns to the link after registering. The page shows "Joining the workspace…", then opens the workspace with a toast "You joined <name>." Every refusal shows "This invite is invalid or has expired." with "Ask the person who invited you for a new link.", except an existing member ("You're already a member of this workspace."); both link to `/`.
+
 ### Workspace settings `/w/:slug/settings`
 Linked from the workspace page (WORKSPACE-002). "Details" holds the name and the URL (`/w/` + slug) with "Save changes" (≥ ADMIN; others see them read-only with "Only workspace admins can change these settings."). Only the changed fields are sent; a taken URL shows a field error. "Delete workspace" (OWNER only) opens an `AlertDialog` whose delete button stays disabled until the exact workspace name is typed; afterwards the app opens `/`.
 

@@ -63,3 +63,24 @@ export const invalidRoleBodies = [
   { case: 'unknown role', body: { role: 'GUEST' } },
   { case: 'lower-case role', body: { role: 'admin' } },
 ] as const;
+
+/** Invitations tests (WORKSPACE-004). */
+export const invitesWorkspaceName = 'Invites';
+export const inviteeEmail = {
+  typed: '  New.Person@Example.TEST ',
+  stored: 'new.person@example.test',
+};
+
+/** One invalid POST …/invites body per rule; each must fail with 400. */
+export const invalidInviteBodies = [
+  {
+    case: 'OWNER role (invites never grant OWNER)',
+    body: { email: 'a@example.test', role: 'OWNER' },
+  },
+  { case: 'invalid email', body: { email: 'not-an-email', role: 'MEMBER' } },
+  { case: 'missing role', body: { email: 'a@example.test' } },
+  { case: 'missing email', body: { role: 'MEMBER' } },
+] as const;
+
+/** A token no invite has. */
+export const unknownInviteToken = 'bm8tc3VjaC1pbnZpdGUtdG9rZW4tYXQtYWxsLTAwMDAwMDAwMDA';

@@ -17,13 +17,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { memberErrorMessage } from '../memberErrors';
 import { assignableRoles, canManageMember } from '../permissions';
 import { useChangeMemberRole, useRemoveMember } from '../queries';
-
-const ROLE_LABELS: Record<Role, string> = {
-  OWNER: 'Owner',
-  ADMIN: 'Admin',
-  MEMBER: 'Member',
-  VIEWER: 'Viewer',
-};
+import { ROLE_LABELS } from '../roleLabels';
 
 const ROLE_ERROR = "Couldn't change the role. Check your connection and try again.";
 const REMOVE_ERROR = "Couldn't remove the member. Check your connection and try again.";
