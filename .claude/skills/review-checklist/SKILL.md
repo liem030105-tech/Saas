@@ -19,7 +19,7 @@ This skill is **read-only** by default: it reports findings. It changes code onl
 3. **Boundaries** – no FE ↔ BE imports; shared contains no business logic; no cross-module internal imports; controllers don't call Prisma; no server state in Zustand.
 4. **Scope** – no unrelated refactors or modules touched; no unjustified new dependency; no new infrastructure without an ADR.
 5. **Database** – schema change has a migration; merged migrations untouched; indexes for new queries.
-6. **Tests** – [test matrix](../../../docs/development/testing.md) met; new endpoints registered in the role-matrix and tenant-isolation suites; no `.skip`/`.only`; tests assert behavior.
+6. **Tests** – [test matrix](../../../docs/development/testing.md) met; new endpoints registered in the role-matrix harness and the tenant-isolation suite (`tests/integration/tenant-isolation.test.ts`, whose coverage test lists the routers it checks: a new module's router must be added there); no `.skip`/`.only`; tests assert behavior.
 7. **Task fit** – when implementing a task spec: every Requirement and Acceptance Criterion met, nothing from Out of Scope included, task status updated.
 8. **Docs** – `docs/api`, `docs/architecture`, `docs/database`, ADRs updated where required.
 9. **Conventions** – naming, no `any`, no `console.log`, Conventional Commit messages.
