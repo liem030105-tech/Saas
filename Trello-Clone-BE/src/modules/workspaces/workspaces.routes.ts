@@ -30,7 +30,7 @@ workspacesRouter.get(
   WORKSPACE,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('VIEWER'),
+  requireWorkspaceRole('workspace.view'),
   controller.get,
 );
 workspacesRouter.patch(
@@ -38,14 +38,14 @@ workspacesRouter.patch(
   authenticate,
   apiRateLimit,
   validate({ body: UpdateWorkspaceInputSchema }),
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('workspace.update'),
   controller.update,
 );
 workspacesRouter.delete(
   WORKSPACE,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('OWNER'),
+  requireWorkspaceRole('workspace.delete'),
   controller.remove,
 );
 
@@ -56,7 +56,7 @@ workspacesRouter.get(
   MEMBERS,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('VIEWER'),
+  requireWorkspaceRole('members.list'),
   controller.listMembers,
 );
 workspacesRouter.patch(
@@ -64,13 +64,14 @@ workspacesRouter.patch(
   authenticate,
   apiRateLimit,
   validate({ body: ChangeMemberRoleInputSchema }),
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('members.changeRole'),
   controller.changeMemberRole,
 );
 workspacesRouter.delete(
   MEMBER,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('VIEWER'),
+  // Any member may reach it (leaving); removing someone else needs members.remove (service).
+  requireWorkspaceRole('workspace.leave'),
   controller.removeMember,
 );

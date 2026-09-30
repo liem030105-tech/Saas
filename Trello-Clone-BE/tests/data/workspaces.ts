@@ -84,3 +84,11 @@ export const invalidInviteBodies = [
 
 /** A token no invite has. */
 export const unknownInviteToken = 'bm8tc3VjaC1pbnZpdGUtdG9rZW4tYXQtYWxsLTAwMDAwMDAwMDA';
+
+/** Role-matrix harness (WORKSPACE-005): the workspace it creates and the bodies it sends. */
+export const roleMatrixData = {
+  workspaceName: 'Role matrix',
+  rename: { name: 'Renamed' },
+  roleChange: { role: 'VIEWER' },
+  invite: { email: 'invitee@example.test', role: 'MEMBER' },
+} as const;

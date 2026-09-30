@@ -2,7 +2,7 @@ import { type WorkspaceDto } from '@trello-clone/shared';
 
 import { DeleteWorkspaceDialog } from './DeleteWorkspaceDialog';
 import { WorkspaceDetailsForm } from './WorkspaceDetailsForm';
-import { canDeleteWorkspace, canEditWorkspace } from '../permissions';
+import { can } from '../permissions';
 
 export const READ_ONLY_SETTINGS_MESSAGE = 'Only workspace admins can change these settings.';
 
@@ -14,7 +14,7 @@ export function WorkspaceSettings({ workspace }: { workspace: WorkspaceDto }) {
         <h2 id="workspace-details-heading" className="text-lg font-semibold">
           Details
         </h2>
-        {canEditWorkspace(workspace.role) ? (
+        {can(workspace.role, 'workspace.update') ? (
           <WorkspaceDetailsForm workspace={workspace} />
         ) : (
           <>
@@ -29,7 +29,7 @@ export function WorkspaceSettings({ workspace }: { workspace: WorkspaceDto }) {
         )}
       </section>
 
-      {canDeleteWorkspace(workspace.role) && (
+      {can(workspace.role, 'workspace.delete') && (
         <section
           aria-labelledby="workspace-danger-heading"
           className="flex flex-col gap-3 rounded-lg border border-destructive/40 p-4"

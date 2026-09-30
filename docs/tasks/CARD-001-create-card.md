@@ -40,7 +40,7 @@ Model `Card`; `Activity.cardId`; migration `add_cards`.
 None (REALTIME-001).
 
 # Security Considerations
-The list resolves to its board → `assertBoardAccess(…, MEMBER)`. `boardId` is never taken from the client.
+The list resolves to its board → `assertBoardAccess(…, 'card.edit')`. `boardId` is never taken from the client.
 
 # Testing
 Integration: role matrix, tenant isolation, append order, `boardId` equals `list.boardId`. Extend the LIST-002 cascade test to cards. E2E scenario 3.

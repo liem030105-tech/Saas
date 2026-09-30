@@ -23,14 +23,14 @@ boardsRouter.get(
   '/workspaces/:workspaceId/boards',
   authenticate,
   validate({ params: WorkspaceIdParams, query: ListBoardsQuery }),
-  requireWorkspaceRole('VIEWER'), // non-member → 404, lower role → 403
+  requireWorkspaceRole('board.view'), // an action of modules/workspaces/permissions.ts; non-member → 404, lower role → 403
   controller.list,
 );
 boardsRouter.post(
   '/workspaces/:workspaceId/boards',
   authenticate,
   validate({ params: WorkspaceIdParams, body: CreateBoardInput }),
-  requireWorkspaceRole('MEMBER'),
+  requireWorkspaceRole('board.edit'),
   controller.create,
 );
 ```
@@ -90,7 +90,7 @@ import { prisma } from '../../config/prisma';
 import type { CreateBoardInput, ListBoardsQuery, BoardDto } from '@trello-clone/shared';
 
 export async function list(userId: string, workspaceId: string, query: ListBoardsQuery): Promise<BoardDto[]> {
-  // role already checked by requireWorkspaceRole('VIEWER') on the route
+  // role already checked by requireWorkspaceRole('board.view') on the route
   const boards = await prisma.board.findMany({
     where: { workspaceId, archived: query.archived },
     orderBy: { createdAt: 'desc' },
@@ -99,7 +99,7 @@ export async function list(userId: string, workspaceId: string, query: ListBoard
 }
 
 export async function create(userId: string, workspaceId: string, input: CreateBoardInput): Promise<BoardDto> {
-  // role already checked by requireWorkspaceRole('MEMBER') on the route
+  // role already checked by requireWorkspaceRole('board.edit') on the route
   const board = await prisma.$transaction(async (tx) => {
     const created = await tx.board.create({ data: { ...input, workspaceId } });
     await logActivity(tx, { type: 'BOARD_CREATED', boardId: created.id, userId, data: { title: created.title } });

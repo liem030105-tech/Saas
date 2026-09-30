@@ -9,7 +9,7 @@
 - Shared database, shared schema, filtered by foreign keys. Postgres Row-Level Security is not needed at demo scale; it can be added later as defense in depth.
 
 ## Authorization rules at the data layer
-1. **Every lookup by id must include a membership condition**, or call `assertBoardAccess(userId, boardId, minRole)` first. Never `findUnique({ id })` and return the result as-is.
+1. **Every lookup by id must include a membership condition**, or call `assertBoardAccess(userId, boardId, action)` first (actions: `Trello-Clone-BE/src/modules/workspaces/permissions.ts`). Never `findUnique({ id })` and return the result as-is.
 2. Child resources (card, list, comment, …) → resolve `boardId` (Card stores `boardId` directly) → `workspaceId` → role check, in **one query** with joins.
 3. Not a member, or the resource does not exist → **404 NOT_FOUND** (do not leak existence). Member without the required role → **403 FORBIDDEN**.
 4. Foreign keys supplied by the client (`listId`, `labelId`, `userId` when assigning) must belong to the **same board/workspace** as the target resource. E.g. attaching another board's label to a card is rejected.

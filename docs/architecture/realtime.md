@@ -17,8 +17,8 @@
 
   | Room | Joined via | Authorization |
   |------|-----------|---------------|
-  | `board:{boardId}` | client emits `board:join { boardId }` (ack) | `assertBoardAccess(userId, boardId, VIEWER)` |
-  | `workspace:{workspaceId}` | client emits `workspace:join { workspaceId }` (ack) | `assertWorkspaceAccess(userId, workspaceId, VIEWER)` |
+  | `board:{boardId}` | client emits `board:join { boardId }` (ack) | `assertBoardAccess(userId, boardId, 'board.view')` |
+  | `workspace:{workspaceId}` | client emits `workspace:join { workspaceId }` (ack) | `assertWorkspaceAccess(userId, workspaceId, 'workspace.view')` |
 
   - Ack payload: `{ ok: true }` or `{ ok: false, code: 'NOT_FOUND' }`. Leave with `board:leave` / `workspace:leave`.
   - When a member is removed from a workspace, the server evicts all their sockets from that workspace's rooms (`socketsLeave`) and sends them `member:removed`.

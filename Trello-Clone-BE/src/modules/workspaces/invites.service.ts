@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { toInviteDto } from './invites.mapper';
+import { hasPermission } from './permissions';
 import { toWorkspaceDto } from './workspaces.mapper';
 import { currentActorRole, lockWorkspace } from './workspaces.service';
 import { env } from '../../config/env';
@@ -37,6 +38,9 @@ const alreadyMember = () =>
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
+const isForeignKeyViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
+
 /**
  * POST /workspaces/:workspaceId/invites (≥ ADMIN; the route checks it first too). The invite role is capped
  * at the caller's role and is never OWNER (schema). A pending or old invite for the same email is
@@ -54,7 +58,7 @@ export async function create(
       // member changes do, so a caller demoted meanwhile cannot still invite above it.
       await lockWorkspace(tx, workspaceId);
       const actorRole = await currentActorRole(tx, workspaceId, actorId);
-      if (!hasRole(actorRole, 'ADMIN') || !hasRole(actorRole, input.role)) {
+      if (!hasPermission(actorRole, 'invites.manage') || !hasRole(actorRole, input.role)) {
         throw AppError.forbidden();
       }
 
@@ -140,6 +144,8 @@ export async function accept(userId: string, rawToken: string): Promise<Workspac
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyMember();
+    // The workspace was deleted after the invite was read: the invite is gone with it.
+    if (isForeignKeyViolation(error)) throw inviteNotFound();
     throw error;
   }
   return toWorkspaceDto(invite.workspace, invite.role);

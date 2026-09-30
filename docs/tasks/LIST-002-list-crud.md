@@ -37,7 +37,7 @@ Enum values only; migration `add_list_activity_types`.
 None (REALTIME-001).
 
 # Security Considerations
-The list resolves to its board → `assertBoardAccess(…, MEMBER)`.
+The list resolves to its board → `assertBoardAccess(…, 'list.manage')`.
 
 # Testing
 Integration: role matrix, tenant isolation; archived lists are excluded from `findDetail`; delete cascades to cards (once cards exist, extended in CARD-001).
