@@ -25,6 +25,7 @@ model User {
   refreshTokens RefreshToken[]
   memberships   WorkspaceMember[]
   invitesSent   WorkspaceInvite[]
+  activities    Activity[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -73,6 +74,7 @@ model Workspace {
   updatedAt DateTime          @updatedAt
   members   WorkspaceMember[]
   invites   WorkspaceInvite[]
+  boards    Board[]
 }
 
 /// A user's membership and role in a workspace. WORKSPACE-001.
@@ -109,4 +111,42 @@ model WorkspaceInvite {
 
   @@unique([workspaceId, email])
   @@index([invitedById])
+}
+
+/// Activity log event types; later tasks add theirs (docs/database/schema.md). BOARD-001.
+enum ActivityType {
+  BOARD_CREATED
+  BOARD_UPDATED
+}
+
+/// A Kanban board inside a workspace. BOARD-001.
+model Board {
+  id          String     @id @default(cuid())
+  workspaceId String
+  title       String
+  /// Hex colour `#rrggbb`; the UI offers the presets in docs/design/ui.md.
+  background  String     @default("#0079bf")
+  archived    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  activities  Activity[]
+
+  @@index([workspaceId, archived])
+}
+
+/// Append-only board activity feed; `cardId` arrives with CARD-001. BOARD-001.
+model Activity {
+  id        String       @id @default(cuid())
+  boardId   String
+  /// The actor.
+  userId    String
+  type      ActivityType
+  /// Event details; the shape per type is in @trello-clone/shared.
+  data      Json
+  createdAt DateTime     @default(now())
+  board     Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([boardId, createdAt])
 }

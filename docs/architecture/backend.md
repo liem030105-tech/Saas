@@ -50,13 +50,14 @@ Trello-Clone-BE/
 
 ```
 modules/boards/
-├── boards.routes.ts       # routes + middleware (authenticate, validate, requireRole)
+├── boards.routes.ts       # routes + middleware (authenticate, rate limit, validate, requireWorkspaceRole)
 ├── boards.controller.ts   # req → service → res; no business logic
-├── boards.service.ts      # business logic, transactions, realtime emits, activity log
+├── boards.service.ts      # business logic, authorization (assertBoardAccess), transactions, realtime emits
+├── boards.mapper.ts       # Prisma row → DTO, explicit fields only
 ├── boards.repository.ts   # (OPTIONAL, see below)
-├── boards.schema.ts       # re-exports/extends shared schemas (params, query)
-├── boards.types.ts        # (optional) module-internal types
-└── boards.test.ts         # module unit/service tests
+├── activity.ts            # logActivity(tx, …), boards module only (BOARD-001)
+├── boards.schema.ts       # (optional) BE-only schemas; shared request schemas live in @trello-clone/shared
+└── boards.test.ts         # (optional) module unit tests; integration tests live in tests/integration/
 ```
 
 Dependency flow: **Route → Controller → Service → (Repository) → Prisma**
@@ -83,6 +84,7 @@ The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts`
 
 ## Cross-module communication
 - Module A calls only module B's **service** (e.g. `cards.service` → `workspaces.service.assertMember()`).
+- One exception: `modules/workspaces/permissions.ts` (the permission map: `hasPermission`, `WorkspaceAction`, WORKSPACE-005) is a public contract any module may import, e.g. `boards.service.assertBoardAccess`.
 - Never import another module's `*.repository.ts` or `*.controller.ts`.
 - Avoid circular imports; move shared pieces to `lib/` or a small dedicated service.
 

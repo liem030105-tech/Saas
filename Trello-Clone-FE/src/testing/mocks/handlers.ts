@@ -11,4 +11,6 @@ export const handlers: RequestHandler[] = [
   ),
   // A signed-in user has no workspaces until a test says otherwise (first-workspace screen).
   http.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: [] })),
+  // A workspace has no boards until a test says otherwise (BOARD-001).
+  http.get(apiUrl('/workspaces/:workspaceId/boards'), () => HttpResponse.json({ data: [] })),
 ];

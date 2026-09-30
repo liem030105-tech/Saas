@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  BoardDtoSchema,
+  BoardTitleSchema,
+  CreateBoardInputSchema,
+  HexColorSchema,
+  ListBoardsQuerySchema,
+} from './boards';
+import data from '../../tests/data/boards.json';
+import { ACTIVITY_TYPES } from '../constants/activity';
+
+describe('BoardTitleSchema', () => {
+  it.each(data.validTitles)('accepts $input and trims it', ({ input, normalized }) => {
+    expect(BoardTitleSchema.parse(input)).toBe(normalized);
+  });
+
+  it.each(data.invalidTitles)('rejects %j', (title) => {
+    expect(BoardTitleSchema.safeParse(title).success).toBe(false);
+  });
+});
+
+describe('HexColorSchema', () => {
+  it.each(data.validColors)('accepts %s', (color) => {
+    expect(HexColorSchema.safeParse(color).success).toBe(true);
+  });
+
+  it.each(data.invalidColors)('rejects %j', (color) => {
+    expect(HexColorSchema.safeParse(color).success).toBe(false);
+  });
+});
+
+describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () => {
+  it('keeps the title and optional background only', () => {
+    expect(
+      CreateBoardInputSchema.parse({ title: ' Roadmap ', archived: true, workspaceId: 'x' }),
+    ).toEqual({ title: 'Roadmap' });
+  });
+
+  it('reads archived as a boolean, false by default', () => {
+    expect(ListBoardsQuerySchema.parse({})).toEqual({ archived: false });
+    expect(ListBoardsQuerySchema.parse({ archived: 'true' })).toEqual({ archived: true });
+    expect(ListBoardsQuerySchema.safeParse({ archived: 'yes' }).success).toBe(false);
+  });
+
+  it('parses a board', () => {
+    expect(BoardDtoSchema.parse(data.boardDto)).toEqual(data.boardDto);
+  });
+
+  it('lists the activity types BOARD-001 logs', () => {
+    expect(ACTIVITY_TYPES).toEqual(['BOARD_CREATED', 'BOARD_UPDATED']);
+  });
+});

@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { boardData } from '../data/boards';
 import { paths } from '../data/http';
 import { roleMatrixData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
@@ -132,4 +133,23 @@ describeRoleMatrix(getApp, {
       .delete(`${workspacePath(ctx)}/invites/${ctx.fixture.inviteId}`)
       .set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'GET /workspaces/:workspaceId/boards',
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${workspacePath(ctx)}/boards`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 200, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /workspaces/:workspaceId/boards',
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${workspacePath(ctx)}/boards`)
+      .set(as(ctx))
+      .send({ title: boardData.tenantBoard.a }),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
 });

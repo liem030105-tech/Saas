@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/error-handler';
 import { notFound } from './middlewares/not-found';
 import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
+import { boardsRouter } from './modules/boards/boards.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { invitesRouter } from './modules/workspaces/invites.routes';
@@ -41,6 +42,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   api.use(usersRouter);
   api.use(invitesRouter);
   api.use(workspacesRouter);
+  api.use(boardsRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

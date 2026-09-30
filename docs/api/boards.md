@@ -15,19 +15,23 @@
 | | |
 |--|--|
 | Task | BOARD-001 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER |
-| Query | `archived` = `false` (default) \| `true` |
-| Success | `200 { data: BoardDto[] }`, ordered by `createdAt DESC` |
-| Errors | `401` · `404` |
+| Query | `archived` = `false` (default) \| `true`: open or archived boards only |
+| Success | `200 { data: BoardDto[] }`, ordered by `createdAt DESC` (then `id DESC`) |
+| Errors | `400` (invalid `archived`) · `401` · `404` · `429 RATE_LIMITED` |
 
 ### POST /workspaces/:workspaceId/boards
 | | |
 |--|--|
 | Task | BOARD-001 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ MEMBER |
-| Body | `{ title, background? }` |
-| Success | `201 { data: BoardDto }` · logs `BOARD_CREATED` |
-| Errors | `400` · `401` · `403` · `404` · `402` (from BILLING-001 only, D-11) |
+| Body | `{ title, background? }` (`background` defaults to `#0079bf`) |
+| Success | `201 { data: BoardDto }` · logs `BOARD_CREATED` with `data: { title }`, in the same transaction |
+| Errors | `400` · `401` · `403` · `404` · `429 RATE_LIMITED` · `402` (from BILLING-001 only, D-11) |
+
+Schemas: `CreateBoardInputSchema`, `ListBoardsQuerySchema`, `BoardDtoSchema`; activity types: `ACTIVITY_TYPES` (`@trello-clone/shared`). Board-scoped endpoints (BOARD-002 onwards) authorize through `assertBoardAccess(userId, boardId, action)` in the boards service.
 
 ### GET /boards/:boardId
 | | |
