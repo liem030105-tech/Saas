@@ -18,9 +18,14 @@ export function findBoardWithRole(userId: string, boardId: string) {
 }
 
 /**
- * GET /boards/:boardId in one query. Lists (LIST-001), cards (CARD-001) and labels (CARD-005) join
- * this select as their tables arrive; the mapper already returns them (empty until then).
+ * GET /boards/:boardId in one query after the access check: the board with its non-archived lists
+ * (LIST-001). Cards (CARD-001) and labels (CARD-005) join this include as their tables arrive.
  */
 export function findDetail(boardId: string) {
-  return prisma.board.findUnique({ where: { id: boardId } });
+  return prisma.board.findUnique({
+    where: { id: boardId },
+    include: {
+      lists: { where: { archived: false }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+    },
+  });
 }

@@ -117,6 +117,7 @@ model WorkspaceInvite {
 enum ActivityType {
   BOARD_CREATED
   BOARD_UPDATED
+  LIST_CREATED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.
@@ -131,8 +132,24 @@ model Board {
   updatedAt   DateTime   @updatedAt
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   activities  Activity[]
+  lists       List[]
 
   @@index([workspaceId, archived])
+}
+
+/// A column of cards on a board, ordered by `position ASC, id ASC`
+/// (docs/database/relationships.md → Ordering). LIST-001.
+model List {
+  id        String   @id @default(cuid())
+  boardId   String
+  title     String
+  position  Float
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, position])
 }
 
 /// Append-only board activity feed; `cardId` arrives with CARD-001. BOARD-001.

@@ -2,12 +2,14 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { BoardView, useBoard } from '@/features/boards';
+import { BoardLists } from '@/features/lists';
 import { can, useWorkspaces, workspacePath } from '@/features/workspaces';
 
 import { NotFoundPage } from './NotFoundPage';
 
 // `/b/:boardId` (BOARD-002): a board the caller cannot see (or that does not exist) is a 404 from
-// the API and shows "Page not found". Actions follow the caller's role in the board's workspace.
+// the API and shows "Page not found". Actions follow the caller's role in the board's workspace;
+// the lists (LIST-001) come from the lists feature.
 export function BoardPage() {
   const { boardId = '' } = useParams();
   const navigate = useNavigate();
@@ -49,6 +51,12 @@ export function BoardPage() {
       canEdit={role ? can(role, 'board.edit') : false}
       canDelete={role ? can(role, 'board.delete') : false}
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
-    />
+    >
+      {/* An archived board is read-only (docs/design/ui.md → Board). */}
+      <BoardLists
+        board={board}
+        canEdit={!board.archived && (role ? can(role, 'list.manage') : false)}
+      />
+    </BoardView>
   );
 }

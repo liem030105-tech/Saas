@@ -1,0 +1,38 @@
+{
+  "after": [
+    { "last": 1024, "expected": 2048 },
+    { "last": 0.5, "expected": 1024.5 }
+  ],
+  "before": [
+    { "first": 1024, "expected": 512 },
+    { "first": 0.000003, "expected": 0.0000015 }
+  ],
+  "between": [
+    { "a": 1024, "b": 2048, "expected": 1536 },
+    { "a": 2048, "b": 1024, "expected": 1536 },
+    { "a": 1, "b": 1.5, "expected": 1.25 }
+  ],
+  "rebalance": [
+    { "case": "roomy gap", "position": 1536, "neighbour": 1024, "expected": false },
+    { "case": "no neighbour", "position": 1024, "expected": false },
+    {
+      "case": "gap below the threshold",
+      "position": 1024.0000005,
+      "neighbour": 1024,
+      "expected": true
+    },
+    {
+      "case": "gap exactly at the threshold",
+      "position": 1024.000001,
+      "neighbour": 1024,
+      "expected": false
+    },
+    { "case": "position below the threshold", "position": 0.0000009, "expected": true },
+    {
+      "case": "neighbour after the position",
+      "position": 1024,
+      "neighbour": 1024.0000001,
+      "expected": true
+    }
+  ]
+}

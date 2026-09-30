@@ -72,6 +72,7 @@ A `/w/:slug` page keeps following its workspace when the slug changes (here or i
 - Header (BOARD-002): the title is a button that turns into a text field (Enter or leaving it saves, Escape cancels), then "Colour" (the presets as a menu), "Archive"/"Unarchive", and "Delete" (ADMIN+, confirmed in an `AlertDialog`, then back to the workspace). A VIEWER sees the title only. An archived board keeps working and shows "This board is archived." under the header. A board the caller cannot see shows "Page not found".
 - The workspace page's "Show archived boards" / "Show open boards" toggle switches the grid to the archived boards (no create actions there).
 - Board colour fills the page background; lists are light surfaces; the board scrolls horizontally, each list vertically.
+- Lists (LIST-001): 272px columns in `position` order, then "Add a list" (empty board) or "Add another list". The new list shows at once (optimistic) and the composer stays in view for the next title. A board without lists shows "No lists yet." to a VIEWER.
 - **Card tile:** label chips (colour only, 40×8px), title (max 3 lines), then badges: due date (red when overdue, green when completed), checklist `done/total`, comment count, member avatars (max 3 + "+n").
 - **Add a card / Add another list:** an inline composer (textarea + "Add" + ✕). Enter submits and keeps the composer open for the next item; Escape closes. Never a dialog.
 - **Rename in place:** clicking a board or list title swaps it for an input; Enter or blur saves, Escape cancels.

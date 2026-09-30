@@ -487,3 +487,4 @@ model Subscription {
 | `20260930094251_add_workspace_invites` | WORKSPACE-004 | `WorkspaceInvite` (unique `tokenHash`, unique `(workspaceId, email)`, FKs → `Workspace` and `User` (inviter) with cascade) |
 | `20260930141107_add_invite_inviter_index` | WORKSPACE-004 | Index on `WorkspaceInvite.invitedById` (its FK cascades on user delete) |
 | `20260930144700_add_boards_activity` | BOARD-001 | Enum `ActivityType` (`BOARD_CREATED`, `BOARD_UPDATED`; later tasks add theirs); `Board` (FK → `Workspace` cascade, index `(workspaceId, archived)`); `Activity` without `cardId` (FK → `Board` cascade, FK → `User` restrict, index `(boardId, createdAt)`) |
+| `20260930153801_add_lists` | LIST-001 | `ActivityType` += `LIST_CREATED`; `List` (FK → `Board` cascade, index `(boardId, position)`) |

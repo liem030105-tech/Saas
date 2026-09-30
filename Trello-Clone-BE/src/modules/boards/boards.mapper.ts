@@ -1,5 +1,5 @@
-import type { Board } from '../../generated/prisma/client';
-import type { BoardDetailDto, BoardDto } from '@trello-clone/shared';
+import type { Board, List } from '../../generated/prisma/client';
+import type { BoardDetailDto, BoardDto, ListDto } from '@trello-clone/shared';
 
 /** docs/api/boards.md → BoardDto. */
 export function toBoardDto(board: Board): BoardDto {
@@ -14,7 +14,31 @@ export function toBoardDto(board: Board): BoardDto {
   };
 }
 
-/** docs/api/boards.md → BoardDetailDto: no lists or labels exist before LIST-001 and CARD-005. */
-export function toBoardDetailDto(board: Board): BoardDetailDto {
-  return { ...toBoardDto(board), lists: [], labels: [] };
+/**
+ * docs/api/boards.md → BoardDetailDto. Cards arrive with CARD-001 and labels with CARD-005; until
+ * then both are empty.
+ */
+export function toBoardDetailDto(board: Board & { lists: List[] }): BoardDetailDto {
+  return {
+    ...toBoardDto(board),
+    lists: board.lists.map((list) => ({ ...toDetailListDto(list), cards: [] })),
+    labels: [],
+  };
+}
+
+/**
+ * A list inside BoardDetailDto. lists.mapper has the same projection for the lists endpoints, but
+ * a module may not import another module's mapper (backend.md → cross-module) and going through
+ * lists.service would be a cycle; the shared `ListDto` type keeps the two in step.
+ */
+function toDetailListDto(list: List): ListDto {
+  return {
+    id: list.id,
+    boardId: list.boardId,
+    title: list.title,
+    position: list.position,
+    archived: list.archived,
+    createdAt: list.createdAt.toISOString(),
+    updatedAt: list.updatedAt.toISOString(),
+  };
 }

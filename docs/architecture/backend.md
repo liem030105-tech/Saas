@@ -55,7 +55,7 @@ modules/boards/
 ├── boards.service.ts      # business logic, authorization (assertBoardAccess), transactions, realtime emits
 ├── boards.mapper.ts       # Prisma row → DTO, explicit fields only
 ├── boards.repository.ts   # (OPTIONAL, see below)
-├── activity.ts            # logActivity(tx, …), boards module only (BOARD-001)
+├── activity.ts            # logActivity(tx, …) (BOARD-001); other modules import it via boards.service
 ├── boards.schema.ts       # (optional) BE-only schemas; shared request schemas live in @trello-clone/shared
 └── boards.test.ts         # (optional) module unit tests; integration tests live in tests/integration/
 ```
@@ -80,7 +80,7 @@ Never create a repository just to wrap `prisma.x.findUnique`.
 
 Expected repositories: `boards` (load board with lists/cards, search), `cards` (move), `workspaces` (membership queries shared by authorization). The generic container rebalance lives in `lib/rebalance.ts` (LIST-003).
 
-The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts` (BOARD-001) and is called inside the same transaction as the change it records.
+The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts` (BOARD-001) and is called inside the same transaction as the change it records. Other modules (lists, cards, …) import it through `boards.service`, which re-exports it.
 
 ## Cross-module communication
 - Module A calls only module B's **service** (e.g. `cards.service` → `workspaces.service.assertMember()`).

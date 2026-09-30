@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach } from 'vitest';
 import { prisma } from '../../src/config/prisma';
 import { boardData } from '../data/boards';
 import { paths } from '../data/http';
+import { listData } from '../data/lists';
 import { roleMatrixData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { describeRoleMatrix, type MatrixContext } from '../helpers/role-matrix';
@@ -190,4 +191,15 @@ describeRoleMatrix(getApp, {
   setup: addBoard,
   request: (ctx) => request(ctx.app).delete(boardPath(ctx)).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /boards/:boardId/lists',
+  setup: addBoard,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${boardPath(ctx)}/lists`)
+      .set(as(ctx))
+      .send({ title: listData.tenantList.a }),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
 });
