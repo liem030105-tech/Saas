@@ -14,6 +14,9 @@ import type {
   UpdateBoardData,
 } from '@trello-clone/shared';
 
+/** Other modules log board activity through this service (backend.md → Cross-module). */
+export { logActivity } from './activity';
+
 // docs/api/boards.md. Board-scoped endpoints (BOARD-002 onwards) authorize with assertBoardAccess;
 // the workspace-scoped ones below rely on requireWorkspaceRole on their route.
 

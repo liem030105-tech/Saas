@@ -10,10 +10,13 @@
 | | |
 |--|--|
 | Task | LIST-001 |
-| Authorization | ≥ MEMBER |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (`assertBoardAccess(…, 'list.manage')`) |
 | Body | `{ title, position? }`. Without `position` the list is appended at the end |
-| Success | `201 { data: ListDto }` · logs `LIST_CREATED` |
-| Errors | `400` · `401` · `403` · `404` |
+| Success | `201 { data: ListDto }` · logs `LIST_CREATED` (`data: { listId, title }`) in the same transaction |
+| Errors | `400` · `401` · `403` · `404` (unknown board, malformed id, or not a member) · `429 RATE_LIMITED` |
+
+**Behavior:** the append position is `last + 1024` over **all** the board's lists, archived ones included (`1024` on an empty board), so a new list never lands between an archived list and its place on unarchive. A client `position` must be finite and `> 0` and is stored as sent; the rebalance check arrives with LIST-003. Two concurrent appends may get the same position; the `id` tie-break keeps the order deterministic. The FE hides the composer on an archived board ([ui.md → Board](../design/ui.md)); the API does not check `archived`. Schemas: `CreateListInputSchema`, `ListDtoSchema` (`@trello-clone/shared`); position helpers: `packages/shared/src/utils/position.ts` (ADR-017).
 
 ### PATCH /lists/:listId
 | | |

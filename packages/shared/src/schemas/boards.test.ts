@@ -49,8 +49,8 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
     expect(BoardDtoSchema.parse(data.boardDto)).toEqual(data.boardDto);
   });
 
-  it('lists the activity types BOARD-001 logs', () => {
-    expect(ACTIVITY_TYPES).toEqual(['BOARD_CREATED', 'BOARD_UPDATED']);
+  it('lists the activity types logged so far', () => {
+    expect(ACTIVITY_TYPES).toEqual(['BOARD_CREATED', 'BOARD_UPDATED', 'LIST_CREATED']);
   });
 });
 
