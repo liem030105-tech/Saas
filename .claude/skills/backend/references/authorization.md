@@ -3,27 +3,20 @@
 Spec: [api/README.md → Authorization model](../../../../docs/api/README.md#authorization-model) (roles, permission matrix, tenant isolation). This file shows how to implement it; it does not restate the rules.
 
 ## Role order
-```ts
-// src/lib/roles.ts – Role comes from the generated Prisma client (same values as the shared enum)
-const RANK = { VIEWER: 0, MEMBER: 1, ADMIN: 2, OWNER: 3 } as const;
-export const hasRole = (actual: Role, min: Role) => RANK[actual] >= RANK[min];
-```
+`ROLE_ORDER` and `hasRole(actual, min)` come from `@trello-clone/shared` (WORKSPACE-001; same values as the Prisma `Role` enum), so the FE uses the same comparison for UI hints.
 
 ## Workspace-scoped resources
 ```ts
 // workspaces.service.ts – exported for other modules (they call the service, never the repository)
 export async function assertWorkspaceAccess(userId: string, workspaceId: string, min: Role) {
-  const member = await prisma.workspaceMember.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId } },
-    select: { role: true },
-  });
-  if (!member) throw AppError.notFound();                     // missing workspace OR not a member: same 404
-  if (!hasRole(member.role, min)) throw AppError.forbidden(); // member with too low a role: 403
-  return member.role;
+  const role = await workspacesRepository.findMemberRole(userId, workspaceId);
+  if (!role) throw AppError.notFound();              // missing workspace OR not a member: same 404
+  if (!hasRole(role, min)) throw AppError.forbidden(); // member with too low a role: 403
+  return role;
 }
 ```
 
-`requireWorkspaceRole(min)` (middleware for `/workspaces/:workspaceId/*` routes) calls `assertWorkspaceAccess(req.userId, req.params.workspaceId, min)`; services called from other modules use `assertWorkspaceAccess` directly.
+`requireWorkspaceRole(min)` (`src/middlewares/require-workspace-role.ts`, after `authenticate` on `/workspaces/:workspaceId/*` routes) calls `assertWorkspaceAccess(currentUserId(req), workspaceId, min)`, answers a malformed id with the same 404, and stores the role in `res.locals.workspaceRole`; services called from other modules use `assertWorkspaceAccess` directly.
 
 ## Board-scoped resources: load and authorize in one query
 Resolve the workspace from the **stored** resource, never from a client-supplied `workspaceId`.

@@ -11,7 +11,7 @@ import {
   registerFormInput,
   registerResponse,
 } from '@/testing/data/auth';
-import { pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
@@ -91,7 +91,7 @@ describe('RegisterForm', () => {
     await fillAndSubmit(registerFormInput);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),
+      await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading }),
     ).toBeInTheDocument();
     expect(sentBody).toEqual(registerFormInput);
     await waitFor(() => expect(getAccessToken()).toBe(registerResponse.accessToken));

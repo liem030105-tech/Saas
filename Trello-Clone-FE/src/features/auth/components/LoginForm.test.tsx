@@ -13,7 +13,7 @@ import {
   safeRedirect,
   unsafeRedirects,
 } from '@/testing/data/auth';
-import { pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
@@ -97,7 +97,7 @@ describe('LoginForm', () => {
     await fillAndSubmit(loginFormInput);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),
+      await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading }),
     ).toBeInTheDocument();
     expect(sentBody).toEqual(loginFormInput);
     await waitFor(() => expect(getAccessToken()).toBe(loginResponse.accessToken));
@@ -122,7 +122,7 @@ describe('LoginForm', () => {
     await fillAndSubmit(loginFormInput);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),
+      await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
   });

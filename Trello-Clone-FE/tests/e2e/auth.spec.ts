@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { buildE2eUser, type E2eUser } from './data/users';
-import { pageCases, profilePage } from '../../src/testing/data/routes';
+import { firstWorkspacePage, pageCases, profilePage } from '../../src/testing/data/routes';
 
 // Scenario 1 (docs/development/testing.md): register → lands on / → reload keeps the session →
 // logout → /login → login again. Paths and headings are the same test data the router tests use.
 
-const { home, login, register } = pageCases;
+const { login, register } = pageCases;
 
 async function expectPage(page: Page, { path, heading }: { path: string; heading: string }) {
   await expect(page).toHaveURL(path);
@@ -22,17 +22,17 @@ async function expectProfileSignedIn(page: Page, user: E2eUser) {
 test('register → reload keeps the session → logout → login again', async ({ page }) => {
   const user = buildE2eUser();
 
-  // Register: lands on / signed in.
+  // Register: lands on / signed in, on the first-workspace screen (no workspace yet, ADR-019).
   await page.goto(register.path);
   await page.getByLabel('Name', { exact: true }).fill(user.name);
   await page.getByLabel('Email').fill(user.email);
   await page.getByLabel('Password').fill(user.password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expectPage(page, home);
+  await expectPage(page, firstWorkspacePage);
 
   // Reload: the refresh cookie restores the session (the access token lived in memory only).
   await page.reload();
-  await expectPage(page, home);
+  await expectPage(page, firstWorkspacePage);
   await page.goto(profilePage.path);
   await expectProfileSignedIn(page, user);
   await page.reload();

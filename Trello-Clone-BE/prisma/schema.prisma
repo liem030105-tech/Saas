@@ -12,17 +12,18 @@ datasource db {
 
 /// Global identity; not tenant-scoped. Introduced in FOUNDATION-004, used from AUTH-001.
 model User {
-  id            String         @id @default(cuid())
+  id            String            @id @default(cuid())
   /// Stored lower-cased.
-  email         String         @unique
+  email         String            @unique
   /// bcrypt hash; never returned by the API.
   passwordHash  String
   name          String
   /// URL only; uploads are out of scope.
   avatarUrl     String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   refreshTokens RefreshToken[]
+  memberships   WorkspaceMember[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -44,4 +45,44 @@ model RefreshToken {
 
   @@index([userId])
   @@index([familyId])
+}
+
+/// Workspace role; order OWNER > ADMIN > MEMBER > VIEWER (docs/api/README.md → Authorization model). WORKSPACE-001.
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+/// Billing plan; the column exists from WORKSPACE-001, it is changed only by BILLING-001 webhooks.
+enum Plan {
+  FREE
+  PRO
+}
+
+/// The tenant: every board and its content belongs to one workspace. WORKSPACE-001.
+model Workspace {
+  id        String            @id @default(cuid())
+  name      String
+  /// URL `/w/:slug`; generated from the name, random suffix on collision.
+  slug      String            @unique
+  plan      Plan              @default(FREE)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  members   WorkspaceMember[]
+}
+
+/// A user's membership and role in a workspace. WORKSPACE-001.
+model WorkspaceMember {
+  userId      String
+  workspaceId String
+  role        Role      @default(MEMBER)
+  joinedAt    DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
 }

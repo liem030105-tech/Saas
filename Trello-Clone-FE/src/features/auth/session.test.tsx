@@ -13,7 +13,7 @@ import {
   sessionExpiredMessage,
   staleAccessToken,
 } from '@/testing/data/auth';
-import { pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
@@ -78,7 +78,7 @@ describe('session', () => {
     renderApp(pageCases.home.path);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: pageCases.home.heading }),
+      await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading }),
     ).toBeInTheDocument();
     expect(getAccessToken()).toBe(freshAccessToken);
     expect(calls).toBe(1);

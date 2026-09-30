@@ -12,6 +12,7 @@ import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { usersRouter } from './modules/users/users.routes';
+import { workspacesRouter } from './modules/workspaces/workspaces.routes';
 
 export const API_PREFIX = '/api/v1';
 
@@ -37,6 +38,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   api.use(healthRouter);
   api.use(authRouter);
   api.use(usersRouter);
+  api.use(workspacesRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

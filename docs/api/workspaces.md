@@ -17,7 +17,7 @@
 | Task | WORKSPACE-001 |
 | Authentication | Bearer |
 | Authorization | Any authenticated user; returns only the caller's workspaces |
-| Success | `200 { data: WorkspaceDto[] }`, ordered by name |
+| Success | `200 { data: WorkspaceDto[] }`, ordered by name (case-insensitive) |
 
 ### POST /workspaces
 | | |
@@ -27,7 +27,9 @@
 | Authorization | Any authenticated user |
 | Body | `{ name }` |
 | Success | `201 { data: WorkspaceDto }` (caller becomes OWNER; slug is generated from the name, with a random suffix on collision) |
-| Errors | `400` · `401` |
+| Errors | `400` · `401` · `429 RATE_LIMITED` |
+
+**Behavior:** the workspace and the caller's OWNER membership are created in one transaction. Slug: the name in kebab-case, ASCII only (accents dropped), at most 45 chars; `workspace` when nothing usable is left; a random 4-char suffix (`acme-team-x9k2`) when it is taken or shorter than 3 chars. The unique index decides collisions, including concurrent ones, and each retry uses a new suffix. `slug` and `plan` in the body are ignored. Schemas: `CreateWorkspaceInputSchema`, `WorkspaceDtoSchema` (`@trello-clone/shared`).
 
 ### GET /workspaces/:workspaceId
 | | |
