@@ -92,7 +92,7 @@ features/cards/
 ## Routes
 | Route | Page |
 |-------|------|
-| `/` | Signed in: redirect to the first workspace (WORKSPACE-001). Signed out: landing page (BILLING-001, pending D-08) |
+| `/` | Signed in: redirect to the first workspace, or the "Create your first workspace" screen when the user has none (WORKSPACE-001, ADR-019). Signed out: landing page (BILLING-001, pending D-08) |
 | `/pricing` | Pricing (BILLING-001, pending D-08) |
 | `/invite/:token` | Accept invitation (WORKSPACE-004) |
 | `/login`, `/register` | Auth |
