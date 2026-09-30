@@ -1,6 +1,6 @@
 import { BoardTitleSchema, type BoardDetailDto, type UpdateBoardInput } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, PaletteIcon, Trash2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
@@ -132,14 +132,22 @@ export function BoardHeader({ board, canEdit, canDelete, onDeleted }: BoardHeade
   );
 }
 
-/** The title as a button; clicking it edits in place (Enter or leaving saves, Escape cancels). */
+/**
+ * The title as a button; clicking it edits in place. Enter and Escape leave the field, and leaving
+ * it saves (or, after Escape, cancels), so a save runs once however the field is left.
+ */
 function BoardTitle({ title, onRename }: { title: string; onRename: (title: string) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const cancelled = useRef(false);
 
-  const commit = () => {
+  const finish = () => {
     if (draft === null) return;
-    const parsed = BoardTitleSchema.safeParse(draft);
     setDraft(null);
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    const parsed = BoardTitleSchema.safeParse(draft);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? SAVE_ERROR);
       return;
@@ -152,7 +160,8 @@ function BoardTitle({ title, onRename }: { title: string; onRename: (title: stri
       <h1 className="text-xl font-semibold">
         <button
           type="button"
-          aria-label={`Rename board ${title}`}
+          // The title stays the button's name; the tooltip becomes its description.
+          title="Rename board"
           className="rounded-md px-2 py-1 text-left hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           onClick={() => setDraft(title)}
         >
@@ -168,10 +177,10 @@ function BoardTitle({ title, onRename }: { title: string; onRename: (title: stri
       value={draft}
       className="h-9 w-72 max-w-full bg-background text-lg font-semibold text-foreground"
       onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
+      onBlur={finish}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') commit();
-        if (event.key === 'Escape') setDraft(null);
+        if (event.key === 'Escape') cancelled.current = true;
+        if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
       }}
     />
   );

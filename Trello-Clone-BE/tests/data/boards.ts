@@ -9,8 +9,9 @@ export const boardData = {
   /** A body that passes validation, for requests that must fail before creating anything. */
   anyBody: { title: 'Any board' },
   invalidArchivedQuery: 'archived=maybe',
-  /** A well-formed board id nothing has. */
+  /** A well-formed board id nothing has, and an id that is not a cuid: both answer 404. */
   unknownBoardId: 'clx0000000000000000000098',
+  malformedBoardId: 'not-a-cuid',
   tenantBoard: { a: 'A board', b: 'B board' },
   update: {
     input: { title: '  Renamed board ', background: '#519839' },

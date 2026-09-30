@@ -1,3 +1,4 @@
+import { buildErrorBody } from './api';
 import { acmeWorkspace } from './workspaces';
 
 import type { BoardDetailDto, BoardDto } from '@trello-clone/shared';
@@ -54,3 +55,10 @@ export const archivedBanner = 'This board is archived.';
 
 /** A board id the caller cannot see: the API answers 404. */
 export const hiddenBoardId = 'clx0000000000000000000049';
+
+/** The API's answer for a board the caller cannot see. */
+export const boardNotFoundError = buildErrorBody({
+  code: 'NOT_FOUND',
+  message: 'Resource not found',
+  details: [],
+});

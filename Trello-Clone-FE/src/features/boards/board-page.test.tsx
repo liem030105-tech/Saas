@@ -2,11 +2,12 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http as mswHttp, HttpResponse } from 'msw';
 
 import { setAccessToken } from '@/api/token-store';
-import { apiUrl, buildErrorBody } from '@/testing/data/api';
+import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import {
   archivedBanner,
   boardEdits,
+  boardNotFoundError,
   boardPathFor,
   hiddenBoardId,
   roadmapBoard,
@@ -67,14 +68,14 @@ describe('board page (/b/:boardId)', () => {
     const { state } = await openBoard('MEMBER');
     await waitFor(() => expect(actionButton('Archive')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: `Rename board ${roadmapBoard.title}` }));
+    fireEvent.click(screen.getByRole('button', { name: roadmapBoard.title }));
     const input = screen.getByRole('textbox', { name: 'Board title' });
     fireEvent.change(input, { target: { value: boardEdits.rename.typed } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => expect(state.patches).toEqual([boardEdits.rename.sent]));
     expect(
-      await screen.findByRole('button', { name: `Rename board ${boardEdits.rename.sent.title}` }),
+      await screen.findByRole('button', { name: boardEdits.rename.sent.title }),
     ).toBeInTheDocument();
   });
 
@@ -82,14 +83,12 @@ describe('board page (/b/:boardId)', () => {
     const { state } = await openBoard('MEMBER');
     await waitFor(() => expect(actionButton('Archive')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: `Rename board ${roadmapBoard.title}` }));
+    fireEvent.click(screen.getByRole('button', { name: roadmapBoard.title }));
     const input = screen.getByRole('textbox', { name: 'Board title' });
     fireEvent.change(input, { target: { value: boardEdits.rename.typed } });
     fireEvent.keyDown(input, { key: 'Escape' });
 
-    expect(
-      screen.getByRole('button', { name: `Rename board ${roadmapBoard.title}` }),
-    ).toBeVisible();
+    expect(screen.getByRole('button', { name: roadmapBoard.title })).toBeVisible();
     expect(state.patches).toHaveLength(0);
   });
 
@@ -126,11 +125,18 @@ describe('board page (/b/:boardId)', () => {
     expect(state.deletes).toBe(1);
   });
 
+  it('an OWNER sees every action once the page shows', async () => {
+    await openBoard('OWNER');
+
+    expect(screen.getByRole('button', { name: roadmapBoard.title })).toBeInTheDocument();
+    for (const name of ['Colour', 'Archive', 'Delete']) expect(actionButton(name)).not.toBeNull();
+  });
+
   it('a VIEWER sees the board without any edit actions', async () => {
     await openBoard('VIEWER');
 
     await screen.findByText('No lists yet.');
-    expect(screen.queryByRole('button', { name: /Rename board/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: roadmapBoard.title })).toBeNull();
     for (const name of ['Colour', 'Archive', 'Delete']) expect(actionButton(name)).toBeNull();
   });
 
@@ -144,12 +150,7 @@ describe('board page (/b/:boardId)', () => {
     signedInAs('OWNER');
     server.use(
       mswHttp.get(apiUrl(`/boards/${hiddenBoardId}`), () =>
-        HttpResponse.json(
-          buildErrorBody({ code: 'NOT_FOUND', message: 'Not found', details: [] }),
-          {
-            status: 404,
-          },
-        ),
+        HttpResponse.json(boardNotFoundError, { status: 404 }),
       ),
     );
 

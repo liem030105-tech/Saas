@@ -5,7 +5,7 @@ Once BOARD-001 is merged, `src/modules/boards/` is the real reference: if it dif
 
 ## `boards.routes.ts` – paths and middleware order only
 ```ts
-import { CreateBoardInputSchema, ListBoardsQuerySchema } from '@trello-clone/shared';
+import { CreateBoardInputSchema, ListBoardsQuerySchema, UpdateBoardInputSchema } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './boards.controller';
@@ -37,6 +37,12 @@ boardsRouter.post(
   requireWorkspaceRole('board.edit'),
   controller.create,
 );
+
+// Board-scoped routes (BOARD-002): no requireWorkspaceRole; the service calls assertBoardAccess.
+const BOARD = '/boards/:boardId';
+boardsRouter.get(BOARD, authenticate, apiRateLimit, controller.get);
+boardsRouter.patch(BOARD, authenticate, apiRateLimit, validate({ body: UpdateBoardInputSchema }), controller.update);
+boardsRouter.delete(BOARD, authenticate, apiRateLimit, controller.remove);
 ```
 
 ## `boards.controller.ts` – HTTP in, service call, HTTP out
@@ -92,13 +98,13 @@ export function validated<P, Q = unknown, B = unknown>(res: Response) {
 ## `boards.service.ts` – business rules, authorization, transactions
 ```ts
 import { logActivity } from './activity';
-import { toBoardDto } from './boards.mapper';
+import { toBoardDetailDto, toBoardDto } from './boards.mapper';
 import * as boardsRepository from './boards.repository';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../lib/app-error';
 import { hasPermission, type WorkspaceAction } from '../workspaces/permissions';
 
-import type { BoardDto, CreateBoardData, ListBoardsQuery } from '@trello-clone/shared';
+import type { BoardDetailDto, BoardDto, CreateBoardData, ListBoardsQuery } from '@trello-clone/shared';
 
 /** The single entry point for board-scoped authorization (BOARD-002 onwards). */
 export async function assertBoardAccess(userId: string, boardId: string, action: WorkspaceAction) {
@@ -127,10 +133,17 @@ export async function create(userId: string, workspaceId: string, input: CreateB
   });
   return toBoardDto(board); // realtime emit (REALTIME-001+) goes here, after the transaction committed
 }
+
+export async function get(userId: string, boardId: string): Promise<BoardDetailDto> {
+  await assertBoardAccess(userId, boardId, 'board.view'); // 404 for a non-member, before any data
+  const board = await boardsRepository.findDetail(boardId);
+  if (!board) throw AppError.notFound();
+  return toBoardDetailDto(board);
+}
 ```
 - Services never see `req`/`res`; they take ids and validated input, return DTOs, and throw `AppError`.
 - Map Prisma rows to DTOs explicitly (`boards.mapper.ts`) so internal columns never leak.
-- `boards.repository.ts` holds `findBoardWithRole` (the board with the caller's membership in its stored workspace), reused by every board-scoped check.
+- `boards.repository.ts` holds `findBoardWithRole` (the board with the caller's membership in its stored workspace), reused by every board-scoped check, and `findDetail` (the board with its lists and labels, later its cards).
 
 ## `<m>.schema.ts` – BE-only schemas (only when needed)
 The boards module has none: `:workspaceId` is checked by `requireWorkspaceRole`, and board-scoped ids by `assertBoardAccess` (an unknown id is simply not found). Add `<m>.schema.ts` only for a BE-only shape, e.g. a params object with several ids:

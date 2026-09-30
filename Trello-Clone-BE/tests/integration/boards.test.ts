@@ -269,11 +269,11 @@ describe('/api/v1/boards/:boardId', () => {
       expect(res.body.data.archived).toBe(true);
     });
 
-    it('404 for a non-member and for an unknown board', async () => {
+    it('404 for a non-member, an unknown board and a malformed id', async () => {
       const { boardId } = await boardWith('OWNER');
       const outsider = await createUserWithToken();
 
-      for (const id of [boardId, boardData.unknownBoardId]) {
+      for (const id of [boardId, boardData.unknownBoardId, boardData.malformedBoardId]) {
         expect((await request(app).get(boardPath(id)).set(bearer(outsider.token))).status).toBe(
           404,
         );

@@ -36,7 +36,7 @@ test('a VIEWER sees no create actions; a non-member sees "not found" for a board
   await ownerPage.getByRole('dialog').getByRole('button', { name: 'Create board' }).click();
   const tile = ownerPage.getByRole('link', { name: 'Roadmap' });
   await tile.click();
-  await expect(ownerPage.getByRole('button', { name: 'Rename board Roadmap' })).toBeVisible();
+  await expect(ownerPage.getByRole('button', { name: 'Roadmap', exact: true })).toBeVisible();
   const boardPath = new URL(ownerPage.url()).pathname;
 
   await ownerPage.goBack();
@@ -59,8 +59,9 @@ test('a VIEWER sees no create actions; a non-member sees "not found" for a board
     viewerPage.getByRole('button', { name: /Create (board|your first board)/ }),
   ).toHaveCount(0);
   await viewerPage.goto(boardPath);
+  // The page renders only once the caller's role is known, so the heading means the actions are final.
   await expect(viewerPage.getByRole('heading', { level: 1, name: 'Roadmap' })).toBeVisible();
-  for (const name of [/Rename board/, /Colour/, /Archive/, /Delete/]) {
+  for (const name of [/^Roadmap$/, /Colour/, /Archive/, /Delete/]) {
     await expect(viewerPage.getByRole('button', { name })).toHaveCount(0);
   }
 

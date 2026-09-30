@@ -17,7 +17,7 @@ Specs: [POST /lists/:listId/cards](../api/cards.md#post-listslistidcards); model
 1. Model `Card`; add `Activity.cardId` (nullable, SetNull) and its index; `ActivityType` += `CARD_CREATED`; migration `add_cards`.
 2. `POST /lists/:listId/cards`: `boardId` is copied from the list; appended when `position` is omitted; logs `CARD_CREATED` with `cardId`.
 3. `findDetail` includes non-archived cards per list as `CardSummaryDto` (fields owned by CARD-005 are returned empty or zero).
-4. Shared `CreateCardInputSchema`, `CardSummaryDtoSchema`.
+4. Shared `CreateCardInputSchema`; extend `CardSummaryDtoSchema` (added by BOARD-002) if needed.
 5. FE: card items inside list columns and an "Add a card" composer at the bottom of each list.
 6. E2E scenario 3 (board → list → card).
 
