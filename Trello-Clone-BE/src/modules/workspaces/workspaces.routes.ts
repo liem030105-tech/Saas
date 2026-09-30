@@ -20,7 +20,7 @@ workspacesRouter.post(
   controller.create,
 );
 
-// The role check runs before validation, so a non-member never learns anything from a 400.
+// .claude/rules/backend.md: authenticate → rate limit → validate → requireWorkspaceRole.
 const WORKSPACE = '/workspaces/:workspaceId';
 workspacesRouter.get(
   WORKSPACE,
@@ -33,8 +33,8 @@ workspacesRouter.patch(
   WORKSPACE,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('ADMIN'),
   validate({ body: UpdateWorkspaceInputSchema }),
+  requireWorkspaceRole('ADMIN'),
   controller.update,
 );
 workspacesRouter.delete(

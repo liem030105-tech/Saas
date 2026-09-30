@@ -345,13 +345,15 @@ describe('PATCH /api/v1/workspaces/:workspaceId', () => {
     expect(stored.name).toBe(roleTestWorkspaceName);
   });
 
-  it('404 for a non-member, even with an invalid body', async () => {
+  it('404 for a non-member, nothing changes', async () => {
     const { workspaceId } = await workspaceWithMember('OWNER');
     const outsider = await createUserWithToken();
 
-    for (const body of [{ name: workspaceUpdate.rename.input }, {}]) {
-      expect((await patch(workspaceId, outsider.token, body)).status).toBe(404);
-    }
+    const res = await patch(workspaceId, outsider.token, { name: workspaceUpdate.rename.input });
+
+    expect(res.status).toBe(404);
+    const stored = await testPrisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
+    expect(stored.name).toBe(roleTestWorkspaceName);
   });
 
   it('401 without a token', async () => {

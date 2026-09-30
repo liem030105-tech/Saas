@@ -4,7 +4,7 @@ import { http as mswHttp, HttpResponse } from 'msw';
 import { setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
-import { firstWorkspacePage } from '@/testing/data/routes';
+import { firstWorkspacePage, workspaceSettingsPage } from '@/testing/data/routes';
 import {
   acmeAs,
   acmeWorkspace,
@@ -25,7 +25,6 @@ import type { WorkspaceDto } from '@trello-clone/shared';
 
 const WORKSPACES_URL = apiUrl('/workspaces');
 const ACME_URL = apiUrl(`/workspaces/${acmeWorkspace.id}`);
-const SETTINGS_HEADING = 'Workspace settings';
 
 /** Signed in with `workspaces`; PATCH and DELETE on acmeWorkspace are recorded. */
 function signedInWith(workspaces: WorkspaceDto[]) {
@@ -53,7 +52,7 @@ function signedInWith(workspaces: WorkspaceDto[]) {
 async function openSettings(workspaces: WorkspaceDto[]) {
   const state = signedInWith(workspaces);
   const rendered = renderApp(workspaceSettingsPathFor(acmeWorkspace));
-  await screen.findByRole('heading', { level: 1, name: SETTINGS_HEADING });
+  await screen.findByRole('heading', { level: 1, name: workspaceSettingsPage.heading });
   return { ...rendered, state };
 }
 

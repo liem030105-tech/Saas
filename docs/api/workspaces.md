@@ -53,7 +53,7 @@ The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. 
 | Success | `200 { data: WorkspaceDto }` |
 | Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (slug taken) · `429 RATE_LIMITED` |
 
-**Behavior:** the role is checked before the body, so a non-member gets `404` even for an invalid body. The slug follows the slug rule ([README → Validation rules](README.md#validation-rules)); the unique index decides conflicts. The old slug is not kept as an alias. Schema: `UpdateWorkspaceInputSchema` (`@trello-clone/shared`).
+**Behavior:** the body is validated before the role check (the standard route order), so an invalid body is `400` for anyone. The slug follows the slug rule ([README → Validation rules](README.md#validation-rules)); the unique index decides conflicts. The old slug is not kept as an alias. Schema: `UpdateWorkspaceInputSchema` (`@trello-clone/shared`).
 
 ### DELETE /workspaces/:workspaceId
 | | |
