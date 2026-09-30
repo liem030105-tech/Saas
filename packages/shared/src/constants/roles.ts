@@ -7,7 +7,3 @@ export type Role = (typeof ROLE_ORDER)[number];
 
 export const PLANS = ['FREE', 'PRO'] as const;
 export type Plan = (typeof PLANS)[number];
-
-/** Whether `actual` is at least `min` in ROLE_ORDER (e.g. hasRole('ADMIN', 'MEMBER') → true). */
-export const hasRole = (actual: Role, min: Role) =>
-  ROLE_ORDER.indexOf(actual) <= ROLE_ORDER.indexOf(min);

@@ -15,7 +15,7 @@ describe('slugify', () => {
   });
 
   it('falls back to "workspace" when nothing usable is left', () => {
-    expect(slugify(noLatin.input)).toBe('workspace');
+    expect(slugify(noLatin.input)).toBe(noLatin.slug);
   });
 
   it('keeps at most 45 chars and never ends with a hyphen', () => {

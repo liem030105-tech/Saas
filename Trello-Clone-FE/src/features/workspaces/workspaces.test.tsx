@@ -4,7 +4,7 @@ import { http as mswHttp, HttpResponse } from 'msw';
 import { setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
-import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, notFoundCase, pageCases } from '@/testing/data/routes';
 import {
   acmeWorkspace,
   betaWorkspace,
@@ -122,6 +122,26 @@ describe('workspaces', () => {
     expect(router.state.location.pathname).toBe(workspacePathFor(betaWorkspace));
   });
 
+  it('the ☰ button opens the sidebar drawer, and choosing a workspace closes it', async () => {
+    signedInWith([acmeWorkspace, betaWorkspace]);
+    renderApp(workspacePathFor(acmeWorkspace));
+    const menuButton = await screen.findByRole('button', { name: 'Open menu' });
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(menuButton);
+
+    expect(screen.getByRole('button', { name: 'Close menu', expanded: true })).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Workspaces' });
+    fireEvent.click(await within(nav).findByRole('link', { name: betaWorkspace.name }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: betaWorkspace.name }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  });
+
   it('the "Create workspace" dialog creates one and opens it', async () => {
     const { created } = signedInWith([betaWorkspace]);
     const { router } = renderApp(workspacePathFor(betaWorkspace));
@@ -141,13 +161,27 @@ describe('workspaces', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('the dialog shows the field message for a blank name and sends nothing', async () => {
+    const { created } = signedInWith([betaWorkspace]);
+    renderApp(workspacePathFor(betaWorkspace));
+    await screen.findByRole('heading', { level: 1, name: betaWorkspace.name });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create workspace' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Workspace name'), { target: { value: '   ' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create workspace' }));
+
+    expect(await within(dialog).findByText(blankNameMessage)).toBeInTheDocument();
+    expect(created).toHaveLength(0);
+  });
+
   it('an unknown or foreign slug shows "Page not found"', async () => {
     signedInWith([acmeWorkspace]);
 
     renderApp(`/w/${unknownWorkspaceSlug}`);
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Page not found' }),
+      await screen.findByRole('heading', { level: 1, name: notFoundCase.heading }),
     ).toBeInTheDocument();
   });
 

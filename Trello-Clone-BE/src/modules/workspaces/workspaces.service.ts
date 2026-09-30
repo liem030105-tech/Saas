@@ -1,4 +1,3 @@
-import { hasRole, type CreateWorkspaceData, type WorkspaceDto } from '@trello-clone/shared';
 
 import { slugCandidates } from './slug';
 import { toWorkspaceDto } from './workspaces.mapper';
@@ -6,6 +5,9 @@ import * as workspacesRepository from './workspaces.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { hasRole } from '../../lib/roles';
+
+import type { CreateWorkspaceData, WorkspaceDto } from '@trello-clone/shared';
 
 // docs/api/workspaces.md. Other modules call assertWorkspaceAccess, never the repository.
 
@@ -36,10 +38,24 @@ export async function list(userId: string): Promise<WorkspaceDto[]> {
     .sort((a, b) => byName.compare(a.name, b.name) || a.id.localeCompare(b.id));
 }
 
-const isSlugTaken = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError &&
-  error.code === 'P2002' &&
-  JSON.stringify(error.meta ?? {}).includes('slug');
+/**
+ * A unique violation on `Workspace.slug`. Prisma 7 with the pg adapter reports the constraint in
+ * `meta.driverAdapterError.cause.constraint` (`fields` or `index`); older engines use `meta.target`.
+ */
+function isSlugTaken(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+    return false;
+  }
+  const meta = error.meta as
+    | {
+        target?: unknown;
+        driverAdapterError?: { cause?: { constraint?: { fields?: unknown; index?: unknown } } };
+      }
+    | undefined;
+  const constraint = meta?.driverAdapterError?.cause?.constraint;
+  const names = [meta?.target, constraint?.fields, constraint?.index].flat();
+  return names.some((name) => typeof name === 'string' && name.includes('slug'));
+}
 
 /**
  * POST /workspaces: creates the workspace and makes the caller its OWNER in one transaction. The

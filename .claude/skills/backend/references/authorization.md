@@ -3,7 +3,10 @@
 Spec: [api/README.md → Authorization model](../../../../docs/api/README.md#authorization-model) (roles, permission matrix, tenant isolation). This file shows how to implement it; it does not restate the rules.
 
 ## Role order
-`ROLE_ORDER` and `hasRole(actual, min)` come from `@trello-clone/shared` (WORKSPACE-001; same values as the Prisma `Role` enum), so the FE uses the same comparison for UI hints.
+`ROLE_ORDER` comes from `@trello-clone/shared` (same values as the Prisma `Role` enum); the comparison is BE-only, in `src/lib/roles.ts`:
+```ts
+export const hasRole = (actual: Role, min: Role) => ROLE_ORDER.indexOf(actual) <= ROLE_ORDER.indexOf(min);
+```
 
 ## Workspace-scoped resources
 ```ts

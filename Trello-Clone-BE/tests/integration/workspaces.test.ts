@@ -9,7 +9,12 @@ import { paths } from '../data/http';
 import {
   forbiddenCreateFields,
   invalidWorkspaceBodies,
+  malformedWorkspaceId,
+  otherUsersWorkspaceName,
+  roleTestWorkspaceName,
+  sharedWorkspaceName,
   suffixedSlug,
+  unknownWorkspaceId,
   unsortedNames,
   workspaceNames,
 } from '../data/workspaces';
@@ -97,7 +102,7 @@ describe('POST /api/v1/workspaces', () => {
     const res = await createWorkspace(token, { name: workspaceNames.noLatin.input });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.slug).toBe('workspace');
+    expect(res.body.data.slug).toBe(workspaceNames.noLatin.slug);
   });
 
   it.each(invalidWorkspaceBodies)('400 for $case', async ({ body }) => {
@@ -123,7 +128,9 @@ describe('GET /api/v1/workspaces', () => {
     const owner = await createUserWithToken();
     const other = await createUserWithToken();
     for (const name of unsortedNames) await createWorkspace(owner.token, { name }).expect(201);
-    const othersWorkspace = await createWorkspace(other.token, { name: 'Other team' }).expect(201);
+    const othersWorkspace = await createWorkspace(other.token, {
+      name: otherUsersWorkspaceName,
+    }).expect(201);
 
     const res = await request(app).get(WORKSPACES).set(bearer(owner.token));
 
@@ -139,14 +146,16 @@ describe('GET /api/v1/workspaces', () => {
   it('shows the caller’s own role in a workspace they joined', async () => {
     const owner = await createUserWithToken();
     const viewer = await createUserWithToken();
-    const created = await createWorkspace(owner.token, { name: 'Shared' }).expect(201);
+    const created = await createWorkspace(owner.token, { name: sharedWorkspaceName }).expect(201);
     await testPrisma.workspaceMember.create({
       data: { userId: viewer.user.id, workspaceId: created.body.data.id, role: 'VIEWER' },
     });
 
     const res = await request(app).get(WORKSPACES).set(bearer(viewer.token));
 
-    expect(res.body.data).toEqual([expect.objectContaining({ name: 'Shared', role: 'VIEWER' })]);
+    expect(res.body.data).toEqual([
+      expect.objectContaining({ name: sharedWorkspaceName, role: 'VIEWER' }),
+    ]);
   });
 
   it('200 with an empty list for a new user', async () => {
@@ -166,7 +175,7 @@ describe('GET /api/v1/workspaces', () => {
 describe('requireWorkspaceRole / assertWorkspaceAccess', () => {
   async function workspaceWithMember(role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER') {
     const owner = await createUserWithToken();
-    const created = await createWorkspace(owner.token, { name: 'Team' }).expect(201);
+    const created = await createWorkspace(owner.token, { name: roleTestWorkspaceName }).expect(201);
     const workspaceId = created.body.data.id as string;
     if (role === 'OWNER') return { workspaceId, member: owner };
     const member = await createUserWithToken();
@@ -199,7 +208,7 @@ describe('requireWorkspaceRole / assertWorkspaceAccess', () => {
     const outsider = await createUserWithToken();
 
     const responses = await Promise.all(
-      [workspaceId, 'clx0000000000000000000099', 'not-a-cuid'].map((id) =>
+      [workspaceId, unknownWorkspaceId, malformedWorkspaceId].map((id) =>
         request(app).get(adminOnlyPath(id)).set(bearer(outsider.token)),
       ),
     );

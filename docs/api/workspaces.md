@@ -15,15 +15,16 @@
 | | |
 |--|--|
 | Task | WORKSPACE-001 |
-| Authentication | Bearer |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | Any authenticated user; returns only the caller's workspaces |
 | Success | `200 { data: WorkspaceDto[] }`, ordered by name (case-insensitive) |
+| Errors | `401` · `429 RATE_LIMITED` |
 
 ### POST /workspaces
 | | |
 |--|--|
 | Task | WORKSPACE-001 |
-| Authentication | Bearer |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | Any authenticated user |
 | Body | `{ name }` |
 | Success | `201 { data: WorkspaceDto }` (caller becomes OWNER; slug is generated from the name, with a random suffix on collision) |

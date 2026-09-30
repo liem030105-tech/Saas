@@ -39,7 +39,7 @@ The API accepts any `#rrggbb`; the UI offers only the presets above. Text on a c
 │  ▪ Sprint 12 │                                                       │
 └──────────────┴───────────────────────────────────────────────────────┘
 ```
-Sidebar 240px, collapsible (UI state in a Zustand store); hidden behind ☰ below 768px.
+Sidebar 240px; hidden behind ☰ below 768px, where it opens as a drawer that closes on navigation, Escape, or a click outside (WORKSPACE-001; the open state is local to the shell). Collapsing it on desktop, if added, keeps that UI state in a Zustand store.
 
 ### Workspace home `/w/:slug`
 Grid of board tiles (board colour background, title in white, 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet" + "Create your first board".
