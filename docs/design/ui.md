@@ -102,4 +102,4 @@ A centered 400px card on a neutral background: title, fields, primary button, li
 Add a component with the shadcn CLI when a task first needs it; do not hand-write primitives that shadcn provides.
 
 ## Copy
-Sentence case everywhere ("Add a card", not "Add A Card"). Errors say what happened and what to do ("Couldn't save the title. Check your connection and try again."). No technical codes in the UI.
+All UI text is English (ADR-019); the MVP has no translations. Sentence case everywhere ("Add a card", not "Add A Card"). Errors say what happened and what to do ("Couldn't save the title. Check your connection and try again."). No technical codes in the UI.

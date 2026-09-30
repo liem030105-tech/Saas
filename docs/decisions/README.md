@@ -122,3 +122,10 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Decision:** the minimum is Node 22.13 (`engines.node >=22.13`); Node 24 LTS stays the target. This supersedes the Node bullet of ADR-015; the rest of ADR-015 stands.
 - **Status:** Accepted
 
+
+### ADR-019: No workspace on registration; the first one is created by the user (D-06)
+- **Context:** D-06 asked whether registering should create a personal workspace automatically.
+- **Decision:** no. Registration creates only the user. A signed-in user without a workspace sees a "Create your first workspace" screen on `/` and names it; with workspaces, `/` redirects to the first one (WORKSPACE-001). All UI text is English; the MVP has no translations.
+- **Rationale:** the user names their workspace, and registration stays a single-purpose transaction (AUTH-001 already shipped without it).
+- **Trade-offs:** one extra step for new users, and one more empty state to design.
+- **Status:** Accepted

@@ -19,7 +19,7 @@ Endpoint spec: [api/authentication.md → POST /auth/register](../api/authentica
 3. Register behavior exactly as specified; bcrypt cost D-03; auth rate limit D-04 applied.
 4. Shared: `RegisterInputSchema`, `UserDtoSchema`, `AuthResponseSchema`.
 5. FE `features/auth`: `api.ts`, a register form (React Hook Form + zodResolver), and page `/register`. On success, store the access token in memory (`api/token-store.ts`) and navigate to `/`.
-6. Does **not** create a workspace (D-06 → WORKSPACE-001).
+6. Does **not** create a workspace (D-06 resolved, ADR-019).
 
 # Out of Scope
 Login, refresh, logout, the `authenticate` middleware, route protection.
