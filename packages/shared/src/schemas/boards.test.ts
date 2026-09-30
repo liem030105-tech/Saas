@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BoardDetailDtoSchema,
   BoardDtoSchema,
   BoardTitleSchema,
   CreateBoardInputSchema,
   HexColorSchema,
   ListBoardsQuerySchema,
+  UpdateBoardInputSchema,
 } from './boards';
 import data from '../../tests/data/boards.json';
 import { ACTIVITY_TYPES } from '../constants/activity';
@@ -49,5 +51,20 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
 
   it('lists the activity types BOARD-001 logs', () => {
     expect(ACTIVITY_TYPES).toEqual(['BOARD_CREATED', 'BOARD_UPDATED']);
+  });
+});
+
+describe('UpdateBoardInputSchema / BoardDetailDtoSchema', () => {
+  it.each(data.validUpdates)('accepts %j', (input) => {
+    expect(UpdateBoardInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each(data.invalidUpdates)('rejects %j', (input) => {
+    expect(UpdateBoardInputSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('parses a board detail with (for now) no lists or labels', () => {
+    const detail = { ...data.boardDto, lists: [], labels: [] };
+    expect(BoardDetailDtoSchema.parse(detail)).toEqual(detail);
   });
 });

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
+import { CardSummaryDtoSchema } from './cards';
 import { CuidSchema } from './common';
+import { ListDtoSchema } from './lists';
 
 // Field rules: docs/api/README.md → Validation rules. Messages are shown in the UI (English).
 
@@ -36,4 +38,35 @@ export const BoardDtoSchema = z.object({
   archived: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+});
+
+/** PATCH /boards/:boardId body: rename, recolour, archive or unarchive (at least one field). */
+export const UpdateBoardInputSchema = z
+  .object({
+    title: BoardTitleSchema.optional(),
+    background: HexColorSchema.optional(),
+    archived: z.boolean().optional(),
+  })
+  .refine(
+    (input) =>
+      input.title !== undefined || input.background !== undefined || input.archived !== undefined,
+    { error: 'Change at least one field' },
+  );
+
+/** A board label (docs/api/boards.md → LabelDto); labels arrive with CARD-005. */
+export const LabelDtoSchema = z.object({
+  id: CuidSchema,
+  boardId: CuidSchema,
+  name: z.string(),
+  color: HexColorSchema,
+});
+
+/**
+ * GET /boards/:boardId: the board with its non-archived lists (each with its non-archived cards)
+ * and its labels, sorted by `position ASC, id ASC`. Lists and cards arrive with LIST-001 and
+ * CARD-001; until then the arrays are empty, but the shape is complete.
+ */
+export const BoardDetailDtoSchema = BoardDtoSchema.extend({
+  lists: z.array(ListDtoSchema.extend({ cards: z.array(CardSummaryDtoSchema) })),
+  labels: z.array(LabelDtoSchema),
 });

@@ -16,3 +16,11 @@ export function findBoardWithRole(userId: string, boardId: string) {
     },
   });
 }
+
+/**
+ * GET /boards/:boardId in one query. Lists (LIST-001), cards (CARD-001) and labels (CARD-005) join
+ * this select as their tables arrive; the mapper already returns them (empty until then).
+ */
+export function findDetail(boardId: string) {
+  return prisma.board.findUnique({ where: { id: boardId } });
+}

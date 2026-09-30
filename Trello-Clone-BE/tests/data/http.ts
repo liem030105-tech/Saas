@@ -9,6 +9,7 @@ export const paths = {
   usersMe: '/api/v1/users/me',
   workspaces: '/api/v1/workspaces',
   invitesAccept: '/api/v1/invites/accept',
+  boards: '/api/v1/boards',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',
