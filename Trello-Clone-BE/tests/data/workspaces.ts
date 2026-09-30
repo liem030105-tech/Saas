@@ -92,3 +92,14 @@ export const roleMatrixData = {
   roleChange: { role: 'VIEWER' },
   invite: { email: 'invitee@example.test', role: 'MEMBER' },
 } as const;
+
+/** Tenant-isolation fixture (WORKSPACE-006): two tenants and what A tries on B's data. */
+export const tenantData = {
+  workspaceName: { a: 'Tenant A', b: 'Tenant B' },
+  inviteEmail: { a: 'a-invitee@example.test', b: 'b-invitee@example.test' },
+  rename: { name: 'Taken over' },
+  roleChange: { role: 'OWNER' },
+  newInvite: { email: 'intruder@example.test', role: 'ADMIN' },
+  /** A well-formed id nothing has: a foreign id must look exactly like it (rule 3). */
+  missingId: 'clx0000000000000000000099',
+} as const;

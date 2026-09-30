@@ -41,7 +41,7 @@ afterAll(async () => {
 });
 
 const invitesPath = (workspaceId: string) => `${paths.workspaces}/${workspaceId}/invites`;
-const acceptPath = '/api/v1/invites/accept';
+const acceptPath = paths.invitesAccept;
 
 /** A workspace created by `owner`, plus one extra member per role in `roles`. */
 async function workspaceWith(...roles: Role[]) {
