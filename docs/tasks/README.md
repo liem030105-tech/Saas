@@ -66,7 +66,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 19 | [BOARD-001](BOARD-001-create-board.md) create/list boards | 3 | W-005 | W-006 | – | Done |
 | 20 | [BOARD-002](BOARD-002-board-crud.md) board detail/update/delete | 3 | B-001, W-006 | – | – | Done |
 | 21 | [LIST-001](LIST-001-create-list.md) create list | 3 | B-002 | – | – | Done |
-| 22 | [LIST-002](LIST-002-list-crud.md) list update/delete | 3 | L-001 | L-003, C-001 | – | Todo |
+| 22 | [LIST-002](LIST-002-list-crud.md) list update/delete | 3 | L-001 | L-003, C-001 | – | Done |
 | 23 | [LIST-003](LIST-003-list-ordering.md) list ordering + rebalance | 3 | L-001 | L-002, C-001 | – | Todo |
 | 24 | [CARD-001](CARD-001-create-card.md) create card | 3 | L-001 | L-002, L-003 | – | Todo |
 | 25 | [CARD-002](CARD-002-card-crud.md) card detail/update/delete | 3 | C-001 | L-003 | – | Todo |

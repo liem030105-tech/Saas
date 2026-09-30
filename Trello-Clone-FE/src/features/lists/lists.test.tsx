@@ -9,7 +9,8 @@ import {
   blankListTitle,
   blankListTitleMessage,
   doingList,
-  listServerError,
+  listEdits,
+  listServerErrors,
   newList,
   roadmapWithLists,
   todoList,
@@ -20,17 +21,23 @@ import { renderApp } from '@/testing/render';
 
 import { predictAppendPosition } from './queries';
 
-import type { BoardDetailDto, Role } from '@trello-clone/shared';
+import type { BoardDetailDto, ErrorResponse, Role } from '@trello-clone/shared';
 
 const BOARD_URL = apiUrl(`/boards/${roadmapBoard.id}`);
 const LISTS_URL = apiUrl(`/boards/${roadmapBoard.id}/lists`);
 
 /**
- * Signed in with `role`; POST …/lists is recorded and answers `created` (or `fail`'s body with 500).
+ * Signed in with `role`; list requests are recorded and succeed (or answer `fail` with a 500).
  * Each GET of the board returns what the server holds at that moment.
  */
-function signedInAs(role: Role, board: BoardDetailDto, options: { fail?: boolean } = {}) {
-  const state = { board: structuredClone(board), posts: [] as unknown[] };
+function signedInAs(role: Role, board: BoardDetailDto, options: { fail?: ErrorResponse } = {}) {
+  const state = {
+    board: structuredClone(board),
+    posts: [] as unknown[],
+    patches: [] as { listId: string; body: unknown }[],
+    deletes: [] as string[],
+  };
+  const LIST_URL = apiUrl('/lists/:listId');
   server.use(
     mswHttp.post(apiUrl('/auth/refresh'), () =>
       HttpResponse.json({ data: { accessToken: freshAccessToken } }),
@@ -42,15 +49,33 @@ function signedInAs(role: Role, board: BoardDetailDto, options: { fail?: boolean
       state.posts.push(await request.json());
       // Long enough for the optimistic list to be seen before the answer lands.
       await delay(50);
-      if (options.fail) return HttpResponse.json(listServerError, { status: 500 });
+      if (options.fail) return HttpResponse.json(options.fail, { status: 500 });
       state.board.lists.push({ ...newList.created, cards: [] });
       return HttpResponse.json({ data: newList.created }, { status: 201 });
+    }),
+    mswHttp.patch(LIST_URL, async ({ params, request }) => {
+      const listId = params.listId as string;
+      const body = (await request.json()) as { title?: string; archived?: boolean };
+      state.patches.push({ listId, body });
+      await delay(50);
+      if (options.fail) return HttpResponse.json(options.fail, { status: 500 });
+      const list = state.board.lists.find((item) => item.id === listId)!;
+      Object.assign(list, body);
+      if (body.archived) state.board.lists = state.board.lists.filter((item) => item !== list);
+      return HttpResponse.json({ data: { ...list, cards: undefined } });
+    }),
+    mswHttp.delete(LIST_URL, async ({ params }) => {
+      state.deletes.push(params.listId as string);
+      await delay(50);
+      if (options.fail) return HttpResponse.json(options.fail, { status: 500 });
+      state.board.lists = state.board.lists.filter((item) => item.id !== params.listId);
+      return new HttpResponse(null, { status: 204 });
     }),
   );
   return state;
 }
 
-async function openBoard(role: Role, board: BoardDetailDto, options?: { fail?: boolean }) {
+async function openBoard(role: Role, board: BoardDetailDto, options?: { fail?: ErrorResponse }) {
   const state = signedInAs(role, board, options);
   renderApp(boardPathFor(roadmapBoard));
   await screen.findByRole('heading', { level: 1, name: roadmapBoard.title });
@@ -115,7 +140,7 @@ describe('lists on the board page', () => {
   });
 
   it('a failed add removes the optimistic list and says so', async () => {
-    await openBoard('MEMBER', roadmapWithLists, { fail: true });
+    await openBoard('MEMBER', roadmapWithLists, { fail: listServerErrors.add });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add another list' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'List title' }), {
@@ -124,7 +149,7 @@ describe('lists on the board page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add list' }));
 
     await waitFor(() => expect(listTitles()).toContain(newList.sent.title));
-    expect(await screen.findByText(listServerError.error.message)).toBeInTheDocument();
+    expect(await screen.findByText(listServerErrors.add.error.message)).toBeInTheDocument();
     await waitFor(() => expect(listTitles()).toEqual([todoList.title, doingList.title]));
   });
 
@@ -136,7 +161,7 @@ describe('lists on the board page', () => {
   });
 
   it('a failed add still says so after the composer was closed', async () => {
-    await openBoard('MEMBER', roadmapWithLists, { fail: true });
+    await openBoard('MEMBER', roadmapWithLists, { fail: listServerErrors.addAfterClose });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add another list' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'List title' }), {
@@ -145,7 +170,9 @@ describe('lists on the board page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add list' }));
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
-    expect(await screen.findByText(listServerError.error.message)).toBeInTheDocument();
+    expect(
+      await screen.findByText(listServerErrors.addAfterClose.error.message),
+    ).toBeInTheDocument();
     await waitFor(() => expect(listTitles()).toEqual([todoList.title, doingList.title]));
   });
 
@@ -154,6 +181,124 @@ describe('lists on the board page', () => {
 
     expect(listTitles()).toEqual([todoList.title, doingList.title]);
     expect(screen.queryByRole('button', { name: /Add (a|another) list/ })).toBeNull();
+  });
+});
+
+const openListMenu = async (title: string) => {
+  fireEvent.keyDown(screen.getByRole('button', { name: `List actions for ${title}` }), {
+    key: 'Enter',
+  });
+  return screen.findByRole('menu');
+};
+
+describe('list header', () => {
+  afterEach(() => setAccessToken(null));
+
+  it('a MEMBER renames a list in place (Enter saves the trimmed title)', async () => {
+    const state = await openBoard('MEMBER', roadmapWithLists);
+
+    fireEvent.click(screen.getByRole('button', { name: todoList.title }));
+    const input = screen.getByRole('textbox', { name: 'List title' });
+    fireEvent.change(input, { target: { value: listEdits.rename.typed } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() =>
+      expect(listTitles()).toEqual([listEdits.rename.sent.title, doingList.title]),
+    );
+    await waitFor(() =>
+      expect(state.patches).toEqual([{ listId: todoList.id, body: listEdits.rename.sent }]),
+    );
+  });
+
+  it('Escape cancels a rename and sends nothing', async () => {
+    const state = await openBoard('MEMBER', roadmapWithLists);
+
+    fireEvent.click(screen.getByRole('button', { name: todoList.title }));
+    const input = screen.getByRole('textbox', { name: 'List title' });
+    fireEvent.change(input, { target: { value: listEdits.rename.typed } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(await screen.findByRole('button', { name: todoList.title })).toBeInTheDocument();
+    expect(state.patches).toEqual([]);
+  });
+
+  it('archiving a list removes it from the board at once and says so', async () => {
+    const state = await openBoard('MEMBER', roadmapWithLists);
+
+    fireEvent.click(
+      within(await openListMenu(todoList.title)).getByRole('menuitem', { name: /Archive list/ }),
+    );
+
+    await waitFor(() => expect(listTitles()).toEqual([doingList.title]));
+    expect(await screen.findByText(`${todoList.title} was archived.`)).toBeInTheDocument();
+    expect(state.patches).toEqual([{ listId: todoList.id, body: listEdits.archive.sent }]);
+  });
+
+  it('a failed archive puts the list back and says so', async () => {
+    await openBoard('MEMBER', roadmapWithLists, { fail: listServerErrors.archive });
+
+    fireEvent.click(
+      within(await openListMenu(todoList.title)).getByRole('menuitem', { name: /Archive list/ }),
+    );
+
+    await waitFor(() => expect(listTitles()).toEqual([doingList.title]));
+    expect(await screen.findByText(listServerErrors.archive.error.message)).toBeInTheDocument();
+    await waitFor(() => expect(listTitles()).toEqual([todoList.title, doingList.title]));
+  });
+
+  it('deleting a list asks first, then removes it', async () => {
+    const state = await openBoard('MEMBER', roadmapWithLists);
+
+    fireEvent.click(
+      within(await openListMenu(doingList.title)).getByRole('menuitem', { name: /Delete list/ }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    expect(state.deletes).toEqual([]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete list' }));
+
+    await waitFor(() => expect(listTitles()).toEqual([todoList.title]));
+    expect(state.deletes).toEqual([doingList.id]);
+    expect(await screen.findByText(`${doingList.title} was deleted.`)).toBeInTheDocument();
+  });
+
+  it('a failed delete keeps the list and shows the error in the dialog', async () => {
+    await openBoard('MEMBER', roadmapWithLists, { fail: listServerErrors.remove });
+
+    fireEvent.click(
+      within(await openListMenu(doingList.title)).getByRole('menuitem', { name: /Delete list/ }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete list' }));
+
+    expect(
+      await within(dialog).findByText(listServerErrors.remove.error.message),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    // Radix un-hides the page behind the modal once it has closed.
+    await waitFor(() => expect(listTitles()).toEqual([todoList.title, doingList.title]));
+  });
+
+  it('a list being created is read-only until the server gives it an id', async () => {
+    await openBoard('MEMBER', roadmapWithLists);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add another list' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'List title' }), {
+      target: { value: newList.typed },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add list' }));
+
+    await waitFor(() => expect(listTitles()).toContain(newList.sent.title));
+    const actionsFor = () =>
+      screen.queryByRole('button', { name: `List actions for ${newList.sent.title}` });
+    expect(actionsFor()).toBeNull();
+    await waitFor(() => expect(actionsFor()).not.toBeNull());
+  });
+
+  it('a VIEWER sees list titles without rename or actions', async () => {
+    await openBoard('VIEWER', roadmapWithLists);
+
+    expect(screen.queryByRole('button', { name: todoList.title })).toBeNull();
+    expect(screen.queryByRole('button', { name: /List actions/ })).toBeNull();
   });
 });
 

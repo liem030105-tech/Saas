@@ -118,6 +118,8 @@ enum ActivityType {
   BOARD_CREATED
   BOARD_UPDATED
   LIST_CREATED
+  LIST_UPDATED
+  LIST_ARCHIVED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.

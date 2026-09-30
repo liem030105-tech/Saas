@@ -47,6 +47,7 @@ interface IsolationCase {
 
 const ws = (workspaceId: string) => `${paths.workspaces}/${workspaceId}`;
 const board = (boardId: string) => `${paths.boards}/${boardId}`;
+const list = (listId: string) => `${paths.lists}/${listId}`;
 const expect404 = (res: request.Response) => {
   expect(res.status).toBe(404);
   expect(res.body.error.code).toBe('NOT_FOUND');
@@ -321,6 +322,26 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token))
         .send({ title: listData.tenantList.a }),
   },
+  {
+    route: 'PATCH /lists/:listId',
+    attempt: "rename or archive B's list",
+    request: (a, b) =>
+      request(app)
+        .patch(list(b.listId))
+        .set(bearer(a.owner.token))
+        .send({ title: listData.tenantList.a, archived: true }),
+    missing: (a) =>
+      request(app)
+        .patch(list(missingId))
+        .set(bearer(a.owner.token))
+        .send({ title: listData.tenantList.a, archived: true }),
+  },
+  {
+    route: 'DELETE /lists/:listId',
+    attempt: "delete B's list",
+    request: (a, b) => request(app).delete(list(b.listId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(list(missingId)).set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
@@ -353,10 +374,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/* and /boards/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/* and /lists/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards)(\/|$)/.test(route),
+      /^[A-Z]+ \/(workspaces|invites|boards|lists)(\/|$)/.test(route),
     );
     const covered = new Set(cases.map((c) => c.route));
 

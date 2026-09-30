@@ -32,8 +32,22 @@ export const newList = {
 export const blankListTitle = '   ';
 export const blankListTitleMessage = 'Enter a list title';
 
-export const listServerError = buildErrorBody({
-  code: 'INTERNAL_ERROR',
-  message: 'Something went wrong',
-  details: [],
-});
+/**
+ * A 500 per failing test: toasts outlive a test's render, so each failure case needs its own
+ * message to be told apart.
+ */
+const serverError = (message: string) =>
+  buildErrorBody({ code: 'INTERNAL_ERROR', message, details: [] });
+
+export const listServerErrors = {
+  add: serverError('The list could not be added'),
+  addAfterClose: serverError('The list could not be added (composer closed)'),
+  archive: serverError('The list could not be archived'),
+  remove: serverError('The list could not be deleted'),
+};
+
+/** Edits made in a list's header and what PATCH /lists/:listId receives for them. */
+export const listEdits = {
+  rename: { typed: '  Up next ', sent: { title: 'Up next' } },
+  archive: { sent: { archived: true } },
+};

@@ -13,7 +13,10 @@ import {
 import { Button } from '@/components/ui/button';
 
 interface ConfirmDialogProps {
-  trigger: ReactNode;
+  /** Opens the dialog; omit it and pass `open`/`onOpenChange` to open it from elsewhere (a menu). */
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   description: string;
   confirmLabel: string;
@@ -30,8 +33,15 @@ export function ConfirmDialog({
   confirmLabel,
   pendingLabel,
   onConfirm,
+  open: controlledOpen,
+  onOpenChange: onControlledOpenChange,
 }: ConfirmDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    setUncontrolledOpen(next);
+    onControlledOpenChange?.(next);
+  };
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +62,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

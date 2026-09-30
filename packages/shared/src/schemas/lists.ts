@@ -26,3 +26,13 @@ export const ListDtoSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
+
+/** PATCH /lists/:listId body: rename, archive or unarchive (at least one field; `position` is LIST-003). */
+export const UpdateListInputSchema = z
+  .object({
+    title: ListTitleSchema.optional(),
+    archived: z.boolean().optional(),
+  })
+  .refine((input) => input.title !== undefined || input.archived !== undefined, {
+    error: 'Change at least one field',
+  });

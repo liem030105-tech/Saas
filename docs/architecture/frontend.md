@@ -20,7 +20,8 @@ Trello-Clone-FE/
 │   ├── components/
 │   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input)
 │   │   ├── layout/          # AppLayout, Sidebar, Header
-│   │   └── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster
+│   │   ├── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster, ConfirmDialog
+│   │   └── forms/           # EditableTitle (rename in place, boards and lists)
 │   ├── features/
 │   │   ├── auth/
 │   │   ├── workspaces/

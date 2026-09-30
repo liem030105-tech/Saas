@@ -73,6 +73,7 @@ A `/w/:slug` page keeps following its workspace when the slug changes (here or i
 - The workspace page's "Show archived boards" / "Show open boards" toggle switches the grid to the archived boards (no create actions there).
 - Board colour fills the page background; lists are light surfaces; the board scrolls horizontally, each list vertically.
 - Lists (LIST-001): 272px columns in `position` order, then "Add a list" (empty board) or "Add another list". The new list shows at once (optimistic) and the composer stays in view for the next title. A board without lists shows "No lists yet." to a VIEWER.
+- List header (LIST-002): the title renames in place (as the board title), and the ⋯ menu ("List actions for {title}") has "Archive list" (the list leaves the board at once; toast "{title} was archived.") and "Delete list" (confirmed in an `AlertDialog`: "The list and all its cards are deleted for everyone."). A VIEWER sees the title only. There is no view of archived lists yet.
 - **Card tile:** label chips (colour only, 40×8px), title (max 3 lines), then badges: due date (red when overdue, green when completed), checklist `done/total`, comment count, member avatars (max 3 + "+n").
 - **Add a card / Add another list:** an inline composer (textarea + "Add" + ✕). Enter submits and keeps the composer open for the next item; Escape closes. Never a dialog.
 - **Rename in place:** clicking a board or list title swaps it for an input; Enter or blur saves, Escape cancels.
