@@ -2,17 +2,18 @@ import { type WorkspaceDto } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { formatDate } from '@/lib/format-date';
 
 import { ConfirmDialog } from './ConfirmDialog';
 import { memberErrorMessage } from '../memberErrors';
 import { useInvites, useRevokeInvite } from '../queries';
-import { formatDate, ROLE_LABELS } from '../roleLabels';
+import { ROLE_LABELS } from '../roleLabels';
 
 const REVOKE_ERROR = "Couldn't revoke the invite. Check your connection and try again.";
 
 /** Pending invites with "Revoke" (≥ ADMIN; the caller renders it only for them). */
 export function PendingInvites({ workspace }: { workspace: WorkspaceDto }) {
-  const { data: invites, isPending, isError, refetch } = useInvites(workspace.id, true);
+  const { data: invites, isPending, isError, refetch } = useInvites(workspace.id);
   const revoke = useRevokeInvite(workspace.id);
 
   return (

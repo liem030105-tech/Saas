@@ -2,9 +2,10 @@ import { createHash, randomBytes } from 'node:crypto';
 
 import { toInviteDto } from './invites.mapper';
 import { toWorkspaceDto } from './workspaces.mapper';
+import { currentActorRole, lockWorkspace } from './workspaces.service';
 import { env } from '../../config/env';
 import { prisma } from '../../config/prisma';
-import { Prisma, type Role } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { hasRole } from '../../lib/roles';
 
@@ -37,21 +38,26 @@ const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
 /**
- * POST /workspaces/:workspaceId/invites (≥ ADMIN, checked by the route). The invite role is capped
+ * POST /workspaces/:workspaceId/invites (≥ ADMIN; the route checks it first too). The invite role is capped
  * at the caller's role and is never OWNER (schema). A pending or old invite for the same email is
  * replaced: new token, new expiry.
  */
 export async function create(
   workspaceId: string,
   actorId: string,
-  actorRole: Role,
   input: CreateInviteData,
 ): Promise<CreatedInviteDto> {
-  if (!hasRole(actorRole, input.role)) throw AppError.forbidden();
-
   const raw = newRawToken();
   try {
     const invite = await prisma.$transaction(async (tx) => {
+      // Granting a role depends on the caller's own: re-read it under the workspace lock, as
+      // member changes do, so a caller demoted meanwhile cannot still invite above it.
+      await lockWorkspace(tx, workspaceId);
+      const actorRole = await currentActorRole(tx, workspaceId, actorId);
+      if (!hasRole(actorRole, 'ADMIN') || !hasRole(actorRole, input.role)) {
+        throw AppError.forbidden();
+      }
+
       const member = await tx.workspaceMember.findFirst({
         where: { workspaceId, user: { email: input.email } },
         select: { userId: true },

@@ -108,4 +108,5 @@ model WorkspaceInvite {
   invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, email])
+  @@index([invitedById])
 }

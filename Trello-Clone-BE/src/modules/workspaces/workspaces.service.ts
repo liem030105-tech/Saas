@@ -146,7 +146,7 @@ export async function listMembers(workspaceId: string): Promise<MemberDto[]> {
 
 const lastOwner = () => AppError.businessRule('LAST_OWNER', 'A workspace needs at least one owner');
 
-type Tx = Prisma.TransactionClient;
+export type Tx = Prisma.TransactionClient;
 
 /**
  * Serializes member changes per workspace: locks the workspace row (`FOR NO KEY UPDATE`, which
@@ -155,7 +155,7 @@ type Tx = Prisma.TransactionClient;
  * first (WORKSPACE-003 → Risks; invariant I4). A concurrent workspace DELETE locks the same row
  * before cascading, so the two cannot deadlock. A deleted workspace → 404.
  */
-async function lockWorkspace(tx: Tx, workspaceId: string) {
+export async function lockWorkspace(tx: Tx, workspaceId: string) {
   const rows = await tx.$queryRaw<unknown[]>`
     SELECT 1 FROM "Workspace" WHERE "id" = ${workspaceId} FOR NO KEY UPDATE`;
   if (rows.length === 0) throw AppError.notFound();
@@ -177,7 +177,7 @@ async function findMember(tx: Tx, workspaceId: string, userId: string) {
  * The caller's role, re-read after lockWorkspace: the role the route checked may have changed
  * since (e.g. an OWNER demoted while granting OWNER). Gone → 404, like a non-member.
  */
-async function currentActorRole(tx: Tx, workspaceId: string, actorId: string) {
+export async function currentActorRole(tx: Tx, workspaceId: string, actorId: string) {
   const actor = await tx.workspaceMember.findUnique({
     where: { userId_workspaceId: { userId: actorId, workspaceId } },
     select: { role: true },

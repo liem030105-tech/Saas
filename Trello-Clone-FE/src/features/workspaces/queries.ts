@@ -7,6 +7,7 @@ import { workspacesApi } from './api';
 
 import type {
   CreateInviteInput,
+  InviteDto,
   MemberDto,
   Role,
   UpdateWorkspaceInput,
@@ -160,12 +161,11 @@ export function useLeaveWorkspace(workspaceId: string, userId: string) {
   });
 }
 
-/** Pending invites (≥ ADMIN only: others get 403, so the query is off for them). */
-export function useInvites(workspaceId: string, enabled: boolean) {
+/** Pending invites. ≥ ADMIN only (others get 403): render its users only for them. */
+export function useInvites(workspaceId: string) {
   return useQuery({
     queryKey: workspaceKeys.invites(workspaceId),
     queryFn: () => workspacesApi.listInvites(workspaceId),
-    enabled,
   });
 }
 
@@ -185,7 +185,7 @@ export function useRevokeInvite(workspaceId: string) {
   return useMutation({
     mutationFn: (inviteId: string) => workspacesApi.revokeInvite(workspaceId, inviteId),
     onSuccess: async (_data, inviteId) => {
-      queryClient.setQueryData<{ id: string }[]>(workspaceKeys.invites(workspaceId), (list = []) =>
+      queryClient.setQueryData<InviteDto[]>(workspaceKeys.invites(workspaceId), (list = []) =>
         list.filter((invite) => invite.id !== inviteId),
       );
       await queryClient.invalidateQueries({ queryKey: workspaceKeys.invites(workspaceId) });

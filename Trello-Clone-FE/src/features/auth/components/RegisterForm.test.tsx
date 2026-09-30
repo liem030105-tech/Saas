@@ -10,9 +10,9 @@ import {
   proxyErrorPage,
   registerFormInput,
   registerResponse,
-  safeRedirect,
+  unsafeRedirects,
 } from '@/testing/data/auth';
-import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, pageCases, profilePage } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
@@ -105,11 +105,27 @@ describe('RegisterForm', () => {
       ),
     );
     const { router } = renderApp(
-      `${pageCases.register.path}?redirectTo=${encodeURIComponent(safeRedirect.redirectTo)}`,
+      `${pageCases.register.path}?redirectTo=${encodeURIComponent(profilePage.path)}`,
     );
 
     await fillAndSubmit(registerFormInput);
 
-    await waitFor(() => expect(router.state.location.pathname).toBe(safeRedirect.path));
+    await waitFor(() => expect(router.state.location.pathname).toBe(profilePage.path));
+  });
+
+  it('ignores an unsafe redirectTo and opens /', async () => {
+    server.use(
+      mswHttp.post(REGISTER_URL, () =>
+        HttpResponse.json({ data: registerResponse }, { status: 201 }),
+      ),
+    );
+    const { router } = renderApp(
+      `${pageCases.register.path}?redirectTo=${encodeURIComponent(unsafeRedirects[1]!)}`,
+    );
+
+    await fillAndSubmit(registerFormInput);
+
+    await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading });
+    expect(router.state.location.pathname).toBe(firstWorkspacePage.path);
   });
 });

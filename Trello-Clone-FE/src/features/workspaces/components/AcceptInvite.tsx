@@ -17,12 +17,12 @@ export const ALREADY_MEMBER_MESSAGE = "You're already a member of this workspace
 export function AcceptInvite({ token }: { token: string }) {
   const accept = useAcceptInvite();
   const navigate = useNavigate();
-  const started = useRef(false);
+  const startedFor = useRef<string | null>(null);
 
   useEffect(() => {
     // Once per token, also under StrictMode's double effects: a link works only once.
-    if (started.current) return;
-    started.current = true;
+    if (startedFor.current === token) return;
+    startedFor.current = token;
     accept.mutate(token, {
       onSuccess: (workspace) => {
         toast.success(`You joined ${workspace.name}.`);

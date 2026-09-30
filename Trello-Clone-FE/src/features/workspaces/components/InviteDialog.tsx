@@ -30,9 +30,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatDate } from '@/lib/format-date';
 
 import { useCreateInvite } from '../queries';
-import { formatDate, INVITE_ROLES, ROLE_LABELS } from '../roleLabels';
+import { INVITE_ROLES, ROLE_LABELS } from '../roleLabels';
 
 export const LINK_COPIED_MESSAGE = 'Invite link copied.';
 const GENERIC_ERROR = "Couldn't create the invite. Check your connection and try again.";
