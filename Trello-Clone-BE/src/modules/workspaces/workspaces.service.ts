@@ -6,7 +6,7 @@ import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { hasRole } from '../../lib/roles';
 
-import type { CreateWorkspaceData, WorkspaceDto } from '@trello-clone/shared';
+import type { CreateWorkspaceData, UpdateWorkspaceData, WorkspaceDto } from '@trello-clone/shared';
 
 // docs/api/workspaces.md. Other modules call assertWorkspaceAccess, never the repository.
 
@@ -77,4 +77,47 @@ export async function create(userId: string, input: CreateWorkspaceData): Promis
     }
   }
   throw new Error(`No free slug for "${input.name}" after ${SLUG_ATTEMPTS} attempts`);
+}
+
+/** The row was deleted between the access check and this query (e.g. a concurrent DELETE). */
+const isNotFound = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+
+// The routes below run after requireWorkspaceRole, which checked membership and passes the
+// caller's role on for the DTO.
+
+/** GET /workspaces/:workspaceId. */
+export async function get(workspaceId: string, role: Role): Promise<WorkspaceDto> {
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+  if (!workspace) throw AppError.notFound();
+  return toWorkspaceDto(workspace, role);
+}
+
+/** PATCH /workspaces/:workspaceId (≥ ADMIN): rename and/or change the slug; a taken slug is 409. */
+export async function update(
+  workspaceId: string,
+  role: Role,
+  input: UpdateWorkspaceData,
+): Promise<WorkspaceDto> {
+  try {
+    const workspace = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { name: input.name, slug: input.slug },
+    });
+    return toWorkspaceDto(workspace, role);
+  } catch (error) {
+    if (isSlugTaken(error)) throw new AppError('CONFLICT', 409, 'This URL is already taken');
+    if (isNotFound(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/** DELETE /workspaces/:workspaceId (OWNER): the foreign keys cascade to members and all content. */
+export async function remove(workspaceId: string): Promise<void> {
+  try {
+    await prisma.workspace.delete({ where: { id: workspaceId } });
+  } catch (error) {
+    if (isNotFound(error)) throw AppError.notFound();
+    throw error;
+  }
 }

@@ -24,6 +24,16 @@ export const CreateWorkspaceInputSchema = z.object({
   name: WorkspaceNameSchema,
 });
 
+/** PATCH /workspaces/:workspaceId body: `name` and/or `slug`. */
+export const UpdateWorkspaceInputSchema = z
+  .object({
+    name: WorkspaceNameSchema.optional(),
+    slug: WorkspaceSlugSchema.optional(),
+  })
+  .refine((input) => input.name !== undefined || input.slug !== undefined, {
+    error: 'Change at least one field',
+  });
+
 /** A workspace as the API returns it; `role` is the caller's role (UI only, docs/api/workspaces.md). */
 export const WorkspaceDtoSchema = z.object({
   id: CuidSchema,

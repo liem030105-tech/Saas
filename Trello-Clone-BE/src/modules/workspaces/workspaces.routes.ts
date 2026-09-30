@@ -1,9 +1,10 @@
-import { CreateWorkspaceInputSchema } from '@trello-clone/shared';
+import { CreateWorkspaceInputSchema, UpdateWorkspaceInputSchema } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './workspaces.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { apiRateLimit } from '../../middlewares/rate-limit';
+import { requireWorkspaceRole } from '../../middlewares/require-workspace-role';
 import { validate } from '../../middlewares/validate';
 
 export const workspacesRouter = Router();
@@ -17,4 +18,29 @@ workspacesRouter.post(
   apiRateLimit,
   validate({ body: CreateWorkspaceInputSchema }),
   controller.create,
+);
+
+// .claude/rules/backend.md: authenticate → rate limit → validate → requireWorkspaceRole.
+const WORKSPACE = '/workspaces/:workspaceId';
+workspacesRouter.get(
+  WORKSPACE,
+  authenticate,
+  apiRateLimit,
+  requireWorkspaceRole('VIEWER'),
+  controller.get,
+);
+workspacesRouter.patch(
+  WORKSPACE,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateWorkspaceInputSchema }),
+  requireWorkspaceRole('ADMIN'),
+  controller.update,
+);
+workspacesRouter.delete(
+  WORKSPACE,
+  authenticate,
+  apiRateLimit,
+  requireWorkspaceRole('OWNER'),
+  controller.remove,
 );

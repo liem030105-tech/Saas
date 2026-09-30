@@ -96,6 +96,6 @@ features/cards/
 | `/pricing` | Pricing (BILLING-001, pending D-08) |
 | `/invite/:token` | Accept invitation (WORKSPACE-004) |
 | `/login`, `/register` | Auth |
-| `/w/:slug`, `/w/:slug/members`, `/w/:slug/settings` | Workspace |
+| `/w/:slug`, `/w/:slug/members`, `/w/:slug/settings` | Workspace. Resolved from the cached `GET /workspaces` list by `WorkspaceGate` (`features/workspaces`), which also follows slug changes and redirects to `/` when the workspace is gone ([ui.md](../design/ui.md#workspace-settings-wslugsettings)) |
 | `/b/:boardId`, `/b/:boardId/c/:cardId` | Board, card modal |
 | `/settings/profile` | Profile |

@@ -44,6 +44,11 @@ Sidebar 240px; hidden behind ☰ below 768px, where it opens as a drawer that cl
 ### Workspace home `/w/:slug`
 Grid of board tiles (board colour background, title in white, 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet" + "Create your first board".
 
+### Workspace settings `/w/:slug/settings`
+Linked from the workspace page (WORKSPACE-002). "Details" holds the name and the URL (`/w/` + slug) with "Save changes" (≥ ADMIN; others see them read-only with "Only workspace admins can change these settings."). Only the changed fields are sent; a taken URL shows a field error. "Delete workspace" (OWNER only) opens an `AlertDialog` whose delete button stays disabled until the exact workspace name is typed; afterwards the app opens `/`.
+
+A `/w/:slug` page keeps following its workspace when the slug changes (here or in another tab) and moves to the new URL; when the workspace is gone (deleted, or access lost) it goes to `/`. A slug the user never saw shows "Page not found".
+
 ### Board `/b/:boardId`
 ```
 ┌ Board title (click to rename)   [Members avatars]  [⋯ menu] ─────────────────────────┐

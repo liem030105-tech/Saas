@@ -1,6 +1,6 @@
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 
-import { useWorkspaceBySlug } from '@/features/workspaces';
+import { WorkspaceGate, workspacePath, workspaceSettingsPath } from '@/features/workspaces';
 
 import { NotFoundPage } from './NotFoundPage';
 
@@ -8,35 +8,23 @@ import { NotFoundPage } from './NotFoundPage';
 // looks like an unknown page. Boards arrive with BOARD-001.
 export function WorkspacePage() {
   const { slug } = useParams();
-  const { workspace, isPending, isError, refetch } = useWorkspaceBySlug(slug);
-
-  if (isPending) {
-    return (
-      <main aria-busy="true" className="flex flex-col gap-4 p-4 md:p-8">
-        <div className="h-8 w-48 animate-pulse rounded bg-card" />
-      </main>
-    );
-  }
-  if (isError) {
-    return (
-      <main className="flex flex-col items-start gap-3 p-4 md:p-8">
-        <p role="alert">Couldn&apos;t load this workspace.</p>
-        <button
-          type="button"
-          className="text-sm font-medium underline underline-offset-4"
-          onClick={() => void refetch()}
-        >
-          Try again
-        </button>
-      </main>
-    );
-  }
-  if (!workspace) return <NotFoundPage />;
 
   return (
-    <main className="flex flex-col gap-4 p-4 md:p-8">
-      <h1 className="text-2xl font-semibold">{workspace.name}</h1>
-      <p className="text-muted-foreground">No boards yet. Boards arrive in the next update.</p>
-    </main>
+    <WorkspaceGate slug={slug} pathFor={workspacePath} notFound={<NotFoundPage />}>
+      {(workspace) => (
+        <main className="flex flex-col gap-4 p-4 md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-semibold">{workspace.name}</h1>
+            <Link
+              to={workspaceSettingsPath(workspace.slug)}
+              className="text-sm font-medium underline underline-offset-4"
+            >
+              Settings
+            </Link>
+          </div>
+          <p className="text-muted-foreground">No boards yet. Boards arrive in the next update.</p>
+        </main>
+      )}
+    </WorkspaceGate>
   );
 }

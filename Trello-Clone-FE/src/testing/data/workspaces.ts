@@ -35,3 +35,22 @@ export const workspaceServerError = buildErrorBody({
 });
 
 export const workspacePathFor = (workspace: Pick<WorkspaceDto, 'slug'>) => `/w/${workspace.slug}`;
+
+export const workspaceSettingsPathFor = (workspace: Pick<WorkspaceDto, 'slug'>) =>
+  `/w/${workspace.slug}/settings`;
+
+/** acmeWorkspace as another role sees it (WORKSPACE-002: settings follow the role). */
+export const acmeAs = (role: WorkspaceDto['role']): WorkspaceDto => ({ ...acmeWorkspace, role });
+
+/** What the settings form sends to rename acmeWorkspace and change its URL, and the result. */
+export const workspaceRename = {
+  typed: { name: '  Acme Renamed ', slug: 'acme-renamed' },
+  sent: { name: 'Acme Renamed', slug: 'acme-renamed' },
+  renamed: { ...acmeWorkspace, name: 'Acme Renamed', slug: 'acme-renamed' },
+};
+
+export const slugTakenError = buildErrorBody({
+  code: 'CONFLICT',
+  message: 'This URL is already taken',
+  details: [],
+});

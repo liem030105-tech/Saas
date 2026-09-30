@@ -36,3 +36,19 @@ export const roleTestWorkspaceName = 'Team';
 /** A well-formed id no workspace has, and an id that is not a cuid: both look like a non-member. */
 export const unknownWorkspaceId = 'clx0000000000000000000099';
 export const malformedWorkspaceId = 'not-a-cuid';
+
+/** PATCH /workspaces/:workspaceId (WORKSPACE-002). */
+export const workspaceUpdate = {
+  rename: { input: '  Renamed Team ', stored: 'Renamed Team' },
+  slug: 'renamed-team',
+  /** Another workspace's slug, taken by the time the PATCH runs. */
+  takenSlugOwnerName: 'Taken',
+};
+
+/** One invalid PATCH body per rule; each must fail with 400. */
+export const invalidWorkspaceUpdates = [
+  { case: 'no field', body: {} },
+  { case: 'blank name', body: { name: '   ' } },
+  { case: 'slug with spaces and capitals', body: { slug: 'Bad Slug' } },
+  { case: 'slug under 3 chars', body: { slug: 'ab' } },
+] as const;
