@@ -1,10 +1,10 @@
-import { BoardDtoSchema, ErrorResponseSchema } from '@trello-clone/shared';
+import { BoardDetailDtoSchema, BoardDtoSchema, ErrorResponseSchema } from '@trello-clone/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { assertBoardAccess } from '../../src/modules/boards/boards.service';
-import { boardData, invalidBoardBodies } from '../data/boards';
+import { boardData, invalidBoardBodies, invalidBoardUpdates } from '../data/boards';
 import { paths } from '../data/http';
 import { unknownWorkspaceId } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
@@ -228,5 +228,172 @@ describe('assertBoardAccess', () => {
         status: 404,
       });
     }
+  });
+});
+
+describe('/api/v1/boards/:boardId', () => {
+  const boardPath = (boardId: string) => `${paths.boards}/${boardId}`;
+
+  /** A board created by its workspace OWNER, plus a member with `role` (the owner for OWNER). */
+  async function boardWith(role: Role) {
+    const owner = await createUserWithToken();
+    const workspaceId = await workspaceOf(owner);
+    const created = await createBoard(workspaceId, owner, { title: boardData.titles[0] });
+    const member = role === 'OWNER' ? owner : await memberOf(workspaceId, role);
+    return { boardId: created.body.data.id as string, workspaceId, owner, member };
+  }
+
+  describe('GET', () => {
+    it('200 for a VIEWER: the board, with (for now) no lists or labels', async () => {
+      const { boardId, workspaceId, member } = await boardWith('VIEWER');
+
+      const res = await request(app).get(boardPath(boardId)).set(bearer(member.token));
+
+      expect(res.status).toBe(200);
+      expect(BoardDetailDtoSchema.parse(res.body.data)).toMatchObject({
+        id: boardId,
+        workspaceId,
+        title: boardData.titles[0],
+        lists: [],
+        labels: [],
+      });
+    });
+
+    it('an archived board stays viewable', async () => {
+      const { boardId, member } = await boardWith('VIEWER');
+      await testPrisma.board.update({ where: { id: boardId }, data: { archived: true } });
+
+      const res = await request(app).get(boardPath(boardId)).set(bearer(member.token));
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.archived).toBe(true);
+    });
+
+    it('404 for a non-member and for an unknown board', async () => {
+      const { boardId } = await boardWith('OWNER');
+      const outsider = await createUserWithToken();
+
+      for (const id of [boardId, boardData.unknownBoardId]) {
+        expect((await request(app).get(boardPath(id)).set(bearer(outsider.token))).status).toBe(
+          404,
+        );
+      }
+    });
+
+    it('401 without a token', async () => {
+      const { boardId } = await boardWith('OWNER');
+
+      expect((await request(app).get(boardPath(boardId))).status).toBe(401);
+    });
+  });
+
+  describe('PATCH', () => {
+    const patch = (boardId: string, user: User, body: object) =>
+      request(app).patch(boardPath(boardId)).set(bearer(user.token)).send(body);
+
+    it('200 for a MEMBER: rename and recolour; BOARD_UPDATED logs the changes', async () => {
+      const { boardId, member } = await boardWith('MEMBER');
+
+      const res = await patch(boardId, member, boardData.update.input);
+
+      expect(res.status).toBe(200);
+      expect(BoardDtoSchema.parse(res.body.data)).toMatchObject({
+        title: boardData.update.storedTitle,
+        background: boardData.update.input.background,
+      });
+      const logged = await testPrisma.activity.findFirstOrThrow({
+        where: { boardId, type: 'BOARD_UPDATED' },
+      });
+      expect(logged).toMatchObject({
+        userId: member.user.id,
+        data: {
+          title: boardData.update.storedTitle,
+          background: boardData.update.input.background,
+        },
+      });
+    });
+
+    it('archive round trip: leaves the open list, shows under archived, and comes back', async () => {
+      const { boardId, workspaceId, member } = await boardWith('MEMBER');
+      const list = (archived: boolean) =>
+        request(app)
+          .get(`${boardsPath(workspaceId)}?archived=${archived}`)
+          .set(bearer(member.token));
+      const ids = (res: request.Response) => res.body.data.map((b: { id: string }) => b.id);
+
+      await patch(boardId, member, { archived: true }).expect(200);
+      expect(ids(await list(false))).not.toContain(boardId);
+      expect(ids(await list(true))).toContain(boardId);
+
+      await patch(boardId, member, { archived: false }).expect(200);
+      expect(ids(await list(false))).toContain(boardId);
+      expect(ids(await list(true))).not.toContain(boardId);
+    });
+
+    it.each(invalidBoardUpdates)('400 for $case', async ({ body }) => {
+      const { boardId, owner } = await boardWith('OWNER');
+
+      const res = await patch(boardId, owner, body);
+
+      expect(res.status).toBe(400);
+      expect(ErrorResponseSchema.parse(res.body).error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('403 for a VIEWER, nothing changes', async () => {
+      const { boardId, member } = await boardWith('VIEWER');
+
+      expect((await patch(boardId, member, boardData.update.input)).status).toBe(403);
+      const stored = await testPrisma.board.findUniqueOrThrow({ where: { id: boardId } });
+      expect(stored.title).toBe(boardData.titles[0]);
+    });
+
+    it('404 for a non-member', async () => {
+      const { boardId } = await boardWith('OWNER');
+      const outsider = await createUserWithToken();
+
+      expect((await patch(boardId, outsider, boardData.update.input)).status).toBe(404);
+    });
+
+    it('401 without a token', async () => {
+      const { boardId } = await boardWith('OWNER');
+
+      const res = await request(app).patch(boardPath(boardId)).send(boardData.update.input);
+
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('DELETE', () => {
+    const remove = (boardId: string, user: User) =>
+      request(app).delete(boardPath(boardId)).set(bearer(user.token));
+
+    it('204 for an ADMIN: the board and its activity log are gone', async () => {
+      const { boardId, member } = await boardWith('ADMIN');
+
+      expect((await remove(boardId, member)).status).toBe(204);
+      expect(await testPrisma.board.count({ where: { id: boardId } })).toBe(0);
+      expect(await testPrisma.activity.count({ where: { boardId } })).toBe(0);
+    });
+
+    it.each(['MEMBER', 'VIEWER'] as const)('403 for a %s, nothing deleted', async (role) => {
+      const { boardId, member } = await boardWith(role);
+
+      expect((await remove(boardId, member)).status).toBe(403);
+      expect(await testPrisma.board.count({ where: { id: boardId } })).toBe(1);
+    });
+
+    it('404 for a non-member', async () => {
+      const { boardId } = await boardWith('OWNER');
+      const outsider = await createUserWithToken();
+
+      expect((await remove(boardId, outsider)).status).toBe(404);
+      expect(await testPrisma.board.count({ where: { id: boardId } })).toBe(1);
+    });
+
+    it('401 without a token', async () => {
+      const { boardId } = await boardWith('OWNER');
+
+      expect((await request(app).delete(boardPath(boardId))).status).toBe(401);
+    });
   });
 });

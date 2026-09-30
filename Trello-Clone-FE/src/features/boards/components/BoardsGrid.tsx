@@ -12,6 +12,8 @@ interface BoardsGridProps {
   workspaceId: string;
   /** Whether the caller may create boards (UX only; the API re-checks). */
   canCreate: boolean;
+  /** Show the archived boards instead (no create actions there). */
+  archived?: boolean;
 }
 
 const TILE = 'flex h-24 rounded-lg p-3 text-left font-semibold';
@@ -20,8 +22,13 @@ const TILE = 'flex h-24 rounded-lg p-3 text-left font-semibold';
  * The workspace's boards (docs/design/ui.md → Workspace home): colour tiles linking to the board,
  * plus a "Create board" tile for members who may create.
  */
-export function BoardsGrid({ workspaceId, canCreate }: BoardsGridProps) {
-  const { data: boards, isPending, isError, refetch } = useBoards(workspaceId);
+export function BoardsGrid({
+  workspaceId,
+  canCreate: mayCreate,
+  archived = false,
+}: BoardsGridProps) {
+  const { data: boards, isPending, isError, refetch } = useBoards(workspaceId, archived);
+  const canCreate = mayCreate && !archived;
 
   if (isPending) {
     return (
@@ -49,7 +56,9 @@ export function BoardsGrid({ workspaceId, canCreate }: BoardsGridProps) {
   if (boards.length === 0) {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-muted-foreground">No boards yet.</p>
+        <p className="text-muted-foreground">
+          {archived ? 'No archived boards.' : 'No boards yet.'}
+        </p>
         {canCreate && (
           <CreateBoardDialog
             workspaceId={workspaceId}
@@ -61,7 +70,10 @@ export function BoardsGrid({ workspaceId, canCreate }: BoardsGridProps) {
   }
 
   return (
-    <ul aria-label="Boards" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <ul
+      aria-label={archived ? 'Archived boards' : 'Boards'}
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    >
       {boards.map((board) => (
         <li key={board.id}>
           <Link

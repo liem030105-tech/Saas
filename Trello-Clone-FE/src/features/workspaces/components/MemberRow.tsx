@@ -2,6 +2,7 @@ import { type MemberDto, type Role, type WorkspaceDto } from '@trello-clone/shar
 import { ChevronDownIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { initials } from '@/components/layout/Header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { ConfirmDialog } from './ConfirmDialog';
 import { memberErrorMessage } from '../memberErrors';
 import { assignableRoles, canManageMember } from '../permissions';
 import { useChangeMemberRole, useRemoveMember } from '../queries';

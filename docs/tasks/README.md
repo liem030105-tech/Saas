@@ -64,7 +64,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 17 | [WORKSPACE-005](WORKSPACE-005-rbac.md) RBAC consolidation | 2 | W-002, W-004 | – | – | Done |
 | 18 | [WORKSPACE-006](WORKSPACE-006-tenant-isolation.md) tenant isolation suite | 2 | W-005 | BOARD-001 | – | Done |
 | 19 | [BOARD-001](BOARD-001-create-board.md) create/list boards | 3 | W-005 | W-006 | – | Done |
-| 20 | [BOARD-002](BOARD-002-board-crud.md) board detail/update/delete | 3 | B-001, W-006 | – | – | Todo |
+| 20 | [BOARD-002](BOARD-002-board-crud.md) board detail/update/delete | 3 | B-001, W-006 | – | – | Done |
 | 21 | [LIST-001](LIST-001-create-list.md) create list | 3 | B-002 | – | – | Todo |
 | 22 | [LIST-002](LIST-002-list-crud.md) list update/delete | 3 | L-001 | L-003, C-001 | – | Todo |
 | 23 | [LIST-003](LIST-003-list-ordering.md) list ordering + rebalance | 3 | L-001 | L-002, C-001 | – | Todo |

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 
 import { BoardsGrid } from '@/features/boards';
@@ -15,6 +16,7 @@ import { NotFoundPage } from './NotFoundPage';
 // looks like an unknown page. Shows the workspace's boards (BOARD-001).
 export function WorkspacePage() {
   const { slug } = useParams();
+  const [showArchived, setShowArchived] = useState(false);
 
   return (
     <WorkspaceGate slug={slug} pathFor={workspacePath} notFound={<NotFoundPage />}>
@@ -38,10 +40,24 @@ export function WorkspacePage() {
             </nav>
           </div>
           <section aria-labelledby="boards-heading" className="flex flex-col gap-3">
-            <h2 id="boards-heading" className="text-lg font-semibold">
-              Boards
-            </h2>
-            <BoardsGrid workspaceId={workspace.id} canCreate={can(workspace.role, 'board.edit')} />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="boards-heading" className="text-lg font-semibold">
+                {showArchived ? 'Archived boards' : 'Boards'}
+              </h2>
+              <button
+                type="button"
+                aria-pressed={showArchived}
+                className="text-sm font-medium underline underline-offset-4"
+                onClick={() => setShowArchived((shown) => !shown)}
+              >
+                {showArchived ? 'Show open boards' : 'Show archived boards'}
+              </button>
+            </div>
+            <BoardsGrid
+              workspaceId={workspace.id}
+              canCreate={can(workspace.role, 'board.edit')}
+              archived={showArchived}
+            />
           </section>
         </main>
       )}

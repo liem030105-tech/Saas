@@ -1,4 +1,8 @@
-import { CreateBoardInputSchema, ListBoardsQuerySchema } from '@trello-clone/shared';
+import {
+  CreateBoardInputSchema,
+  ListBoardsQuerySchema,
+  UpdateBoardInputSchema,
+} from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './boards.controller';
@@ -27,3 +31,16 @@ boardsRouter.post(
   requireWorkspaceRole('board.edit'),
   controller.create,
 );
+
+// Board-scoped routes: authenticate → rate limit → validate; the service authorizes with
+// assertBoardAccess (an unknown or malformed id is a 404 like a board the caller cannot see).
+const BOARD = '/boards/:boardId';
+boardsRouter.get(BOARD, authenticate, apiRateLimit, controller.get);
+boardsRouter.patch(
+  BOARD,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateBoardInputSchema }),
+  controller.update,
+);
+boardsRouter.delete(BOARD, authenticate, apiRateLimit, controller.remove);

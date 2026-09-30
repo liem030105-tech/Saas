@@ -1,10 +1,10 @@
 import { type WorkspaceDto } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format-date';
 
-import { ConfirmDialog } from './ConfirmDialog';
 import { memberErrorMessage } from '../memberErrors';
 import { useInvites, useRevokeInvite } from '../queries';
 import { ROLE_LABELS } from '../roleLabels';

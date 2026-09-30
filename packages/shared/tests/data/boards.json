@@ -10,6 +10,8 @@
   ],
   "validColors": ["#0079bf", "#D29034", "#000000"],
   "invalidColors": ["0079bf", "#0079b", "#0079bfa", "#GGGGGG", "blue"],
+  "validUpdates": [{ "title": "Renamed" }, { "background": "#519839" }, { "archived": true }],
+  "invalidUpdates": [{}, { "title": "  " }, { "background": "green" }, { "archived": "yes" }],
   "boardDto": {
     "id": "clx0000000000000000000041",
     "workspaceId": "clx0000000000000000000010",

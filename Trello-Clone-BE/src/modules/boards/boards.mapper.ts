@@ -1,5 +1,5 @@
 import type { Board } from '../../generated/prisma/client';
-import type { BoardDto } from '@trello-clone/shared';
+import type { BoardDetailDto, BoardDto } from '@trello-clone/shared';
 
 /** docs/api/boards.md → BoardDto. */
 export function toBoardDto(board: Board): BoardDto {
@@ -12,4 +12,9 @@ export function toBoardDto(board: Board): BoardDto {
     createdAt: board.createdAt.toISOString(),
     updatedAt: board.updatedAt.toISOString(),
   };
+}
+
+/** docs/api/boards.md → BoardDetailDto: no lists or labels exist before LIST-001 and CARD-005. */
+export function toBoardDetailDto(board: Board): BoardDetailDto {
+  return { ...toBoardDto(board), lists: [], labels: [] };
 }

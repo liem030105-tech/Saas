@@ -2,10 +2,10 @@ import { type WorkspaceDto } from '@trello-clone/shared';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/features/auth';
 
-import { ConfirmDialog } from './ConfirmDialog';
 import { InviteDialog } from './InviteDialog';
 import { MemberRow } from './MemberRow';
 import { PendingInvites } from './PendingInvites';

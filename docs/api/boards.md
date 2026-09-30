@@ -37,9 +37,10 @@ Schemas: `CreateBoardInputSchema`, `ListBoardsQuerySchema`, `BoardDtoSchema`; ac
 | | |
 |--|--|
 | Task | BOARD-002 |
-| Authorization | ≥ VIEWER |
-| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail` |
-| Errors | `401` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ VIEWER (`assertBoardAccess(…, 'board.view')`) |
+| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail`; `lists` and `labels` are empty arrays until LIST-001 / CARD-005 |
+| Errors | `401` · `404` (unknown board, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 Archived boards remain viewable; the FE shows an "archived" banner.
 
@@ -47,18 +48,22 @@ Archived boards remain viewable; the FE shows an "archived" banner.
 | | |
 |--|--|
 | Task | BOARD-002 |
-| Authorization | ≥ MEMBER |
-| Body | `{ title?, background?, archived? }` |
-| Success | `200 { data: BoardDto }` · logs `BOARD_UPDATED` |
-| Errors | `400` · `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (`'board.edit'`: rename, recolour, archive/unarchive) |
+| Body | `{ title?, background?, archived? }`, at least one |
+| Success | `200 { data: BoardDto }` · logs `BOARD_UPDATED` with the changed fields as `data`, in the same transaction |
+| Errors | `400` · `401` · `403` · `404` · `429 RATE_LIMITED` |
 
 ### DELETE /boards/:boardId
 | | |
 |--|--|
 | Task | BOARD-002 |
-| Authorization | ≥ ADMIN |
-| Success | `204` (cascade) |
-| Errors | `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ ADMIN (`'board.delete'`) |
+| Success | `204` (cascade: lists, cards, labels and the activity log go with it) |
+| Errors | `401` · `403` · `404` · `429 RATE_LIMITED` |
+
+Schemas: `UpdateBoardInputSchema`, `BoardDetailDtoSchema`, `ListDtoSchema`, `CardSummaryDtoSchema`, `LabelDtoSchema` (`@trello-clone/shared`).
 
 ### GET /boards/:boardId/activities
 | | |
