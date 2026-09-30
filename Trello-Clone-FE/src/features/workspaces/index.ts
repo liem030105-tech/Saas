@@ -5,5 +5,7 @@ export { MembersList } from './components/MembersList';
 export { WorkspaceGate } from './components/WorkspaceGate';
 export { WorkspaceNav } from './components/WorkspaceNav';
 export { WorkspaceSettings } from './components/WorkspaceSettings';
+export { useWorkspaceRole } from './hooks/useWorkspaceRole';
+export { can, type WorkspaceAction } from './permissions';
 export { workspaceMembersPath, workspacePath, workspaceSettingsPath } from './paths';
 export { useWorkspaceBySlug, useWorkspaces, workspaceKeys } from './queries';

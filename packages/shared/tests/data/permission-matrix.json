@@ -1,0 +1,33 @@
+{
+  "$comment": "docs/api/README.md → Permission matrix, one row per action (WORKSPACE-005). Test data only: the BE map (authoritative) and the FE visibility copy are each checked against it.",
+  "rows": [
+    { "action": "workspace.view", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "workspace.update", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "workspace.delete", "allowed": ["OWNER"] },
+    { "action": "workspace.leave", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "members.list", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "members.changeRole", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "members.remove", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "members.manageOwners", "allowed": ["OWNER"] },
+    { "action": "members.grantOwner", "allowed": ["OWNER"] },
+    { "action": "invites.manage", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "board.view", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "board.edit", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "board.delete", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "label.manage", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "list.manage", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "card.view", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "card.edit", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "card.assign", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "comment.view", "allowed": ["OWNER", "ADMIN", "MEMBER", "VIEWER"] },
+    { "action": "comment.create", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "comment.editOwn", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "comment.deleteOwn", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "comment.deleteAny", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "attachment.upload", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "attachment.deleteOwn", "allowed": ["OWNER", "ADMIN", "MEMBER"] },
+    { "action": "attachment.deleteAny", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "billing.view", "allowed": ["OWNER", "ADMIN"] },
+    { "action": "billing.manage", "allowed": ["OWNER"] }
+  ]
+}

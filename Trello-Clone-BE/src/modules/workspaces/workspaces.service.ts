@@ -1,12 +1,12 @@
 import { ROLE_ORDER } from '@trello-clone/shared';
 
+import { hasPermission, type WorkspaceAction } from './permissions';
 import { slugCandidates } from './slug';
 import { toMemberDto, toWorkspaceDto } from './workspaces.mapper';
 import * as workspacesRepository from './workspaces.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
-import { hasRole } from '../../lib/roles';
 
 import type {
   CreateWorkspaceData,
@@ -21,14 +21,18 @@ import type {
 const SLUG_ATTEMPTS = 5;
 
 /**
- * The caller's role in the workspace, if it is at least `min`. A missing workspace and a
+ * The caller's role in the workspace, if it allows `action` (permissions.ts). A missing workspace and a
  * non-member look the same (404); a member below `min` gets 403 (docs/api/README.md →
  * Authorization model).
  */
-export async function assertWorkspaceAccess(userId: string, workspaceId: string, min: Role) {
+export async function assertWorkspaceAccess(
+  userId: string,
+  workspaceId: string,
+  action: WorkspaceAction,
+) {
   const role = await workspacesRepository.findMemberRole(userId, workspaceId);
   if (!role) throw AppError.notFound();
-  if (!hasRole(role, min)) throw AppError.forbidden();
+  if (!hasPermission(role, action)) throw AppError.forbidden();
   return role;
 }
 
@@ -188,7 +192,9 @@ export async function currentActorRole(tx: Tx, workspaceId: string, actorId: str
 
 /** Footnote 3: an ADMIN acts only on targets ≤ ADMIN; only an OWNER touches or grants OWNER. */
 function assertMayManage(actorRole: Role, targetRole: Role) {
-  if (targetRole === 'OWNER' && actorRole !== 'OWNER') throw AppError.forbidden();
+  if (targetRole === 'OWNER' && !hasPermission(actorRole, 'members.manageOwners')) {
+    throw AppError.forbidden();
+  }
 }
 
 /** PATCH /workspaces/:workspaceId/members/:userId (≥ ADMIN; the route checks it first too). */
@@ -201,10 +207,12 @@ export async function changeMemberRole(
   return prisma.$transaction(async (tx) => {
     await lockWorkspace(tx, workspaceId);
     const actorRole = await currentActorRole(tx, workspaceId, actorId);
-    if (!hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
+    if (!hasPermission(actorRole, 'members.changeRole')) throw AppError.forbidden();
     const target = await findMember(tx, workspaceId, targetUserId);
     assertMayManage(actorRole, target.role);
-    if (role === 'OWNER' && actorRole !== 'OWNER') throw AppError.forbidden();
+    if (role === 'OWNER' && !hasPermission(actorRole, 'members.grantOwner')) {
+      throw AppError.forbidden();
+    }
     if (target.role === role) return toMemberDto(target);
     if (target.role === 'OWNER' && (await countOwners(tx, workspaceId)) <= 1) throw lastOwner();
 
@@ -231,7 +239,7 @@ export async function removeMember(
   await prisma.$transaction(async (tx) => {
     await lockWorkspace(tx, workspaceId);
     const actorRole = await currentActorRole(tx, workspaceId, actorId);
-    if (!leaving && !hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
+    if (!leaving && !hasPermission(actorRole, 'members.remove')) throw AppError.forbidden();
     const target = await findMember(tx, workspaceId, targetUserId);
     if (!leaving) assertMayManage(actorRole, target.role);
     if (target.role === 'OWNER' && (await countOwners(tx, workspaceId)) <= 1) throw lastOwner();

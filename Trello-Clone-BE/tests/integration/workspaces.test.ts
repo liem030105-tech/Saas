@@ -237,12 +237,12 @@ describe('requireWorkspaceRole / assertWorkspaceAccess', () => {
   it('assertWorkspaceAccess returns the role when it is high enough', async () => {
     const { workspaceId, member } = await workspaceWithMember('MEMBER');
 
-    await expect(assertWorkspaceAccess(member.user.id, workspaceId, 'VIEWER')).resolves.toBe(
-      'MEMBER',
-    );
-    await expect(assertWorkspaceAccess(member.user.id, workspaceId, 'ADMIN')).rejects.toMatchObject(
-      { status: 403 },
-    );
+    await expect(
+      assertWorkspaceAccess(member.user.id, workspaceId, 'workspace.view'),
+    ).resolves.toBe('MEMBER');
+    await expect(
+      assertWorkspaceAccess(member.user.id, workspaceId, 'workspace.update'),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });
 

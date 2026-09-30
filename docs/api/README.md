@@ -114,6 +114,8 @@ Roles are per workspace and apply to **every board in that workspace**. There is
 | VIEWER | Read-only |
 
 ### Permission matrix
+Implemented once, as an action → minimum-role map, in `Trello-Clone-BE/src/modules/workspaces/permissions.ts` (authoritative); the FE keeps a UX-only copy for hiding actions. Both are tested against this table (WORKSPACE-005).
+
 ✅ allowed · ❌ denied (`403`) · "own" = only resources the caller created.
 
 | Resource / action | OWNER | ADMIN | MEMBER | VIEWER |

@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { toInviteDto } from './invites.mapper';
+import { hasPermission } from './permissions';
 import { toWorkspaceDto } from './workspaces.mapper';
 import { currentActorRole, lockWorkspace } from './workspaces.service';
 import { env } from '../../config/env';
@@ -54,7 +55,7 @@ export async function create(
       // member changes do, so a caller demoted meanwhile cannot still invite above it.
       await lockWorkspace(tx, workspaceId);
       const actorRole = await currentActorRole(tx, workspaceId, actorId);
-      if (!hasRole(actorRole, 'ADMIN') || !hasRole(actorRole, input.role)) {
+      if (!hasPermission(actorRole, 'invites.manage') || !hasRole(actorRole, input.role)) {
         throw AppError.forbidden();
       }
 

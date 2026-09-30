@@ -55,7 +55,7 @@ Do **not** add E2E tests for internal changes, pure refactors, or API-only behav
 - **Test data lives in its own folder, never hard-coded in a test:** FE in `Trello-Clone-FE/src/testing/data/` (one file per area: `env.ts`, `routes.ts`, `api.ts`, …; builders such as `buildErrorBody()` take overrides). Tests import values from there and assert against the same values, so changing a fixture never means editing assertions. Vitest's public `VITE_*` values come from `testing/data/env.ts` too. Shared keeps its fixtures as JSON in `packages/shared/tests/data/` (e.g. error bodies captured from the running API). The BE follows the same rule in `Trello-Clone-BE/tests/data/` (`env.ts` feeds Vitest's test environment; `http.ts` holds paths and payloads), with shared test helpers in `tests/helpers/`.
 - Tests are deterministic: no real timers or network, no order dependence.
 - A failing test is a bug until proven otherwise. Never weaken assertions, skip, or delete tests to get green. No `.only` / `.skip` in commits.
-- Every new endpoint registers itself in the role-matrix harness (WORKSPACE-005) and the tenant-isolation suite (WORKSPACE-006).
+- Every new endpoint registers itself in the role-matrix harness (WORKSPACE-005: `describeRoleMatrix` from `Trello-Clone-BE/tests/helpers/role-matrix.ts`, which runs the request as OWNER, ADMIN, MEMBER, VIEWER and a non-member, each against a fresh workspace, and asserts the status each gets) and the tenant-isolation suite (WORKSPACE-006). The permission maps (BE authoritative, FE visibility copy) are each unit-tested against the matrix fixture `packages/shared/tests/data/permission-matrix.json`.
 - Coverage is reported (TESTING-001) but has no hard threshold.
 
 ## Claude Code cloud sessions

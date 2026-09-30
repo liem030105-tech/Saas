@@ -14,7 +14,7 @@ export const paths = {
   throws: '/__test/throws',
   params: '/__test/items/:id',
   rateLimited: '/__test/rate-limited',
-  /** requireWorkspaceRole('ADMIN') behind authenticate. */
+  /** requireWorkspaceRole('workspace.update') (≥ ADMIN) behind authenticate. */
   workspaceAdminOnly: '/__test/workspaces/:workspaceId/admin-only',
 } as const;
 

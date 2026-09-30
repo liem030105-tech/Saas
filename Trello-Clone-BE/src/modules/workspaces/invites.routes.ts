@@ -15,7 +15,7 @@ invitesRouter.get(
   INVITES,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('invites.manage'),
   controller.list,
 );
 invitesRouter.post(
@@ -23,14 +23,14 @@ invitesRouter.post(
   authenticate,
   apiRateLimit,
   validate({ body: CreateInviteInputSchema }),
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('invites.manage'),
   controller.create,
 );
 invitesRouter.delete(
   `${INVITES}/:inviteId`,
   authenticate,
   apiRateLimit,
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('invites.manage'),
   controller.revoke,
 );
 

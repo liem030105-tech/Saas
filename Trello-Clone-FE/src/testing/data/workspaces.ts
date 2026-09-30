@@ -148,3 +148,6 @@ export const alreadyMemberError = buildErrorBody({
   message: 'This person is already a member of the workspace',
   details: [],
 });
+
+/** A well-formed id of a workspace the signed-in user is not in. */
+export const unknownWorkspaceId = 'clx0000000000000000000099';

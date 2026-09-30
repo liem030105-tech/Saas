@@ -35,7 +35,7 @@ testRoutes.get(paths.rateLimited, authRateLimit, (_req, res) => {
 testRoutes.get(
   paths.workspaceAdminOnly,
   authenticate,
-  requireWorkspaceRole('ADMIN'),
+  requireWorkspaceRole('workspace.update'),
   (_req, res) => {
     res.status(200).json({ data: { role: res.locals.workspaceRole as unknown } });
   },
