@@ -21,9 +21,9 @@ import type {
 const SLUG_ATTEMPTS = 5;
 
 /**
- * The caller's role in the workspace, if it allows `action` (permissions.ts). A missing workspace and a
- * non-member look the same (404); a member below `min` gets 403 (docs/api/README.md →
- * Authorization model).
+ * The caller's role in the workspace, if it allows `action` (permissions.ts). A missing workspace
+ * and a non-member look the same (404); a member whose role does not allow `action` gets 403
+ * (docs/api/README.md → Authorization model).
  */
 export async function assertWorkspaceAccess(
   userId: string,

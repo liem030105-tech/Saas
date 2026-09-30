@@ -39,7 +39,7 @@ Model `List`; migration `add_lists`.
 None (REALTIME-001).
 
 # Security Considerations
-`assertBoardAccess(…, MEMBER)`. The `position` value is validated (finite, > 0).
+`assertBoardAccess(…, 'list.manage')`. The `position` value is validated (finite, > 0).
 
 # Testing
 Unit (in `packages/shared`): every position helper, including edge values. Integration: role matrix, tenant isolation, append ordering.

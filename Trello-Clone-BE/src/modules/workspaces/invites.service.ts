@@ -38,6 +38,9 @@ const alreadyMember = () =>
 const isUniqueViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
+const isForeignKeyViolation = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
+
 /**
  * POST /workspaces/:workspaceId/invites (≥ ADMIN; the route checks it first too). The invite role is capped
  * at the caller's role and is never OWNER (schema). A pending or old invite for the same email is
@@ -141,6 +144,8 @@ export async function accept(userId: string, rawToken: string): Promise<Workspac
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyMember();
+    // The workspace was deleted after the invite was read: the invite is gone with it.
+    if (isForeignKeyViolation(error)) throw inviteNotFound();
     throw error;
   }
   return toWorkspaceDto(invite.workspace, invite.role);

@@ -15,7 +15,7 @@ Specs: [boards](../api/boards.md#get-workspacesworkspaceidboards); models [Board
 
 # Requirements
 1. Models `Board`, `Activity` (without `cardId`), enum `ActivityType` (`BOARD_CREATED`, `BOARD_UPDATED`); migration `add_boards_activity`.
-2. `boards` module: `assertBoardAccess(userId, boardId, minRole)` (one query joining the workspace membership) and `boards/activity.ts` with `logActivity(tx, { boardId, userId, type, data, cardId? })`.
+2. `boards` module: `assertBoardAccess(userId, boardId, action: WorkspaceAction)` (one query joining the workspace membership; the action's minimum role comes from the permission map, `modules/workspaces/permissions.ts`) and `boards/activity.ts` with `logActivity(tx, { boardId, userId, type, data, cardId? })`.
 3. `GET /workspaces/:workspaceId/boards` (`archived` filter), `POST /workspaces/:workspaceId/boards` (logs `BOARD_CREATED`).
 4. Shared: `CreateBoardInputSchema`, `BoardDtoSchema`, the `ActivityType` constant.
 5. FE: the boards grid on `/w/:slug` with a create-board dialog (title + colour picker from a fixed palette); tiles link to `/b/:boardId`. The create button is hidden for VIEWER.
