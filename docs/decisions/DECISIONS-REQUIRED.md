@@ -39,12 +39,12 @@
 
 ## Product scope
 
-### D-06 Personal workspace on registration: **Resolved** (b), [ADR-019](README.md#adr-019-no-workspace-on-registration-the-first-one-is-created-by-the-user-d-06)
+### D-06 Personal workspace on registration: **Resolved** (b), [ADR-019](README.md#adr-019-no-workspace-on-registration-d-06-ui-text-is-english)
 - **Decision:** no workspace is created on registration; a user without one sees a "Create your first workspace" screen and names it.
 - **Question:** should registering automatically create a personal workspace (user = OWNER)?
 - **Context:** the previous `api/authentication.md` said yes, but the product scope never stated it.
 - **Options:** (a) auto-create "<name>'s workspace"; (b) redirect to a "create your first workspace" screen.
-- **Recommendation:** (a), for fewer empty states. If approved, WORKSPACE-001 adds it (not AUTH-001, which runs before the Workspace model exists).
+- **Recommendation (not adopted):** (a), for fewer empty states.
 - **Affects:** AUTH-001, WORKSPACE-001, `api/authentication.md`. **Blocking:** no longer (resolved).
 
 ### D-07 Change password in MVP

@@ -7,12 +7,15 @@ export const paths = {
   logout: '/api/v1/auth/logout',
   me: '/api/v1/auth/me',
   usersMe: '/api/v1/users/me',
+  workspaces: '/api/v1/workspaces',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',
   throws: '/__test/throws',
   params: '/__test/items/:id',
   rateLimited: '/__test/rate-limited',
+  /** requireWorkspaceRole('ADMIN') behind authenticate. */
+  workspaceAdminOnly: '/__test/workspaces/:workspaceId/admin-only',
 } as const;
 
 /** `%E0` is not valid percent-encoding, so the router cannot decode the :id parameter. */

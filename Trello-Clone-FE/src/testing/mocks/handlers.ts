@@ -9,4 +9,6 @@ export const handlers: RequestHandler[] = [
   http.post(apiUrl('/auth/refresh'), () =>
     HttpResponse.json(refreshUnauthorizedBody, { status: 401 }),
   ),
+  // A signed-in user has no workspaces until a test says otherwise (first-workspace screen).
+  http.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: [] })),
 ];

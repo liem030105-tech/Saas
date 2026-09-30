@@ -5,6 +5,9 @@ export const pageCases = {
   register: { path: '/register', heading: 'Create an account' },
 } as const;
 
+/** `/` when signed in without a workspace (ADR-019); not in pageCases, which render signed out. */
+export const firstWorkspacePage = { path: '/', heading: 'Create your first workspace' } as const;
+
 /** Signed-in only (ProtectedRoute), so not in pageCases, which render signed out. */
 export const profilePage = { path: '/settings/profile', heading: 'Profile' } as const;
 

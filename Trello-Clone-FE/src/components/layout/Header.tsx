@@ -1,3 +1,4 @@
+import { MenuIcon } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,22 +26,45 @@ export function initials(name: string) {
     .join('');
 }
 
-// docs/design/ui.md → App shell: a 48px header. The workspace switcher, search, and sidebar toggle
-// arrive with their tasks. `user` is undefined while it loads.
+// docs/design/ui.md → App shell: a 48px header with the ☰ sidebar toggle (below 768px) and the
+// user's menu. The workspace switcher and search arrive with their tasks. `user` is undefined
+// while it loads.
 interface HeaderProps {
   user: HeaderUser | undefined;
   /** The user could not be loaded. */
   userError?: boolean;
   onLogout: () => void;
   loggingOut?: boolean;
+  /** The ☰ button that opens the sidebar below 768px; omitted when there is no sidebar. */
+  menu?: { open: boolean; onToggle: () => void };
 }
 
-export function Header({ user, userError = false, onLogout, loggingOut = false }: HeaderProps) {
+export function Header({
+  user,
+  userError = false,
+  onLogout,
+  loggingOut = false,
+  menu,
+}: HeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-4">
-      <Link to="/" className="font-semibold">
-        TaskBoard
-      </Link>
+      <div className="flex items-center gap-2">
+        {menu && (
+          <button
+            type="button"
+            aria-label={menu.open ? 'Close menu' : 'Open menu'}
+            aria-expanded={menu.open}
+            aria-controls="app-sidebar"
+            className="-ml-2 rounded-md p-2 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
+            onClick={menu.onToggle}
+          >
+            <MenuIcon aria-hidden="true" className="size-5" />
+          </button>
+        )}
+        <Link to="/" className="font-semibold">
+          TaskBoard
+        </Link>
+      </div>
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger

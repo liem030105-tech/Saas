@@ -1,0 +1,29 @@
+{
+  "validNames": [
+    { "input": "  Acme Team ", "normalized": "Acme Team" },
+    { "input": "A", "normalized": "A" }
+  ],
+  "invalidNames": [
+    "",
+    "   ",
+    "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+  ],
+  "validSlugs": ["acme", "acme-team", "a1b", "team-2026-x9k2"],
+  "invalidSlugs": [
+    "ab",
+    "-acme",
+    "acme-",
+    "Acme",
+    "acme team",
+    "acme_team",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ],
+  "workspaceDto": {
+    "id": "clx0000000000000000000010",
+    "name": "Acme Team",
+    "slug": "acme-team",
+    "plan": "FREE",
+    "createdAt": "2026-09-30T10:00:00.000Z",
+    "role": "OWNER"
+  }
+}

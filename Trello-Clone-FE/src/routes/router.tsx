@@ -2,12 +2,13 @@ import { createBrowserRouter, type RouteObject } from 'react-router';
 
 import { ErrorFallback } from '@/components/feedback/ErrorBoundary';
 import { restoreSession } from '@/features/auth';
-import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RegisterPage } from '@/pages/RegisterPage';
+import { WorkspacePage } from '@/pages/WorkspacePage';
 
+import { HomeRoute } from './HomeRoute';
 import { ProtectedRoute } from './ProtectedRoute';
 
 // Exported so tests can mount the same tree in a memory router (src/testing/render.tsx).
@@ -19,13 +20,17 @@ export const routes: RouteObject[] = [
     hydrateFallbackElement: <div aria-busy="true" className="min-h-svh" />,
     errorElement: <ErrorFallback />,
     children: [
-      { path: '/', element: <HomePage /> },
+      // Public home when signed out; first workspace or the first-workspace screen when signed in.
+      { path: '/', element: <HomeRoute /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
       {
         // Signed in only: otherwise /login?redirectTo=<here>.
         element: <ProtectedRoute />,
-        children: [{ path: '/settings/profile', element: <ProfilePage /> }],
+        children: [
+          { path: '/settings/profile', element: <ProfilePage /> },
+          { path: '/w/:slug', element: <WorkspacePage /> },
+        ],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

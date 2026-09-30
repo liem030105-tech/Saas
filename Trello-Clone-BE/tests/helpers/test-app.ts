@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { createApp } from '../../src/app';
+import { authenticate } from '../../src/middlewares/authenticate';
 import { authRateLimit } from '../../src/middlewares/rate-limit';
+import { requireWorkspaceRole } from '../../src/middlewares/require-workspace-role';
 import { validate, validated } from '../../src/middlewares/validate';
 import { internalErrorMessage, paths } from '../data/http';
 
@@ -29,5 +31,14 @@ testRoutes.get(paths.params, (req, res) => {
 testRoutes.get(paths.rateLimited, authRateLimit, (_req, res) => {
   res.status(204).end();
 });
+
+testRoutes.get(
+  paths.workspaceAdminOnly,
+  authenticate,
+  requireWorkspaceRole('ADMIN'),
+  (_req, res) => {
+    res.status(200).json({ data: { role: res.locals.workspaceRole as unknown } });
+  },
+);
 
 export const createTestApp = () => createApp({ extraRoutes: testRoutes });

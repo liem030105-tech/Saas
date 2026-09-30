@@ -1,0 +1,35 @@
+import { z } from 'zod';
+
+import { CuidSchema } from './common';
+import { PLANS, ROLE_ORDER } from '../constants/roles';
+
+// Field rules: docs/api/README.md → Validation rules. Messages are shown in the UI (English).
+
+export const WorkspaceNameSchema = z
+  .string({ error: 'Enter a workspace name' })
+  .trim()
+  .min(1, 'Enter a workspace name')
+  .max(100, 'Name must be at most 100 characters');
+
+/** 3–50 chars: lower-case letters, digits and inner hyphens. */
+export const WorkspaceSlugSchema = z
+  .string()
+  .regex(/^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$/, 'Use 3–50 lower-case letters, digits or hyphens');
+
+export const RoleSchema = z.enum(ROLE_ORDER);
+export const PlanSchema = z.enum(PLANS);
+
+/** POST /workspaces body. */
+export const CreateWorkspaceInputSchema = z.object({
+  name: WorkspaceNameSchema,
+});
+
+/** A workspace as the API returns it; `role` is the caller's role (UI only, docs/api/workspaces.md). */
+export const WorkspaceDtoSchema = z.object({
+  id: CuidSchema,
+  name: z.string(),
+  slug: WorkspaceSlugSchema,
+  plan: PlanSchema,
+  createdAt: z.iso.datetime(),
+  role: RoleSchema,
+});

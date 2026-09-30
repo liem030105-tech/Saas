@@ -482,3 +482,4 @@ model Subscription {
 |-----------|------|--------|
 | `20260928153607_init_user` | FOUNDATION-004 | `User` table, unique index on `email` |
 | `20260929101050_add_refresh_token` | AUTH-001 | `RefreshToken` table (FK → `User`, cascade), unique `tokenHash`, indexes on `userId` and `familyId` |
+| `20260930083901_add_workspaces` | WORKSPACE-001 | Enums `Role`, `Plan`; `Workspace` (unique `slug`) and `WorkspaceMember` (PK `(userId, workspaceId)`, FKs → `User` and `Workspace` with cascade, indexes on `workspaceId` and `userId`) |
