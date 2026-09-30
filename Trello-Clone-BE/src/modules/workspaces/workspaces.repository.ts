@@ -18,3 +18,16 @@ export function listMemberships(userId: string) {
     select: { role: true, workspace: true },
   });
 }
+
+/** The public user fields a member row carries (MemberDto.user). */
+export const memberUserSelect = {
+  select: { id: true, name: true, email: true, avatarUrl: true },
+} as const;
+
+/** Every member of the workspace with their public user fields (unordered; the service sorts). */
+export function listMembers(workspaceId: string) {
+  return prisma.workspaceMember.findMany({
+    where: { workspaceId },
+    include: { user: memberUserSelect },
+  });
+}

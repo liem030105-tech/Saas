@@ -16,3 +16,11 @@ export const ERROR_CODES = [
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
+
+/** `details[0].rule` of a 422 BUSINESS_RULE_VIOLATION (docs/api/README.md → Canonical error format). */
+export const BUSINESS_RULES = [
+  /** The last OWNER cannot leave, be removed, or be demoted (permission matrix footnote 1). */
+  'LAST_OWNER',
+] as const;
+
+export type BusinessRule = (typeof BUSINESS_RULES)[number];

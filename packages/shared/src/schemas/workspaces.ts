@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { UserDtoSchema } from './auth';
 import { CuidSchema } from './common';
 import { PLANS, ROLE_ORDER } from '../constants/roles';
 
@@ -42,4 +43,16 @@ export const WorkspaceDtoSchema = z.object({
   plan: PlanSchema,
   createdAt: z.iso.datetime(),
   role: RoleSchema,
+});
+
+/** PATCH /workspaces/:workspaceId/members/:userId body. */
+export const ChangeMemberRoleInputSchema = z.object({
+  role: RoleSchema,
+});
+
+/** A workspace member as the API returns it (docs/api/workspaces.md → MemberDto). */
+export const MemberDtoSchema = z.object({
+  user: UserDtoSchema.pick({ id: true, name: true, email: true, avatarUrl: true }),
+  role: RoleSchema,
+  joinedAt: z.iso.datetime(),
 });

@@ -1,5 +1,7 @@
 import type {
+  ChangeMemberRoleInputSchema,
   CreateWorkspaceInputSchema,
+  MemberDtoSchema,
   UpdateWorkspaceInputSchema,
   WorkspaceDtoSchema,
 } from '../schemas/workspaces';
@@ -12,3 +14,5 @@ export type CreateWorkspaceData = z.output<typeof CreateWorkspaceInputSchema>;
 export type UpdateWorkspaceInput = z.input<typeof UpdateWorkspaceInputSchema>;
 export type UpdateWorkspaceData = z.output<typeof UpdateWorkspaceInputSchema>;
 export type WorkspaceDto = z.infer<typeof WorkspaceDtoSchema>;
+export type ChangeMemberRoleInput = z.infer<typeof ChangeMemberRoleInputSchema>;
+export type MemberDto = z.infer<typeof MemberDtoSchema>;

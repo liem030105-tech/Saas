@@ -1,6 +1,7 @@
 import { buildErrorBody } from './api';
+import { currentUser } from './auth';
 
-import type { WorkspaceDto } from '@trello-clone/shared';
+import type { MemberDto, WorkspaceDto } from '@trello-clone/shared';
 
 /** Workspaces as GET /workspaces returns them (ordered by name). */
 export const acmeWorkspace: WorkspaceDto = {
@@ -52,5 +53,60 @@ export const workspaceRename = {
 export const slugTakenError = buildErrorBody({
   code: 'CONFLICT',
   message: 'This URL is already taken',
+  details: [],
+});
+
+export const workspaceMembersPathFor = (workspace: Pick<WorkspaceDto, 'slug'>) =>
+  `/w/${workspace.slug}/members`;
+
+/** The signed-in user (currentUser) as a member with `role`, plus two other members. */
+export const membersWith = (role: MemberDto['role']): MemberDto[] => [
+  {
+    user: {
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      avatarUrl: null,
+    },
+    role,
+    joinedAt: '2026-09-30T10:00:00.000Z',
+  },
+  ...otherMembers,
+];
+
+export const otherMembers: MemberDto[] = [
+  {
+    user: {
+      id: 'clx0000000000000000000021',
+      name: 'Ada Owner',
+      email: 'ada@example.test',
+      avatarUrl: null,
+    },
+    role: 'OWNER',
+    joinedAt: '2026-09-30T10:00:00.000Z',
+  },
+  {
+    user: {
+      id: 'clx0000000000000000000022',
+      name: 'Linus Member',
+      email: 'linus@example.test',
+      avatarUrl: null,
+    },
+    role: 'MEMBER',
+    joinedAt: '2026-09-30T11:00:00.000Z',
+  },
+];
+
+export const [ownerMember, plainMember] = otherMembers as [MemberDto, MemberDto];
+
+export const lastOwnerError = buildErrorBody({
+  code: 'BUSINESS_RULE_VIOLATION',
+  message: 'A workspace needs at least one owner',
+  details: [{ rule: 'LAST_OWNER', message: 'A workspace needs at least one owner' }],
+});
+
+export const forbiddenError = buildErrorBody({
+  code: 'FORBIDDEN',
+  message: 'You do not have permission to do this',
   details: [],
 });

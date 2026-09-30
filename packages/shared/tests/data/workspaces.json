@@ -30,6 +30,16 @@
     { "slug": "ab" },
     { "name": null }
   ],
+  "memberDto": {
+    "user": {
+      "id": "clx0000000000000000000001",
+      "name": "Grace Hopper",
+      "email": "grace@example.test",
+      "avatarUrl": null
+    },
+    "role": "ADMIN",
+    "joinedAt": "2026-09-30T10:00:00.000Z"
+  },
   "workspaceDto": {
     "id": "clx0000000000000000000010",
     "name": "Acme Team",

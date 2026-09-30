@@ -44,6 +44,9 @@ Sidebar 240px; hidden behind ☰ below 768px, where it opens as a drawer that cl
 ### Workspace home `/w/:slug`
 Grid of board tiles (board colour background, title in white, 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet" + "Create your first board".
 
+### Workspace members `/w/:slug/members`
+Linked from the workspace page next to Settings (WORKSPACE-003). One row per member: avatar, name ("(you)" for the caller), email, and role. The caller sees a role dropdown and "Remove" only on rows they may manage (an OWNER: everyone else, with Owner among the roles; an ADMIN: members up to Admin, without Owner); other rows show the role as text. "Remove" and "Leave workspace" (shown to everyone) ask for confirmation in an `AlertDialog`; leaving opens `/`. When the rules refuse an action (e.g. the last owner leaving), the reason is shown ("A workspace needs an owner. Make another member an owner first.").
+
 ### Workspace settings `/w/:slug/settings`
 Linked from the workspace page (WORKSPACE-002). "Details" holds the name and the URL (`/w/` + slug) with "Save changes" (≥ ADMIN; others see them read-only with "Only workspace admins can change these settings."). Only the changed fields are sent; a taken URL shows a field error. "Delete workspace" (OWNER only) opens an `AlertDialog` whose delete button stays disabled until the exact workspace name is typed; afterwards the app opens `/`.
 

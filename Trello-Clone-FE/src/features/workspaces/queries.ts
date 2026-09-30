@@ -5,10 +5,13 @@ import { getAccessToken } from '@/api/token-store';
 
 import { workspacesApi } from './api';
 
-import type { UpdateWorkspaceInput, WorkspaceDto } from '@trello-clone/shared';
+import type { MemberDto, Role, UpdateWorkspaceInput, WorkspaceDto } from '@trello-clone/shared';
+
+const all = ['workspaces'] as const;
 
 export const workspaceKeys = {
-  all: ['workspaces'] as const,
+  all,
+  members: (workspaceId: string) => [...all, workspaceId, 'members'] as const,
 };
 
 /** The caller's workspaces. Rendered only when signed in; never fetches without a token. */
@@ -88,6 +91,64 @@ export function useDeleteWorkspace(workspaceId: string) {
         list.filter((workspace) => workspace.id !== workspaceId),
       );
       await queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
+  });
+}
+
+/** The workspace's members (WORKSPACE-003). */
+export function useMembers(workspaceId: string) {
+  return useQuery({
+    queryKey: workspaceKeys.members(workspaceId),
+    queryFn: () => workspacesApi.listMembers(workspaceId),
+  });
+}
+
+/**
+ * PATCH …/members/:userId. The member is replaced in the cached list; the workspace list is
+ * refetched too, since the caller may have changed their own role.
+ */
+export function useChangeMemberRole(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: Role }) =>
+      workspacesApi.changeMemberRole(workspaceId, userId, { role }),
+    onSuccess: async (updated) => {
+      queryClient.setQueryData<MemberDto[]>(workspaceKeys.members(workspaceId), (list = []) =>
+        list.map((member) => (member.user.id === updated.user.id ? updated : member)),
+      );
+      await queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
+    },
+  });
+}
+
+/** DELETE …/members/:userId for someone else. The member leaves the cached list first. */
+export function useRemoveMember(workspaceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => workspacesApi.removeMember(workspaceId, userId),
+    onSuccess: async (_data, userId) => {
+      queryClient.setQueryData<MemberDto[]>(workspaceKeys.members(workspaceId), (list = []) =>
+        list.filter((member) => member.user.id !== userId),
+      );
+      await queryClient.invalidateQueries({ queryKey: workspaceKeys.members(workspaceId) });
+    },
+  });
+}
+
+/**
+ * DELETE …/members/<caller>: leave the workspace. It leaves the cached workspace list at once, so
+ * its pages redirect to `/` (WorkspaceGate), and its member list is dropped.
+ */
+export function useLeaveWorkspace(workspaceId: string, userId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => workspacesApi.removeMember(workspaceId, userId),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: workspaceKeys.members(workspaceId) });
+      queryClient.setQueryData<WorkspaceDto[]>(workspaceKeys.all, (list = []) =>
+        list.filter((workspace) => workspace.id !== workspaceId),
+      );
+      await queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });
     },
   });
 }
