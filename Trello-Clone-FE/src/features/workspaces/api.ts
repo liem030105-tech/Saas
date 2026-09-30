@@ -2,6 +2,9 @@ import { apiClient } from '@/api/client';
 
 import type {
   ChangeMemberRoleInput,
+  CreatedInviteDto,
+  CreateInviteInput,
+  InviteDto,
   CreateWorkspaceInput,
   MemberDto,
   UpdateWorkspaceInput,
@@ -27,4 +30,15 @@ export const workspacesApi = {
   /** DELETE …/members/:userId: remove a member (≥ ADMIN), or leave when `userId` is the caller. */
   removeMember: (workspaceId: string, userId: string) =>
     apiClient.delete<void>(`/workspaces/${workspaceId}/members/${userId}`),
+  /** GET …/invites (≥ ADMIN): pending invites, newest first. */
+  listInvites: (workspaceId: string) =>
+    apiClient.get<InviteDto[]>(`/workspaces/${workspaceId}/invites`),
+  /** POST …/invites (≥ ADMIN): the response's `inviteUrl` is shown once and never again. */
+  createInvite: (workspaceId: string, input: CreateInviteInput) =>
+    apiClient.post<CreatedInviteDto>(`/workspaces/${workspaceId}/invites`, input),
+  /** DELETE …/invites/:inviteId (≥ ADMIN). */
+  revokeInvite: (workspaceId: string, inviteId: string) =>
+    apiClient.delete<void>(`/workspaces/${workspaceId}/invites/${inviteId}`),
+  /** POST /invites/accept: joins the invite's workspace; the caller's email must match. */
+  acceptInvite: (token: string) => apiClient.post<WorkspaceDto>('/invites/accept', { token }),
 };

@@ -117,7 +117,7 @@
 
 ### D-18 Email delivery
 - **Question:** which email provider sends invites (and future notifications)?
-- **Current MVP behavior:** the invite link is returned in the API response to ADMIN/OWNER and logged in development. No email is sent.
+- **Current MVP behavior:** the invite link is returned once in the API response to ADMIN/OWNER, who copies and shares it (WORKSPACE-004). It is never logged (raw tokens stay out of logs). No email is sent.
 - **Affects:** WORKSPACE-004, NOTIFICATIONS-001. **Blocking:** no for MVP.
 
 ## Files

@@ -1,4 +1,5 @@
 // Public API of the workspaces feature: other code imports from '@/features/workspaces' only.
+export { AcceptInvite } from './components/AcceptInvite';
 export { FirstWorkspace } from './components/FirstWorkspace';
 export { MembersList } from './components/MembersList';
 export { WorkspaceGate } from './components/WorkspaceGate';

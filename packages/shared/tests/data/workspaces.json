@@ -40,6 +40,20 @@
     "role": "ADMIN",
     "joinedAt": "2026-09-30T10:00:00.000Z"
   },
+  "invalidInvites": [
+    { "email": "a@b.test", "role": "OWNER" },
+    { "email": "not-an-email", "role": "MEMBER" },
+    { "email": "a@b.test" },
+    { "role": "MEMBER" }
+  ],
+  "inviteDto": {
+    "id": "clx0000000000000000000031",
+    "email": "ada@example.test",
+    "role": "MEMBER",
+    "expiresAt": "2026-10-07T10:00:00.000Z",
+    "createdAt": "2026-09-30T10:00:00.000Z",
+    "invitedBy": { "id": "clx0000000000000000000001", "name": "Grace Hopper" }
+  },
   "workspaceDto": {
     "id": "clx0000000000000000000010",
     "name": "Acme Team",

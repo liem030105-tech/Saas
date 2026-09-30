@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RegisterInputSchema, type RegisterData, type RegisterInput } from '@trello-clone/shared';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 import { useRegister } from '../queries';
+import { safeRedirectPath } from '../redirect';
 
 const FIELDS = ['email', 'password', 'name'] as const;
 type Field = (typeof FIELDS)[number];
@@ -18,6 +19,7 @@ const GENERIC_ERROR = "Couldn't create your account. Check your connection and t
 
 export function RegisterForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const registerUser = useRegister();
   const form = useForm<RegisterInput, unknown, RegisterData>({
     resolver: zodResolver(RegisterInputSchema),
@@ -28,7 +30,8 @@ export function RegisterForm() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       await registerUser.mutateAsync(values);
-      await navigate('/');
+      // Same rule as login: back to where the visitor came from (e.g. an invite link), if safe.
+      await navigate(safeRedirectPath(searchParams.get('redirectTo')));
     } catch (error) {
       if (error instanceof ApiError && error.code === 'VALIDATION_ERROR') {
         // Same schema on both sides, so this is rare; map the server's field errors back anyway.

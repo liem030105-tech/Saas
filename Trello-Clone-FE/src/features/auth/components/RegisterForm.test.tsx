@@ -10,8 +10,9 @@ import {
   proxyErrorPage,
   registerFormInput,
   registerResponse,
+  unsafeRedirects,
 } from '@/testing/data/auth';
-import { firstWorkspacePage, pageCases } from '@/testing/data/routes';
+import { firstWorkspacePage, pageCases, profilePage } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
@@ -95,5 +96,36 @@ describe('RegisterForm', () => {
     ).toBeInTheDocument();
     expect(sentBody).toEqual(registerFormInput);
     await waitFor(() => expect(getAccessToken()).toBe(registerResponse.accessToken));
+  });
+
+  it('after signing up, returns to a safe redirectTo (e.g. an invite link)', async () => {
+    server.use(
+      mswHttp.post(REGISTER_URL, () =>
+        HttpResponse.json({ data: registerResponse }, { status: 201 }),
+      ),
+    );
+    const { router } = renderApp(
+      `${pageCases.register.path}?redirectTo=${encodeURIComponent(profilePage.path)}`,
+    );
+
+    await fillAndSubmit(registerFormInput);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(profilePage.path));
+  });
+
+  it('ignores an unsafe redirectTo and opens /', async () => {
+    server.use(
+      mswHttp.post(REGISTER_URL, () =>
+        HttpResponse.json({ data: registerResponse }, { status: 201 }),
+      ),
+    );
+    const { router } = renderApp(
+      `${pageCases.register.path}?redirectTo=${encodeURIComponent(unsafeRedirects[1]!)}`,
+    );
+
+    await fillAndSubmit(registerFormInput);
+
+    await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading });
+    expect(router.state.location.pathname).toBe(firstWorkspacePage.path);
   });
 });

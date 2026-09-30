@@ -92,7 +92,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | email | String | | | UQ(workspaceId, email) | One pending invite per email per workspace |
 | role | Role | | MEMBER | | Never `OWNER` (validation) |
 | tokenHash | String | | | UQ | `sha256(token)` |
-| invitedById | String | | | FK → User (Cascade) | |
+| invitedById | String | | | FK → User (Cascade) | Indexed (the FK cascades on user delete) |
 | expiresAt | DateTime | | | | Now + D-17 |
 | acceptedAt | DateTime | ✓ | | | Accepted invites are kept for audit; re-inviting deletes the old row |
 | createdAt | DateTime | | now | | |
@@ -319,6 +319,7 @@ model WorkspaceInvite {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
   @@unique([workspaceId, email])
+  @@index([invitedById])
 }
 
 model Board {
@@ -483,3 +484,5 @@ model Subscription {
 | `20260928153607_init_user` | FOUNDATION-004 | `User` table, unique index on `email` |
 | `20260929101050_add_refresh_token` | AUTH-001 | `RefreshToken` table (FK → `User`, cascade), unique `tokenHash`, indexes on `userId` and `familyId` |
 | `20260930083901_add_workspaces` | WORKSPACE-001 | Enums `Role`, `Plan`; `Workspace` (unique `slug`) and `WorkspaceMember` (PK `(userId, workspaceId)`, FKs → `User` and `Workspace` with cascade, indexes on `workspaceId` and `userId`) |
+| `20260930094251_add_workspace_invites` | WORKSPACE-004 | `WorkspaceInvite` (unique `tokenHash`, unique `(workspaceId, email)`, FKs → `Workspace` and `User` (inviter) with cascade) |
+| `20260930141107_add_invite_inviter_index` | WORKSPACE-004 | Index on `WorkspaceInvite.invitedById` (its FK cascades on user delete) |
