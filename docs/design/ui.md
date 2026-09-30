@@ -42,7 +42,7 @@ The API accepts any `#rrggbb`; the UI offers only the presets above. Text on a c
 Sidebar 240px; hidden behind ☰ below 768px, where it opens as a drawer that closes on navigation, Escape, or a click outside (WORKSPACE-001; the open state is local to the shell). Collapsing it on desktop, if added, keeps that UI state in a Zustand store.
 
 ### Workspace home `/w/:slug`
-Grid of board tiles (board colour background, title in white, 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet" + "Create your first board".
+Grid of board tiles (board colour background, title in white or near-black `#111111`, whichever passes WCAG AA on that colour; 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet." + "Create your first board". Create actions are hidden from a VIEWER (BOARD-001). Tiles link to `/b/:boardId` (the board page arrives with BOARD-002).
 
 ### Workspace members `/w/:slug/members`
 Linked from the workspace page next to Settings (WORKSPACE-003). One row per member: avatar, name ("(you)" for the caller), email, and role. The caller sees a role dropdown and "Remove" only on rows they may manage (an OWNER: everyone else, with Owner among the roles; an ADMIN: members up to Admin, without Owner); other rows show the role as text. "Remove" and "Leave workspace" (shown to everyone) ask for confirmation in an `AlertDialog`; leaving opens `/`. When the rules refuse an action (e.g. the last owner leaving), the reason is shown ("A workspace needs an owner. Make another member an owner first.").

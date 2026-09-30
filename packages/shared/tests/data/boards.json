@@ -1,0 +1,22 @@
+{
+  "validTitles": [
+    { "input": "  Sprint 12 ", "normalized": "Sprint 12" },
+    { "input": "A", "normalized": "A" }
+  ],
+  "invalidTitles": [
+    "",
+    "   ",
+    "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt"
+  ],
+  "validColors": ["#0079bf", "#D29034", "#000000"],
+  "invalidColors": ["0079bf", "#0079b", "#0079bfa", "#GGGGGG", "blue"],
+  "boardDto": {
+    "id": "clx0000000000000000000041",
+    "workspaceId": "clx0000000000000000000010",
+    "title": "Roadmap",
+    "background": "#0079bf",
+    "archived": false,
+    "createdAt": "2026-09-30T10:00:00.000Z",
+    "updatedAt": "2026-09-30T10:00:00.000Z"
+  }
+}

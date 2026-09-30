@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { paths } from '../data/http';
-import { tenantData } from '../data/workspaces';
+import { boardData, tenantData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { createTestApp } from '../helpers/test-app';
 import { createTwoTenants, snapshotWorkspace, type Tenant } from '../helpers/two-tenants';
@@ -61,6 +61,7 @@ const expectNoTraceOf = (res: request.Response, b: Tenant) => {
     b.owner.user.id,
     b.member.user.id,
     b.inviteId,
+    b.boardId,
     tenantData.inviteEmail.b,
   ]) {
     expect(body).not.toContain(value);
@@ -238,6 +239,41 @@ const cases: IsolationCase[] = [
         .post(paths.invitesAccept)
         .set(bearer(a.owner.token))
         .send({ token: b.inviteToken }),
+  },
+  {
+    route: 'GET /workspaces/:workspaceId/boards',
+    attempt: "list B's boards",
+    request: (a, b) =>
+      request(app)
+        .get(`${ws(b.workspaceId)}/boards`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${ws(missingId)}/boards`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /workspaces/:workspaceId/boards',
+    attempt: "list A's own boards: none of B's appear (rule 5)",
+    request: (a) =>
+      request(app)
+        .get(`${ws(a.workspaceId)}/boards`)
+        .set(bearer(a.owner.token)),
+    expectResponse: expectNoTraceOf,
+  },
+  {
+    route: 'POST /workspaces/:workspaceId/boards',
+    attempt: "create a board in B's workspace",
+    request: (a, b) =>
+      request(app)
+        .post(`${ws(b.workspaceId)}/boards`)
+        .set(bearer(a.owner.token))
+        .send({ title: boardData.tenantBoard.a }),
+    missing: (a) =>
+      request(app)
+        .post(`${ws(missingId)}/boards`)
+        .set(bearer(a.owner.token))
+        .send({ title: boardData.tenantBoard.a }),
   },
 ];
 

@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router';
 
+import { BoardsGrid } from '@/features/boards';
 import {
+  can,
   WorkspaceGate,
   workspaceMembersPath,
   workspacePath,
@@ -10,7 +12,7 @@ import {
 import { NotFoundPage } from './NotFoundPage';
 
 // `/w/:slug` (WORKSPACE-001): resolved from the caller's workspace list, so a slug they cannot see
-// looks like an unknown page. Boards arrive with BOARD-001.
+// looks like an unknown page. Shows the workspace's boards (BOARD-001).
 export function WorkspacePage() {
   const { slug } = useParams();
 
@@ -35,7 +37,12 @@ export function WorkspacePage() {
               </Link>
             </nav>
           </div>
-          <p className="text-muted-foreground">No boards yet. Boards arrive in the next update.</p>
+          <section aria-labelledby="boards-heading" className="flex flex-col gap-3">
+            <h2 id="boards-heading" className="text-lg font-semibold">
+              Boards
+            </h2>
+            <BoardsGrid workspaceId={workspace.id} canCreate={can(workspace.role, 'board.edit')} />
+          </section>
         </main>
       )}
     </WorkspaceGate>
