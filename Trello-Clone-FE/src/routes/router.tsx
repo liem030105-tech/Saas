@@ -7,6 +7,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { WorkspacePage } from '@/pages/WorkspacePage';
+import { WorkspaceSettingsPage } from '@/pages/WorkspaceSettingsPage';
 
 import { HomeRoute } from './HomeRoute';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -30,6 +31,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: '/settings/profile', element: <ProfilePage /> },
           { path: '/w/:slug', element: <WorkspacePage /> },
+          { path: '/w/:slug/settings', element: <WorkspaceSettingsPage /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },

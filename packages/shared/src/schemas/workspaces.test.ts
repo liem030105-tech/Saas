@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CreateWorkspaceInputSchema,
+  UpdateWorkspaceInputSchema,
   WorkspaceDtoSchema,
   WorkspaceNameSchema,
   WorkspaceSlugSchema,
@@ -40,5 +41,21 @@ describe('CreateWorkspaceInputSchema / WorkspaceDtoSchema', () => {
     expect(WorkspaceDtoSchema.safeParse({ ...data.workspaceDto, role: 'GUEST' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('UpdateWorkspaceInputSchema', () => {
+  it.each(data.validUpdates)('accepts %j', (input) => {
+    expect(UpdateWorkspaceInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each(data.invalidUpdates)('rejects %j', (input) => {
+    expect(UpdateWorkspaceInputSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('trims the name and strips unknown fields', () => {
+    expect(UpdateWorkspaceInputSchema.parse({ name: ' Acme ', plan: 'PRO' })).toEqual({
+      name: 'Acme',
+    });
   });
 });

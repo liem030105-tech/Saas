@@ -36,28 +36,33 @@
 | | |
 |--|--|
 | Task | WORKSPACE-002 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER |
 | Success | `200 { data: WorkspaceDto }` |
-| Errors | `401` · `404` |
+| Errors | `401` · `404` · `429 RATE_LIMITED` |
 
-The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. No slug lookup endpoint is needed.
+The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. No slug lookup endpoint is needed. A malformed id answers `404` like an unknown one.
 
 ### PATCH /workspaces/:workspaceId
 | | |
 |--|--|
 | Task | WORKSPACE-002 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN |
-| Body | `{ name?, slug? }` |
+| Body | `{ name?, slug? }`, at least one |
 | Success | `200 { data: WorkspaceDto }` |
-| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (slug taken) |
+| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (slug taken) · `429 RATE_LIMITED` |
+
+**Behavior:** the role is checked before the body, so a non-member gets `404` even for an invalid body. The slug follows the slug rule ([README → Validation rules](README.md#validation-rules)); the unique index decides conflicts. The old slug is not kept as an alias. Schema: `UpdateWorkspaceInputSchema` (`@trello-clone/shared`).
 
 ### DELETE /workspaces/:workspaceId
 | | |
 |--|--|
 | Task | WORKSPACE-002 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | OWNER |
-| Success | `204`. Cascades to all boards and content ([relationships.md](../database/relationships.md#foreign-keys-and-delete-behavior)) |
-| Errors | `401` · `403` · `404` |
+| Success | `204`. Cascades to members, invitations, and all boards and content ([relationships.md](../database/relationships.md#foreign-keys-and-delete-behavior)) |
+| Errors | `401` · `403` · `404` · `429 RATE_LIMITED` |
 
 ## Members
 

@@ -18,6 +18,18 @@
     "acme_team",
     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   ],
+  "validUpdates": [
+    { "name": "Renamed" },
+    { "slug": "new-slug" },
+    { "name": "Renamed", "slug": "new-slug" }
+  ],
+  "invalidUpdates": [
+    {},
+    { "name": "   " },
+    { "slug": "Bad Slug" },
+    { "slug": "ab" },
+    { "name": null }
+  ],
   "workspaceDto": {
     "id": "clx0000000000000000000010",
     "name": "Acme Team",
