@@ -50,7 +50,13 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
   });
 
   it('lists the activity types logged so far', () => {
-    expect(ACTIVITY_TYPES).toEqual(['BOARD_CREATED', 'BOARD_UPDATED', 'LIST_CREATED']);
+    expect(ACTIVITY_TYPES).toEqual([
+      'BOARD_CREATED',
+      'BOARD_UPDATED',
+      'LIST_CREATED',
+      'LIST_UPDATED',
+      'LIST_ARCHIVED',
+    ]);
   });
 });
 

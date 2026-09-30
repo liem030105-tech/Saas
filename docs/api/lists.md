@@ -22,23 +22,27 @@
 | | |
 |--|--|
 | Task | LIST-002 (`title`, `archived`) · LIST-003 (`position`) |
-| Authorization | ≥ MEMBER |
-| Body | `{ title?, archived?, position? }` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (the list resolves to its stored board → `assertBoardAccess(…, 'list.manage')`) |
+| Body | `{ title?, archived?, position? }`, at least one. Until LIST-003, `position` is ignored (a body with only `position` is `400`) |
 | Success | `200 { data: ListDto }` with the final stored `position` |
-| Errors | `400` · `401` · `403` · `404` |
+| Errors | `400` · `401` · `403` · `404` (unknown list, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 **Behavior:**
 - A `position` change logs `LIST_MOVED` and may trigger a rebalance of the board's lists in the same transaction.
-- `archived: true` logs `LIST_ARCHIVED`. Other changes log `LIST_UPDATED`.
+- `archived: true` logs `LIST_ARCHIVED`. Other changes (a rename, `archived: false`) log `LIST_UPDATED`. The entry's `data` is `{ listId, …changed fields }`, written in the same transaction.
+- An archived list keeps its `position`, so unarchiving puts it back where it was. It is hidden from `GET /boards/:boardId`.
 - Lists cannot move to another board (out of scope).
+- Schema: `UpdateListInputSchema` (`@trello-clone/shared`).
 
 ### DELETE /lists/:listId
 | | |
 |--|--|
 | Task | LIST-002 |
-| Authorization | ≥ MEMBER |
-| Success | `204`. Deletes the list's cards (cascade) |
-| Errors | `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (as PATCH) |
+| Success | `204`. Deletes the list's cards (cascade, from CARD-001). Logs nothing: the list's history goes with it |
+| Errors | `401` · `403` · `404` (unknown list, malformed id, not a member, or already deleted) · `429 RATE_LIMITED` |
 
 ## Realtime (Post-MVP, REALTIME-001)
 `list:created`, `list:updated`, `list:moved`, `list:deleted`, `list:reordered` → room `board:{boardId}`. See [realtime.md](../architecture/realtime.md#events). **MVP tasks do not emit.**

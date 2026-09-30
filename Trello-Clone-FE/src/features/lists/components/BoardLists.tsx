@@ -1,11 +1,12 @@
 import { AddListComposer } from './AddListComposer';
+import { isOptimisticList } from '../queries';
 import { ListColumn } from './ListColumn';
 
 import type { BoardDetailDto } from '@trello-clone/shared';
 
 interface BoardListsProps {
   board: BoardDetailDto;
-  /** Add lists (≥ MEMBER; UX only, the API re-checks). */
+  /** Add, rename, archive and delete lists (≥ MEMBER; UX only, the API re-checks). */
   canEdit: boolean;
 }
 
@@ -25,7 +26,8 @@ export function BoardLists({ board, canEdit }: BoardListsProps) {
         <ol aria-label="Lists" className="flex items-start gap-3">
           {lists.map((list) => (
             <li key={list.id}>
-              <ListColumn list={list} />
+              {/* A list still being created has no real id yet: read-only until the server answers. */}
+              <ListColumn list={list} canEdit={canEdit && !isOptimisticList(list)} />
             </li>
           ))}
         </ol>

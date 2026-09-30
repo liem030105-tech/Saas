@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { PositionSchema } from './common';
-import { CreateListInputSchema, ListDtoSchema, ListTitleSchema } from './lists';
+import {
+  CreateListInputSchema,
+  ListDtoSchema,
+  ListTitleSchema,
+  UpdateListInputSchema,
+} from './lists';
 import data from '../../tests/data/lists.json';
 
 describe('ListTitleSchema', () => {
@@ -46,5 +51,16 @@ describe('CreateListInputSchema', () => {
 describe('ListDtoSchema', () => {
   it('accepts a list as the API returns it', () => {
     expect(ListDtoSchema.parse(data.listDto)).toEqual(data.listDto);
+  });
+});
+
+describe('UpdateListInputSchema', () => {
+  it.each(data.validUpdates)('accepts %j', (input) => {
+    expect(UpdateListInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  // `position` alone is not a change yet (LIST-003): it is stripped, leaving no field.
+  it.each(data.invalidUpdates)('rejects %j', (input) => {
+    expect(UpdateListInputSchema.safeParse(input).success).toBe(false);
   });
 });

@@ -203,3 +203,31 @@ describeRoleMatrix(getApp, {
       .send({ title: listData.tenantList.a }),
   expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
 });
+
+/** A board with one list, both created by the workspace OWNER. */
+async function addList(ctx: Omit<MatrixContext, 'caller' | 'fixture'>) {
+  const { boardId } = await addBoard(ctx);
+  const res = await request(ctx.app)
+    .post(`${paths.boards}/${boardId}/lists`)
+    .set(bearer(ctx.owner.token))
+    .send({ title: listData.tenantList.a })
+    .expect(201);
+  return { boardId, listId: res.body.data.id as string };
+}
+
+const listPath = (ctx: MatrixContext) => `${paths.lists}/${ctx.fixture.listId}`;
+
+describeRoleMatrix(getApp, {
+  name: 'PATCH /lists/:listId',
+  setup: addList,
+  request: (ctx) =>
+    request(ctx.app).patch(listPath(ctx)).set(as(ctx)).send({ title: listData.tenantList.b }),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /lists/:listId',
+  setup: addList,
+  request: (ctx) => request(ctx.app).delete(listPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});

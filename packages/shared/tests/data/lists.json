@@ -20,5 +20,11 @@
     "archived": false,
     "createdAt": "2026-09-30T10:00:00.000Z",
     "updatedAt": "2026-09-30T10:00:00.000Z"
-  }
+  },
+  "validUpdates": [
+    { "title": "Renamed" },
+    { "archived": true },
+    { "title": "Renamed", "archived": false }
+  ],
+  "invalidUpdates": [{}, { "title": "  " }, { "archived": "yes" }, { "position": 2048 }]
 }
