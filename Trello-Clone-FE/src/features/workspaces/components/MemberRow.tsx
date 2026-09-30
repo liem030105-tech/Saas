@@ -1,16 +1,24 @@
 import { type MemberDto, type Role, type WorkspaceDto } from '@trello-clone/shared';
+import { ChevronDownIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { initials } from '@/components/layout/Header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { ConfirmDialog } from './ConfirmDialog';
 import { memberErrorMessage } from '../memberErrors';
 import { assignableRoles, canManageMember } from '../permissions';
 import { useChangeMemberRole, useRemoveMember } from '../queries';
 
-export const ROLE_LABELS: Record<Role, string> = {
+const ROLE_LABELS: Record<Role, string> = {
   OWNER: 'Owner',
   ADMIN: 'Admin',
   MEMBER: 'Member',
@@ -27,7 +35,7 @@ interface MemberRowProps {
 }
 
 /**
- * One member: avatar, name, email, and role. The role dropdown and "Remove" appear only when the
+ * One member: avatar, name, email, and role. The role menu and "Remove" appear only when the
  * caller may manage this member (UX only; the API enforces the same rules).
  */
 export function MemberRow({ member, workspace, isSelf }: MemberRowProps) {
@@ -37,6 +45,7 @@ export function MemberRow({ member, workspace, isSelf }: MemberRowProps) {
   const manageable = !isSelf && canManageMember(workspace.role, member.role);
 
   const onRoleChange = (role: Role) => {
+    if (role === member.role) return;
     changeRole.mutate(
       { userId: user.id, role },
       { onError: (error) => toast.error(memberErrorMessage(error, ROLE_ERROR)) },
@@ -67,19 +76,31 @@ export function MemberRow({ member, workspace, isSelf }: MemberRowProps) {
         <span className="truncate text-xs text-muted-foreground">{user.email}</span>
       </div>
       {manageable ? (
-        <select
-          aria-label={`Role for ${user.name}`}
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
-          value={member.role}
-          disabled={changeRole.isPending}
-          onChange={(event) => onRoleChange(event.target.value as Role)}
-        >
-          {assignableRoles(workspace.role).map((role) => (
-            <option key={role} value={role}>
-              {ROLE_LABELS[role]}
-            </option>
-          ))}
-        </select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={`Role for ${user.name}`}
+              disabled={changeRole.isPending}
+            >
+              {ROLE_LABELS[member.role]}
+              <ChevronDownIcon aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup
+              value={member.role}
+              onValueChange={(value) => onRoleChange(value as Role)}
+            >
+              {assignableRoles(workspace.role).map((role) => (
+                <DropdownMenuRadioItem key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : (
         <span className="text-sm text-muted-foreground">{ROLE_LABELS[member.role]}</span>
       )}

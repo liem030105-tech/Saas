@@ -104,3 +104,9 @@ export const lastOwnerError = buildErrorBody({
   message: 'A workspace needs at least one owner',
   details: [{ rule: 'LAST_OWNER', message: 'A workspace needs at least one owner' }],
 });
+
+export const forbiddenError = buildErrorBody({
+  code: 'FORBIDDEN',
+  message: 'You do not have permission to do this',
+  details: [],
+});

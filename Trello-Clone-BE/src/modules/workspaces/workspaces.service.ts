@@ -149,17 +149,20 @@ const lastOwner = () => AppError.businessRule('LAST_OWNER', 'A workspace needs a
 type Tx = Prisma.TransactionClient;
 
 /**
- * Locks the workspace's OWNER rows and returns how many there are. Every change that could remove
- * an OWNER runs this first in its transaction, so two concurrent demotions cannot both see "2
- * owners" (WORKSPACE-003 → Risks; invariant I4).
+ * Serializes member changes per workspace: locks the workspace row (`FOR NO KEY UPDATE`, which
+ * still lets inserts referencing it through), so everything read after this in the transaction is
+ * current. Every change that could remove an OWNER or depends on the caller's role takes it
+ * first (WORKSPACE-003 → Risks; invariant I4). A concurrent workspace DELETE locks the same row
+ * before cascading, so the two cannot deadlock. A deleted workspace → 404.
  */
-async function lockOwners(tx: Tx, workspaceId: string) {
-  const owners = await tx.$queryRaw<{ userId: string }[]>`
-    SELECT "userId" FROM "WorkspaceMember"
-    WHERE "workspaceId" = ${workspaceId} AND "role" = 'OWNER'
-    FOR UPDATE`;
-  return owners.length;
+async function lockWorkspace(tx: Tx, workspaceId: string) {
+  const rows = await tx.$queryRaw<unknown[]>`
+    SELECT 1 FROM "Workspace" WHERE "id" = ${workspaceId} FOR NO KEY UPDATE`;
+  if (rows.length === 0) throw AppError.notFound();
 }
+
+const countOwners = (tx: Tx, workspaceId: string) =>
+  tx.workspaceMember.count({ where: { workspaceId, role: 'OWNER' } });
 
 async function findMember(tx: Tx, workspaceId: string, userId: string) {
   const member = await tx.workspaceMember.findUnique({
@@ -171,14 +174,14 @@ async function findMember(tx: Tx, workspaceId: string, userId: string) {
 }
 
 /**
- * The caller's role, re-read and locked inside the transaction: the role the route checked may
- * have changed since (e.g. an OWNER demoted while granting OWNER). Gone → 404, like a non-member.
+ * The caller's role, re-read after lockWorkspace: the role the route checked may have changed
+ * since (e.g. an OWNER demoted while granting OWNER). Gone → 404, like a non-member.
  */
-async function lockActorRole(tx: Tx, workspaceId: string, actorId: string) {
-  const [actor] = await tx.$queryRaw<{ role: Role }[]>`
-    SELECT "role" FROM "WorkspaceMember"
-    WHERE "workspaceId" = ${workspaceId} AND "userId" = ${actorId}
-    FOR UPDATE`;
+async function currentActorRole(tx: Tx, workspaceId: string, actorId: string) {
+  const actor = await tx.workspaceMember.findUnique({
+    where: { userId_workspaceId: { userId: actorId, workspaceId } },
+    select: { role: true },
+  });
   if (!actor) throw AppError.notFound();
   return actor.role;
 }
@@ -196,14 +199,14 @@ export async function changeMemberRole(
   role: Role,
 ): Promise<MemberDto> {
   return prisma.$transaction(async (tx) => {
-    const owners = await lockOwners(tx, workspaceId);
-    const actorRole = await lockActorRole(tx, workspaceId, actorId);
+    await lockWorkspace(tx, workspaceId);
+    const actorRole = await currentActorRole(tx, workspaceId, actorId);
     if (!hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
     const target = await findMember(tx, workspaceId, targetUserId);
     assertMayManage(actorRole, target.role);
     if (role === 'OWNER' && actorRole !== 'OWNER') throw AppError.forbidden();
     if (target.role === role) return toMemberDto(target);
-    if (target.role === 'OWNER' && owners <= 1) throw lastOwner();
+    if (target.role === 'OWNER' && (await countOwners(tx, workspaceId)) <= 1) throw lastOwner();
 
     const updated = await tx.workspaceMember.update({
       where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
@@ -226,12 +229,12 @@ export async function removeMember(
   const leaving = actorId === targetUserId;
 
   await prisma.$transaction(async (tx) => {
-    const owners = await lockOwners(tx, workspaceId);
-    const actorRole = await lockActorRole(tx, workspaceId, actorId);
+    await lockWorkspace(tx, workspaceId);
+    const actorRole = await currentActorRole(tx, workspaceId, actorId);
     if (!leaving && !hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
     const target = await findMember(tx, workspaceId, targetUserId);
     if (!leaving) assertMayManage(actorRole, target.role);
-    if (target.role === 'OWNER' && owners <= 1) throw lastOwner();
+    if (target.role === 'OWNER' && (await countOwners(tx, workspaceId)) <= 1) throw lastOwner();
 
     // The member's CardMember rows in this workspace are removed here too from CARD-005 (I3).
     await tx.workspaceMember.delete({

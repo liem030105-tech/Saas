@@ -7,9 +7,11 @@ import { workspacesApi } from './api';
 
 import type { MemberDto, Role, UpdateWorkspaceInput, WorkspaceDto } from '@trello-clone/shared';
 
+const all = ['workspaces'] as const;
+
 export const workspaceKeys = {
-  all: ['workspaces'] as const,
-  members: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
+  all,
+  members: (workspaceId: string) => [...all, workspaceId, 'members'] as const,
 };
 
 /** The caller's workspaces. Rendered only when signed in; never fetches without a token. */

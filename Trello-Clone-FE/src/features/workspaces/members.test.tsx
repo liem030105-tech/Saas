@@ -8,6 +8,7 @@ import {
   acmeAs,
   acmeWorkspace,
   betaWorkspace,
+  forbiddenError,
   lastOwnerError,
   membersWith,
   ownerMember,
@@ -72,8 +73,14 @@ async function openMembers(role: Role, others: WorkspaceDto[] = []) {
 
 const rowOf = (member: MemberDto) =>
   screen.getByText(member.user.email).closest('li') as HTMLElement;
-const roleSelect = (member: MemberDto) =>
-  screen.queryByRole('combobox', { name: `Role for ${member.user.name}` });
+const roleButton = (member: MemberDto) =>
+  screen.queryByRole('button', { name: `Role for ${member.user.name}` });
+
+/** Opens a member's role menu with the keyboard (Radix opens on Enter) and returns its options. */
+async function openRoleMenu(member: MemberDto) {
+  fireEvent.keyDown(roleButton(member)!, { key: 'Enter' });
+  return screen.findAllByRole('menuitemradio');
+}
 const removeButton = (member: MemberDto) =>
   screen.queryByRole('button', { name: `Remove ${member.user.name}` });
 
@@ -110,27 +117,27 @@ describe('workspace members (/w/:slug/members)', () => {
     await openMembers('OWNER');
 
     for (const member of [ownerMember, plainMember]) {
-      expect(roleSelect(member)).toBeInTheDocument();
+      expect(roleButton(member)).toBeInTheDocument();
       expect(removeButton(member)).toBeInTheDocument();
     }
-    const options = within(roleSelect(plainMember)!).getAllByRole('option');
+    expect(screen.queryByRole('button', { name: `Role for ${currentUser.name}` })).toBeNull();
+    const options = await openRoleMenu(plainMember);
     expect(options.map((o) => o.textContent)).toEqual(['Owner', 'Admin', 'Member', 'Viewer']);
-    expect(screen.queryByRole('combobox', { name: `Role for ${currentUser.name}` })).toBeNull();
   });
 
   it('an ADMIN cannot touch an OWNER and cannot grant Owner', async () => {
     await openMembers('ADMIN');
 
-    expect(roleSelect(ownerMember)).not.toBeInTheDocument();
+    expect(roleButton(ownerMember)).not.toBeInTheDocument();
     expect(removeButton(ownerMember)).not.toBeInTheDocument();
-    const options = within(roleSelect(plainMember)!).getAllByRole('option');
+    const options = await openRoleMenu(plainMember);
     expect(options.map((o) => o.textContent)).toEqual(['Admin', 'Member', 'Viewer']);
   });
 
   it.each(['MEMBER', 'VIEWER'] as const)('a %s sees the list read-only', async (role) => {
     await openMembers(role);
 
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Role for / })).not.toBeInTheDocument();
     expect(removeButton(plainMember)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Leave workspace' })).toBeInTheDocument();
   });
@@ -138,12 +145,28 @@ describe('workspace members (/w/:slug/members)', () => {
   it('changing a role sends it and updates the row', async () => {
     const { state } = await openMembers('OWNER');
 
-    fireEvent.change(roleSelect(plainMember)!, { target: { value: 'ADMIN' } });
+    const options = await openRoleMenu(plainMember);
+    fireEvent.click(options.find((o) => o.textContent === 'Admin')!);
 
     await waitFor(() =>
       expect(state.patches).toEqual([{ userId: plainMember.user.id, body: { role: 'ADMIN' } }]),
     );
-    await waitFor(() => expect(roleSelect(plainMember)).toHaveValue('ADMIN'));
+    await waitFor(() => expect(roleButton(plainMember)).toHaveTextContent('Admin'));
+  });
+
+  it('a refused role change is explained and the role stays', async () => {
+    await openMembers('ADMIN');
+    server.use(
+      mswHttp.patch(memberUrl(plainMember.user.id), () =>
+        HttpResponse.json(forbiddenError, { status: 403 }),
+      ),
+    );
+
+    const options = await openRoleMenu(plainMember);
+    fireEvent.click(options.find((o) => o.textContent === 'Viewer')!);
+
+    expect(await screen.findByText(forbiddenError.error.message)).toBeInTheDocument();
+    expect(roleButton(plainMember)).toHaveTextContent('Member');
   });
 
   it('removing a member asks first, then drops the row', async () => {
