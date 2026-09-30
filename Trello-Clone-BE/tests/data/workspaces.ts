@@ -52,3 +52,14 @@ export const invalidWorkspaceUpdates = [
   { case: 'slug with spaces and capitals', body: { slug: 'Bad Slug' } },
   { case: 'slug under 3 chars', body: { slug: 'ab' } },
 ] as const;
+
+/** Members tests (WORKSPACE-003). Names are out of order on purpose, to check sorting. */
+export const memberNames = { owner: 'Olivia Owner', admin: 'zed Admin', admin2: 'Amy Admin' };
+export const membersWorkspaceName = 'Members';
+
+/** One invalid PATCH …/members/:userId body per rule; each must fail with 400. */
+export const invalidRoleBodies = [
+  { case: 'missing role', body: {} },
+  { case: 'unknown role', body: { role: 'GUEST' } },
+  { case: 'lower-case role', body: { role: 'admin' } },
+] as const;

@@ -70,25 +70,31 @@ The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. 
 | | |
 |--|--|
 | Task | WORKSPACE-003 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER |
-| Success | `200 { data: MemberDto[] }` ordered by role, then name |
+| Success | `200 { data: MemberDto[] }` ordered by role (OWNER first), then name (case-insensitive) |
+| Errors | `401` · `404` · `429 RATE_LIMITED` |
 
 ### PATCH /workspaces/:workspaceId/members/:userId
 | | |
 |--|--|
 | Task | WORKSPACE-003 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN, subject to footnotes 1–3 of the [permission matrix](README.md#permission-matrix) |
 | Body | `{ role }` |
-| Success | `200 { data: MemberDto }` |
-| Errors | `400` · `403` (ADMIN acting on an OWNER, or granting OWNER) · `404` (workspace or member not found) · `422` rule `LAST_OWNER` |
+| Success | `200 { data: MemberDto }` (unchanged when the role is the same) |
+| Errors | `400` · `401` · `403` (ADMIN acting on an OWNER, or granting OWNER) · `404` (workspace or member not found) · `422` rule `LAST_OWNER` · `429 RATE_LIMITED` |
 
 ### DELETE /workspaces/:workspaceId/members/:userId
 | | |
 |--|--|
 | Task | WORKSPACE-003 |
-| Authorization | ≥ ADMIN (subject to footnotes), **or** `userId` = caller (leave) |
-| Success | `204`. Also removes the user's `CardMember` rows in this workspace (I3) and revokes nothing else |
-| Errors | `403` · `404` · `422` rule `LAST_OWNER` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ ADMIN (subject to footnotes), **or** `userId` = caller (leave, any role) |
+| Success | `204`. Also removes the user's `CardMember` rows in this workspace (I3; from CARD-005, when that table exists) and revokes nothing else |
+| Errors | `401` · `403` · `404` · `422` rule `LAST_OWNER` · `429 RATE_LIMITED` |
+
+**Behavior (PATCH and DELETE):** each runs in one transaction that first locks the workspace's OWNER rows and the caller's own row (`SELECT … FOR UPDATE`), then re-reads the caller's role. Two OWNERs demoting or removing each other at the same time therefore always leave one OWNER (I4), and an OWNER demoted at the same moment cannot still grant OWNER. A `422` body is `details: [{ rule: "LAST_OWNER", message }]`; rule names are `BUSINESS_RULES` in `@trello-clone/shared`. Schemas: `ChangeMemberRoleInputSchema`, `MemberDtoSchema`.
 
 ## Invitations
 

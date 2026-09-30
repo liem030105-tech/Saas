@@ -1,5 +1,5 @@
 // Error codes and the detail shape are the API contract, shared with the FE.
-import type { ErrorCode, ErrorDetail } from '@trello-clone/shared';
+import type { BusinessRule, ErrorCode, ErrorDetail } from '@trello-clone/shared';
 
 export class AppError extends Error {
   override readonly name = 'AppError';
@@ -19,6 +19,11 @@ export class AppError extends Error {
 
   static forbidden(message = 'You do not have permission to do this') {
     return new AppError('FORBIDDEN', 403, message);
+  }
+
+  /** 422: valid input that breaks a rule; `details[0].rule` names it (docs/api/README.md). */
+  static businessRule(rule: BusinessRule, message: string) {
+    return new AppError('BUSINESS_RULE_VIOLATION', 422, message, [{ rule, message }]);
   }
 
   static unauthorized(message = 'Authentication required') {

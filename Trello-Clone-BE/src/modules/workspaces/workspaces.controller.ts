@@ -3,7 +3,11 @@ import { currentUserId } from '../../middlewares/authenticate';
 import { validated } from '../../middlewares/validate';
 
 import type { Role } from '../../generated/prisma/client';
-import type { CreateWorkspaceData, UpdateWorkspaceData } from '@trello-clone/shared';
+import type {
+  ChangeMemberRoleInput,
+  CreateWorkspaceData,
+  UpdateWorkspaceData,
+} from '@trello-clone/shared';
 import type { Request, Response } from 'express';
 
 export async function list(req: Request, res: Response) {
@@ -34,5 +38,28 @@ export async function update(req: Request, res: Response) {
 
 export async function remove(req: Request, res: Response) {
   await workspacesService.remove(workspaceIdOf(req));
+  res.status(204).end();
+}
+
+const targetUserIdOf = (req: Request) => req.params.userId as string;
+
+export async function listMembers(req: Request, res: Response) {
+  const members = await workspacesService.listMembers(workspaceIdOf(req));
+  res.status(200).json({ data: members });
+}
+
+export async function changeMemberRole(req: Request, res: Response) {
+  const { body } = validated<unknown, unknown, ChangeMemberRoleInput>(res);
+  const member = await workspacesService.changeMemberRole(
+    workspaceIdOf(req),
+    currentUserId(req),
+    targetUserIdOf(req),
+    body.role,
+  );
+  res.status(200).json({ data: member });
+}
+
+export async function removeMember(req: Request, res: Response) {
+  await workspacesService.removeMember(workspaceIdOf(req), currentUserId(req), targetUserIdOf(req));
   res.status(204).end();
 }

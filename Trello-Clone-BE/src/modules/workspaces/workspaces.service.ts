@@ -1,12 +1,19 @@
+import { ROLE_ORDER } from '@trello-clone/shared';
+
 import { slugCandidates } from './slug';
-import { toWorkspaceDto } from './workspaces.mapper';
+import { toMemberDto, toWorkspaceDto } from './workspaces.mapper';
 import * as workspacesRepository from './workspaces.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { hasRole } from '../../lib/roles';
 
-import type { CreateWorkspaceData, UpdateWorkspaceData, WorkspaceDto } from '@trello-clone/shared';
+import type {
+  CreateWorkspaceData,
+  MemberDto,
+  UpdateWorkspaceData,
+  WorkspaceDto,
+} from '@trello-clone/shared';
 
 // docs/api/workspaces.md. Other modules call assertWorkspaceAccess, never the repository.
 
@@ -120,4 +127,115 @@ export async function remove(workspaceId: string): Promise<void> {
     if (isNotFound(error)) throw AppError.notFound();
     throw error;
   }
+}
+
+// Members (WORKSPACE-003). Rules: docs/api/README.md → Permission matrix, footnotes 1–3.
+
+/** GET /workspaces/:workspaceId/members: ordered by role (OWNER first), then name. */
+export async function listMembers(workspaceId: string): Promise<MemberDto[]> {
+  const members = await workspacesRepository.listMembers(workspaceId);
+  return members
+    .sort(
+      (a, b) =>
+        ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) ||
+        byName.compare(a.user.name, b.user.name) ||
+        a.userId.localeCompare(b.userId),
+    )
+    .map(toMemberDto);
+}
+
+const lastOwner = () => AppError.businessRule('LAST_OWNER', 'A workspace needs at least one owner');
+
+type Tx = Prisma.TransactionClient;
+
+/**
+ * Locks the workspace's OWNER rows and returns how many there are. Every change that could remove
+ * an OWNER runs this first in its transaction, so two concurrent demotions cannot both see "2
+ * owners" (WORKSPACE-003 → Risks; invariant I4).
+ */
+async function lockOwners(tx: Tx, workspaceId: string) {
+  const owners = await tx.$queryRaw<{ userId: string }[]>`
+    SELECT "userId" FROM "WorkspaceMember"
+    WHERE "workspaceId" = ${workspaceId} AND "role" = 'OWNER'
+    FOR UPDATE`;
+  return owners.length;
+}
+
+async function findMember(tx: Tx, workspaceId: string, userId: string) {
+  const member = await tx.workspaceMember.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } },
+    include: { user: workspacesRepository.memberUserSelect },
+  });
+  if (!member) throw AppError.notFound();
+  return member;
+}
+
+/**
+ * The caller's role, re-read and locked inside the transaction: the role the route checked may
+ * have changed since (e.g. an OWNER demoted while granting OWNER). Gone → 404, like a non-member.
+ */
+async function lockActorRole(tx: Tx, workspaceId: string, actorId: string) {
+  const [actor] = await tx.$queryRaw<{ role: Role }[]>`
+    SELECT "role" FROM "WorkspaceMember"
+    WHERE "workspaceId" = ${workspaceId} AND "userId" = ${actorId}
+    FOR UPDATE`;
+  if (!actor) throw AppError.notFound();
+  return actor.role;
+}
+
+/** Footnote 3: an ADMIN acts only on targets ≤ ADMIN; only an OWNER touches or grants OWNER. */
+function assertMayManage(actorRole: Role, targetRole: Role) {
+  if (targetRole === 'OWNER' && actorRole !== 'OWNER') throw AppError.forbidden();
+}
+
+/** PATCH /workspaces/:workspaceId/members/:userId (≥ ADMIN; the route checks it first too). */
+export async function changeMemberRole(
+  workspaceId: string,
+  actorId: string,
+  targetUserId: string,
+  role: Role,
+): Promise<MemberDto> {
+  return prisma.$transaction(async (tx) => {
+    const owners = await lockOwners(tx, workspaceId);
+    const actorRole = await lockActorRole(tx, workspaceId, actorId);
+    if (!hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
+    const target = await findMember(tx, workspaceId, targetUserId);
+    assertMayManage(actorRole, target.role);
+    if (role === 'OWNER' && actorRole !== 'OWNER') throw AppError.forbidden();
+    if (target.role === role) return toMemberDto(target);
+    if (target.role === 'OWNER' && owners <= 1) throw lastOwner();
+
+    const updated = await tx.workspaceMember.update({
+      where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
+      data: { role },
+      include: { user: workspacesRepository.memberUserSelect },
+    });
+    return toMemberDto(updated);
+  });
+}
+
+/**
+ * DELETE /workspaces/:workspaceId/members/:userId: any member may remove themselves (leave);
+ * removing someone else needs ≥ ADMIN. The last OWNER can never go.
+ */
+export async function removeMember(
+  workspaceId: string,
+  actorId: string,
+  targetUserId: string,
+): Promise<void> {
+  const leaving = actorId === targetUserId;
+
+  await prisma.$transaction(async (tx) => {
+    const owners = await lockOwners(tx, workspaceId);
+    const actorRole = await lockActorRole(tx, workspaceId, actorId);
+    if (!leaving && !hasRole(actorRole, 'ADMIN')) throw AppError.forbidden();
+    const target = await findMember(tx, workspaceId, targetUserId);
+    if (!leaving) assertMayManage(actorRole, target.role);
+    if (target.role === 'OWNER' && owners <= 1) throw lastOwner();
+
+    // The member's CardMember rows in this workspace are removed here too from CARD-005 (I3).
+    await tx.workspaceMember.delete({
+      where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
+    });
+  });
 }

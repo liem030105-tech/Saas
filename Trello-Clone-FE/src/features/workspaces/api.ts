@@ -1,7 +1,9 @@
 import { apiClient } from '@/api/client';
 
 import type {
+  ChangeMemberRoleInput,
   CreateWorkspaceInput,
+  MemberDto,
   UpdateWorkspaceInput,
   WorkspaceDto,
 } from '@trello-clone/shared';
@@ -16,4 +18,13 @@ export const workspacesApi = {
     apiClient.patch<WorkspaceDto>(`/workspaces/${workspaceId}`, input),
   /** DELETE /workspaces/:workspaceId (OWNER): everything in it is deleted. */
   remove: (workspaceId: string) => apiClient.delete<void>(`/workspaces/${workspaceId}`),
+  /** GET /workspaces/:workspaceId/members: by role (OWNER first), then name. */
+  listMembers: (workspaceId: string) =>
+    apiClient.get<MemberDto[]>(`/workspaces/${workspaceId}/members`),
+  /** PATCH …/members/:userId (≥ ADMIN; footnotes 1–3 of the permission matrix). */
+  changeMemberRole: (workspaceId: string, userId: string, input: ChangeMemberRoleInput) =>
+    apiClient.patch<MemberDto>(`/workspaces/${workspaceId}/members/${userId}`, input),
+  /** DELETE …/members/:userId: remove a member (≥ ADMIN), or leave when `userId` is the caller. */
+  removeMember: (workspaceId: string, userId: string) =>
+    apiClient.delete<void>(`/workspaces/${workspaceId}/members/${userId}`),
 };

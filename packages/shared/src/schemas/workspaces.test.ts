@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ChangeMemberRoleInputSchema,
   CreateWorkspaceInputSchema,
+  MemberDtoSchema,
   UpdateWorkspaceInputSchema,
   WorkspaceDtoSchema,
   WorkspaceNameSchema,
@@ -57,5 +59,24 @@ describe('UpdateWorkspaceInputSchema', () => {
     expect(UpdateWorkspaceInputSchema.parse({ name: ' Acme ', plan: 'PRO' })).toEqual({
       name: 'Acme',
     });
+  });
+});
+
+describe('ChangeMemberRoleInputSchema / MemberDtoSchema', () => {
+  it('accepts every role and rejects anything else', () => {
+    for (const role of ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']) {
+      expect(ChangeMemberRoleInputSchema.safeParse({ role }).success).toBe(true);
+    }
+    for (const role of ['GUEST', 'owner', undefined]) {
+      expect(ChangeMemberRoleInputSchema.safeParse({ role }).success).toBe(false);
+    }
+  });
+
+  it('parses a member and drops user fields beyond the public ones', () => {
+    const withExtra = {
+      ...data.memberDto,
+      user: { ...data.memberDto.user, passwordHash: 'x', createdAt: '2026-09-30T10:00:00.000Z' },
+    };
+    expect(MemberDtoSchema.parse(withExtra)).toEqual(data.memberDto);
   });
 });

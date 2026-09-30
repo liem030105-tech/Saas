@@ -1,4 +1,8 @@
-import { CreateWorkspaceInputSchema, UpdateWorkspaceInputSchema } from '@trello-clone/shared';
+import {
+  ChangeMemberRoleInputSchema,
+  CreateWorkspaceInputSchema,
+  UpdateWorkspaceInputSchema,
+} from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './workspaces.controller';
@@ -43,4 +47,30 @@ workspacesRouter.delete(
   apiRateLimit,
   requireWorkspaceRole('OWNER'),
   controller.remove,
+);
+
+// Members (WORKSPACE-003). The service applies the footnote rules; leaving needs only membership.
+const MEMBERS = `${WORKSPACE}/members`;
+const MEMBER = `${MEMBERS}/:userId`;
+workspacesRouter.get(
+  MEMBERS,
+  authenticate,
+  apiRateLimit,
+  requireWorkspaceRole('VIEWER'),
+  controller.listMembers,
+);
+workspacesRouter.patch(
+  MEMBER,
+  authenticate,
+  apiRateLimit,
+  validate({ body: ChangeMemberRoleInputSchema }),
+  requireWorkspaceRole('ADMIN'),
+  controller.changeMemberRole,
+);
+workspacesRouter.delete(
+  MEMBER,
+  authenticate,
+  apiRateLimit,
+  requireWorkspaceRole('VIEWER'),
+  controller.removeMember,
 );
