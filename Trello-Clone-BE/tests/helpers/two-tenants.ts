@@ -8,8 +8,9 @@ import { tenantData } from '../data/workspaces';
 import type { Express } from 'express';
 
 // Two-tenant fixture (WORKSPACE-006): two users, each OWNER of their own workspace with a second
-// member and a pending invite. Later tasks add their own sample data (boards, lists, cards) here
-// and their endpoints to tests/integration/tenant-isolation.test.ts.
+// member and a pending invite. Later tasks add their own sample data (boards, lists, cards) here,
+// their tables to snapshotWorkspace (it is what detects a cross-tenant change), and their
+// endpoints to tests/integration/tenant-isolation.test.ts.
 
 async function tenant(app: Express, name: string, inviteEmail: string) {
   const owner = await createUserWithToken();

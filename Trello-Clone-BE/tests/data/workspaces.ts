@@ -98,7 +98,8 @@ export const tenantData = {
   workspaceName: { a: 'Tenant A', b: 'Tenant B' },
   inviteEmail: { a: 'a-invitee@example.test', b: 'b-invitee@example.test' },
   rename: { name: 'Taken over' },
-  slugTakeover: 'tenant-b-takeover',
   roleChange: { role: 'OWNER' },
   newInvite: { email: 'intruder@example.test', role: 'ADMIN' },
+  /** A well-formed id nothing has: a foreign id must look exactly like it (rule 3). */
+  missingId: 'clx0000000000000000000099',
 } as const;
