@@ -1,11 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { boardKeys } from '@/features/boards';
+import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/boards';
 
 import { listsApi } from '../api';
 import { positionBetweenNeighbours } from '../positions';
-import { listsScope, refetchBoardWhenIdle } from '../queries';
 
 import type { BoardDetailDto } from '@trello-clone/shared';
 
@@ -55,7 +54,7 @@ export function useMoveList(boardId: string) {
   const board = () => queryClient.getQueryData<BoardDetailDto>(key);
 
   return useMutation({
-    scope: listsScope(boardId),
+    scope: boardMutationScope(boardId),
     mutationFn: async (move: ListMove) => {
       const position = positionFor(board(), move);
       const moved = await listsApi.update(move.listId, { position });

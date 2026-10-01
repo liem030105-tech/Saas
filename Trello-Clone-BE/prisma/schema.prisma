@@ -121,6 +121,7 @@ enum ActivityType {
   LIST_UPDATED
   LIST_ARCHIVED
   LIST_MOVED
+  CARD_CREATED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.
@@ -136,6 +137,7 @@ model Board {
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   activities  Activity[]
   lists       List[]
+  cards       Card[]
 
   @@index([workspaceId, archived])
 }
@@ -151,14 +153,42 @@ model List {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards     Card[]
 
   @@index([boardId, position])
 }
 
-/// Append-only board activity feed; `cardId` arrives with CARD-001. BOARD-001.
+/// A card in a list, ordered by `position ASC, id ASC`. `boardId` always equals the list's
+/// (invariant I1): it is denormalized for one-query authorization and board-wide queries. CARD-001.
+model Card {
+  id          String     @id @default(cuid())
+  boardId     String
+  listId      String
+  title       String
+  /// Raw markdown (CARD-002).
+  description String?
+  position    Float
+  dueDate     DateTime?
+  completed   Boolean    @default(false)
+  /// Unused until ATTACHMENTS-001.
+  coverUrl    String?
+  archived    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  board       Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list        List       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  activities  Activity[]
+
+  @@index([listId, position])
+  @@index([boardId])
+}
+
+/// Append-only board activity feed. BOARD-001; `cardId` since CARD-001.
 model Activity {
   id        String       @id @default(cuid())
   boardId   String
+  /// The card the event is about; null for board and list events, and once the card is deleted.
+  cardId    String?
   /// The actor.
   userId    String
   type      ActivityType
@@ -166,7 +196,9 @@ model Activity {
   data      Json
   createdAt DateTime     @default(now())
   board     Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  card      Card?        @relation(fields: [cardId], references: [id], onDelete: SetNull)
   user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([boardId, createdAt])
+  @@index([cardId, createdAt])
 }

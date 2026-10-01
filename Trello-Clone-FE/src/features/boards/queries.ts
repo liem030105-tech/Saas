@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { boardsApi } from './api';
 
@@ -78,4 +78,23 @@ export function useDeleteBoard(boardId: string, workspaceId: string) {
       await queryClient.invalidateQueries({ queryKey: boardKeys.workspace(workspaceId) });
     },
   });
+}
+
+/**
+ * Adds and moves of a board's lists and cards share one mutation scope, so their requests run one
+ * at a time (each computes its position when its request starts, from the cache the previous one
+ * left).
+ */
+export const boardMutationScope = (boardId: string) => ({ id: `board-content:${boardId}` });
+
+/**
+ * Refetches the board after a list or card add or move, but only once the last one in the board's
+ * scope settles: an earlier refetch would bring server data without the later optimistic changes
+ * and make them jump back and forth.
+ */
+export function refetchBoardWhenIdle(queryClient: QueryClient, boardId: string) {
+  const { id } = boardMutationScope(boardId);
+  const pending = queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id });
+  if (pending > 1) return; // this mutation still counts as pending while it settles
+  return queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
 }

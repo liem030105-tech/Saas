@@ -3,6 +3,7 @@ import request from 'supertest';
 import { testPrisma } from './db';
 import { bearer, createUserWithToken } from './users';
 import { boardData } from '../data/boards';
+import { cardData } from '../data/cards';
 import { paths } from '../data/http';
 import { listData } from '../data/lists';
 import { tenantData } from '../data/workspaces';
@@ -10,8 +11,8 @@ import { tenantData } from '../data/workspaces';
 import type { Express } from 'express';
 
 // Two-tenant fixture (WORKSPACE-006): two users, each OWNER of their own workspace with a second
-// member, a pending invite and a board (BOARD-001) with a list (LIST-001). Later tasks add their
-// own sample data (cards, …) here,
+// member, a pending invite and a board (BOARD-001) with a list (LIST-001) holding a card
+// (CARD-001). Later tasks add their own sample data here,
 // their tables to snapshotWorkspace (it is what detects a cross-tenant change), and their
 // endpoints to tests/integration/tenant-isolation.test.ts.
 
@@ -21,6 +22,7 @@ async function tenant(
   inviteEmail: string,
   boardTitle: string,
   listTitle: string,
+  cardTitle: string,
 ) {
   const owner = await createUserWithToken();
   const created = await request(app)
@@ -49,12 +51,19 @@ async function tenant(
     .set(bearer(owner.token))
     .send({ title: listTitle })
     .expect(201);
+  const listId = list.body.data.id as string;
+  const card = await request(app)
+    .post(`${paths.lists}/${listId}/cards`)
+    .set(bearer(owner.token))
+    .send({ title: cardTitle })
+    .expect(201);
   return {
     owner,
     member,
     workspaceId,
     boardId,
-    listId: list.body.data.id as string,
+    listId,
+    cardId: card.body.data.id as string,
     slug: created.body.data.slug as string,
     inviteId: invite.body.data.id as string,
     /** The raw token from the invite link, as its recipient would have it. */
@@ -72,6 +81,7 @@ export async function createTwoTenants(app: Express) {
     tenantData.inviteEmail.a,
     boardData.tenantBoard.a,
     listData.tenantList.a,
+    cardData.tenantCard.a,
   );
   const b = await tenant(
     app,
@@ -79,19 +89,21 @@ export async function createTwoTenants(app: Express) {
     tenantData.inviteEmail.b,
     boardData.tenantBoard.b,
     listData.tenantList.b,
+    cardData.tenantCard.b,
   );
   return { a, b };
 }
 
 /** Everything stored for a workspace, in a stable order, to compare before and after a request. */
 export async function snapshotWorkspace(workspaceId: string) {
-  const [workspace, members, invites, boards, lists, activities] = await Promise.all([
+  const [workspace, members, invites, boards, lists, cards, activities] = await Promise.all([
     testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
     testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
     testPrisma.workspaceInvite.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
     testPrisma.board.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
     testPrisma.list.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
+    testPrisma.card.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
     testPrisma.activity.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
   ]);
-  return { workspace, members, invites, boards, lists, activities };
+  return { workspace, members, invites, boards, lists, cards, activities };
 }

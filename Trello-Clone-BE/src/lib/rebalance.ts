@@ -1,4 +1,9 @@
-import { POSITION_STEP } from '@trello-clone/shared';
+import {
+  initialPosition,
+  needsRebalance,
+  POSITION_STEP,
+  positionAfter,
+} from '@trello-clone/shared';
 
 import { Prisma } from '../generated/prisma/client';
 
@@ -64,4 +69,48 @@ export async function rebalanceContainer<T extends RebalanceTable>(
     WHERE item."id" = ranked."id"
     RETURNING item."id", item."position"`;
   return new Map(rows.map((row) => [row.id, row.position]));
+}
+
+/**
+ * The position after a container's last item (archived ones included, so a new item never lands
+ * between them and a later unarchive), or the first position for an empty container.
+ */
+export async function appendPosition<T extends RebalanceTable>(
+  tx: Tx,
+  table: T,
+  containerColumn: ContainerColumn<T>,
+  containerId: string,
+): Promise<number> {
+  const sql = identifiers(table, containerColumn);
+  const [row] = await tx.$queryRaw<{ last: number | null }[]>`
+    SELECT MAX("position") AS last FROM ${sql.table} WHERE ${sql.column} = ${containerId}`;
+  return row?.last == null ? initialPosition() : positionAfter(row.last);
+}
+
+/**
+ * After an item was written at a position (inside a transaction that already holds the container's
+ * locks): rebalances the container when the item sits closer than the threshold to a neighbour or
+ * to 0 (docs/database/relationships.md → Rebalancing). Returns the item's final position.
+ */
+export async function settlePosition<T extends RebalanceTable>(
+  tx: Tx,
+  table: T,
+  containerColumn: ContainerColumn<T>,
+  containerId: string,
+  itemId: string,
+): Promise<number> {
+  const sql = identifiers(table, containerColumn);
+  const siblings = await tx.$queryRaw<{ id: string; position: number }[]>`
+    SELECT "id", "position" FROM ${sql.table}
+    WHERE ${sql.column} = ${containerId}
+    ORDER BY "position", "id"`;
+  const index = siblings.findIndex((item) => item.id === itemId);
+  const { position } = siblings[index]!;
+  const before = siblings[index - 1]?.position;
+  const after = siblings[index + 1]?.position;
+  const crowded =
+    needsRebalance(position, before) || (after !== undefined && needsRebalance(position, after));
+  if (!crowded) return position;
+  const positions = await rebalanceContainer(tx, table, containerColumn, containerId);
+  return positions.get(itemId)!;
 }

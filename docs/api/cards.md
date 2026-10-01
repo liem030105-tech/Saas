@@ -18,10 +18,13 @@
 | | |
 |--|--|
 | Task | CARD-001 |
-| Authorization | ≥ MEMBER |
-| Body | `{ title, position? }`. Appended at the end if `position` is omitted |
-| Success | `201 { data: CardSummaryDto }`. `boardId` is copied from the list (I1) · logs `CARD_CREATED` |
-| Errors | `400` · `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (the list resolves to its stored board → `assertBoardAccess(…, 'card.edit')`) |
+| Body | `{ title, position? }` (title trimmed, 1–200 chars). Appended at the end if `position` is omitted |
+| Success | `201 { data: CardSummaryDto }`. `boardId` is copied from the list (I1; a `boardId` in the body is ignored) · logs `CARD_CREATED` with `cardId` and `data: { listId, title }` |
+| Errors | `400` · `401` · `403` · `404` (unknown list, malformed id, or not a member) · `429 RATE_LIMITED` |
+
+**Behavior:** like lists ([lists.md → POST](lists.md#post-boardsboardidlists)): the list's cards are locked first; without `position` the card goes after the list's last card (archived ones included); a client `position` goes through the rebalance check, so the response may carry a renumbered position. Adding a card to an archived list is allowed by the API (the FE does not show archived lists). Schemas: `CreateCardInputSchema`, `CardSummaryDtoSchema` (`@trello-clone/shared`).
 
 ### GET /cards/:cardId
 | | |

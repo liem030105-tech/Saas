@@ -2,4 +2,10 @@
 export { BoardsGrid } from './components/BoardsGrid';
 export { BoardView } from './components/BoardView';
 export { boardPath } from './paths';
-export { boardKeys, useBoard, useBoards } from './queries';
+export {
+  boardKeys,
+  boardMutationScope,
+  refetchBoardWhenIdle,
+  useBoard,
+  useBoards,
+} from './queries';
