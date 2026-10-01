@@ -1,6 +1,7 @@
 import {
   CreateBoardInputSchema,
   CreateLabelInputSchema,
+  ListActivitiesQuerySchema,
   ListBoardsQuerySchema,
   UpdateBoardInputSchema,
   UpdateLabelInputSchema,
@@ -46,6 +47,15 @@ boardsRouter.patch(
   controller.update,
 );
 boardsRouter.delete(BOARD, authenticate, apiRateLimit, controller.remove);
+
+// The activity feed (CARD-005e): authorized in the service, like the board-scoped routes above.
+boardsRouter.get(
+  `${BOARD}/activities`,
+  authenticate,
+  apiRateLimit,
+  validate({ query: ListActivitiesQuerySchema }),
+  controller.listActivities,
+);
 
 // Labels (CARD-005): authorized in the service, like the board-scoped routes above.
 boardsRouter.get(`${BOARD}/labels`, authenticate, apiRateLimit, controller.listLabels);

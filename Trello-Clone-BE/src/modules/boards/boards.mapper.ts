@@ -1,5 +1,6 @@
-import type { Board, Card, Label, List } from '../../generated/prisma/client';
+import type { Activity, Board, Card, Label, List } from '../../generated/prisma/client';
 import type {
+  ActivityDto,
   BoardDetailDto,
   BoardDto,
   CardSummaryDto,
@@ -53,6 +54,20 @@ export function toBoardDetailDto(
       ),
     })),
     labels: board.labels.map(toLabelDto),
+  };
+}
+
+/** An activity row with its actor (docs/api/boards.md → ActivityDto). */
+export function toActivityDto(
+  activity: Activity & { user: { id: string; name: string; avatarUrl: string | null } },
+): ActivityDto {
+  return {
+    id: activity.id,
+    type: activity.type,
+    data: activity.data as ActivityDto['data'],
+    createdAt: activity.createdAt.toISOString(),
+    cardId: activity.cardId,
+    user: activity.user,
   };
 }
 

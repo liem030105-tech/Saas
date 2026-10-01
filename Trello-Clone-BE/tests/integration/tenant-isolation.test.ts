@@ -420,6 +420,51 @@ const cases: IsolationCase[] = [
         .send({ listId: missingId, position: 512 }),
   },
   {
+    route: 'GET /boards/:boardId/activities',
+    attempt: "read B's activity",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(b.boardId)}/activities`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${board(missingId)}/activities`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /boards/:boardId/activities',
+    attempt: "filter A's activity by B's card",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(a.boardId)}/activities`)
+        .query({ cardId: b.cardId })
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${board(a.boardId)}/activities`)
+        .query({ cardId: missingId })
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /boards/:boardId/activities',
+    attempt: "page A's activity from B's entry as the cursor",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(a.boardId)}/activities`)
+        .query({ cursor: b.activityId })
+        .set(bearer(a.owner.token)),
+    // A foreign cursor is refused exactly like an unknown one (`missing`), revealing nothing.
+    expectResponse: (res) => {
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    },
+    missing: (a) =>
+      request(app)
+        .get(`${board(a.boardId)}/activities`)
+        .query({ cursor: missingId })
+        .set(bearer(a.owner.token)),
+  },
+  {
     route: 'GET /boards/:boardId/labels',
     attempt: "list B's labels",
     request: (a, b) =>

@@ -304,6 +304,16 @@ const labelPath = (ctx: MatrixContext) => `${paths.labels}/${ctx.fixture.labelId
 const cardLabelPath = (ctx: MatrixContext) => `${cardPath(ctx)}/labels/${ctx.fixture.labelId}`;
 
 describeRoleMatrix(getApp, {
+  name: 'GET /boards/:boardId/activities',
+  setup: addBoard,
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${boardPath(ctx)}/activities`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 200, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
   name: 'GET /boards/:boardId/labels',
   setup: addBoard,
   request: (ctx) =>
