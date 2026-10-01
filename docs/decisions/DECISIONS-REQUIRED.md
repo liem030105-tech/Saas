@@ -156,8 +156,9 @@
 
 ## Activity
 
-### D-25 Activity for label and checklist changes
+### D-25 Activity for label and checklist changes: **Resolved** (log them)
+- **Decision:** attaching and detaching a label, adding and deleting a checklist, and ticking or unticking an item log activity (`LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED`), so CARD-005's acceptance line holds as written. Renames, item adds and deletes, and moves still log nothing.
 - **Context:** CARD-005's acceptance line says "activity shows each action", but attaching labels and changing checklists log nothing (005a, 005c), so the feed shows assignments, comments, card edits and moves only.
-- **Proposed default:** log them: new `ActivityType` values for label attach/detach and checklist add/remove and item ticks, with a migration, feed texts and tests.
+- **Proposed default (approved):** log them: new `ActivityType` values for label attach/detach and checklist add/remove and item ticks, with a migration, feed texts and tests.
 - **Options:** log them (the line holds as written) · reword the acceptance line to the actions that are logged today (no code change).
-- **Affects:** CARD-005 (Done), `database/schema.md` (ActivityType), `api/cards.md`, `design/ui.md` (Activity). **Blocking:** yes (CARD-005 Done).
+- **Affects:** CARD-005 (Done), `database/schema.md` (ActivityType), `api/cards.md`, `design/ui.md` (Activity). **Blocking:** was yes (CARD-005 Done).

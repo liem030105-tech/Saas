@@ -14,6 +14,11 @@ export const ACTIVITY_TYPES = [
   'MEMBER_ADDED',
   'MEMBER_REMOVED',
   'COMMENT_ADDED',
+  'LABEL_ADDED',
+  'LABEL_REMOVED',
+  'CHECKLIST_ADDED',
+  'CHECKLIST_REMOVED',
+  'CHECKLIST_ITEM_CHECKED',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

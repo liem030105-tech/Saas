@@ -18,7 +18,7 @@ Specs: [labels](../api/boards.md#labels-card-005), [card members & labels](../ap
 2. **005b Members:** model `CardMember`; assign/unassign (422, rule `NOT_WORKSPACE_MEMBER`); log `MEMBER_ADDED` / `MEMBER_REMOVED`; `workspaces.service.removeMember` deletes the removed user's card assignments in that workspace (I3).
 3. **005c Checklists:** models `Checklist`, `ChecklistItem`; CRUD with positions (reuse the position helpers); progress `{ done, total }` in `CardSummaryDto`.
 4. **005d Comments:** model `Comment` (`comments` module); paginated list, create (logs `COMMENT_ADDED`), author edit, author/ADMIN delete; `commentCount` in `CardSummaryDto`.
-5. **005e Activity feed:** `GET /boards/:boardId/activities` with the `cardId` filter; activity section in the card modal and a board activity drawer.
+5. **005e Activity feed:** `GET /boards/:boardId/activities` with the `cardId` filter; activity section in the card modal and a board activity drawer. Label attach/detach, checklist add/delete and item ticks log activity too (D-25).
 6. `CardDetailDto` complete (except attachments). FE modal sections for each part; card items show label chips, member avatars, checklist and comment counts.
 7. E2E scenario 5.
 
@@ -32,7 +32,7 @@ Attachments and covers (ATTACHMENTS-001), realtime (REALTIME-001), notifications
 `modules/cards/*` (labels, members, checklists), `modules/comments/*`, `modules/boards/*` (labels, activities), `workspaces.service.removeMember` hook.
 
 # Database Changes
-Models `Label`, `CardLabel`, `CardMember`, `Checklist`, `ChecklistItem`, `Comment`; `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`; migrations per sub-PR (`add_labels`, `add_card_members`, `add_checklists`, `add_comments`).
+Models `Label`, `CardLabel`, `CardMember`, `Checklist`, `ChecklistItem`, `Comment`; `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`, and (D-25) `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED`; migrations per sub-PR (`add_labels`, `add_card_members`, `add_checklists`, `add_comments`, `add_label_checklist_activity`).
 
 # API Changes
 - 005a: `GET|POST /api/v1/boards/:boardId/labels`, `PATCH|DELETE /api/v1/labels/:labelId`, `POST|DELETE /api/v1/cards/:cardId/labels/:labelId`

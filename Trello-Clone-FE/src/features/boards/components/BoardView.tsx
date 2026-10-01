@@ -1,7 +1,8 @@
-import { type BoardDetailDto, type UserSummary } from '@trello-clone/shared';
+import { type BoardDetailDto } from '@trello-clone/shared';
 import { type ReactNode } from 'react';
 
 import { BoardHeader } from './BoardHeader';
+import { type ActivityNames } from '../activity';
 import { readableTextColor } from '../colors';
 
 interface BoardViewProps {
@@ -9,8 +10,8 @@ interface BoardViewProps {
   canEdit: boolean;
   canDelete: boolean;
   onDeleted: () => void;
-  /** The workspace's members, for the activity feed (CARD-005e). */
-  members: readonly UserSummary[];
+  /** Names for the activity feed (CARD-005e): lists, cards, labels, members. */
+  activityNames: ActivityNames;
   /** The board's lists (the page composes them from the lists feature, LIST-001). */
   children: ReactNode;
 }
@@ -24,7 +25,7 @@ export function BoardView({
   canEdit,
   canDelete,
   onDeleted,
-  members,
+  activityNames,
   children,
 }: BoardViewProps) {
   const color = readableTextColor(board.background);
@@ -36,7 +37,7 @@ export function BoardView({
         canEdit={canEdit}
         canDelete={canDelete}
         onDeleted={onDeleted}
-        members={members}
+        activityNames={activityNames}
       />
       {board.archived && (
         <p

@@ -4,7 +4,13 @@ import { useNavigate, useParams } from 'react-router';
 import { ApiError } from '@/api/client';
 import { useCurrentUser } from '@/features/auth';
 import { BoardView, boardPath, namesOf, useBoard } from '@/features/boards';
-import { CardDetailModal, CardModalStatus, CardTileProvider, useCard } from '@/features/cards';
+import {
+  CardDetailModal,
+  CardModalStatus,
+  CardTileProvider,
+  labelText,
+  useCard,
+} from '@/features/cards';
 import { BoardLists } from '@/features/lists';
 import { can, useMembers, useWorkspaces, workspacePath } from '@/features/workspaces';
 
@@ -30,6 +36,11 @@ export function BoardPage() {
   const tileData = useMemo(
     () => ({ labels: board?.labels ?? [], members: workspaceMembers ?? [] }),
     [board?.labels, workspaceMembers],
+  );
+  // Who and what activity entries name (CARD-005e): the board's lists, cards and labels.
+  const activityNames = useMemo(
+    () => namesOf(board, tileData.members, labelText),
+    [board, tileData.members],
   );
 
   // Wait for the caller's role too, so the actions shown are final from the first render.
@@ -75,7 +86,7 @@ export function BoardPage() {
       canEdit={role ? can(role, 'board.edit') : false}
       canDelete={role ? can(role, 'board.delete') : false}
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
-      members={tileData.members}
+      activityNames={activityNames}
     >
       {/* An archived board is read-only (docs/design/ui.md → Board). */}
       <CardTileProvider value={tileData}>
@@ -95,7 +106,7 @@ export function BoardPage() {
             retry: () => void members.refetch(),
           }}
           canEdit={canEditContent}
-          activityNames={namesOf(board, tileData.members)}
+          activityNames={activityNames}
           commentAccess={{
             user: currentUser.data && {
               id: currentUser.data.id,

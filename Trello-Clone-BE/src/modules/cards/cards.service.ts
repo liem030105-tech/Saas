@@ -260,7 +260,8 @@ export async function move(
 /**
  * POST /cards/:cardId/labels/:labelId (≥ MEMBER). The label must be one the caller can see (404
  * otherwise, like a label that does not exist); a visible label of another board is a 422
- * LABEL_OTHER_BOARD (I2). Attaching a label the card already has changes nothing.
+ * LABEL_OTHER_BOARD (I2). Attaching a label the card already has changes nothing. Logs
+ * LABEL_ADDED with the label's id, name and colour (so the feed can still name a deleted label).
  */
 export async function attachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
@@ -281,7 +282,19 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
         SELECT "boardId" FROM "Card" WHERE "id" = ${cardId} FOR SHARE`;
       if (!locked) throw AppError.notFound();
       if (locked.boardId !== label.boardId) throw otherBoard();
-      await tx.cardLabel.createMany({ data: [{ cardId, labelId }], skipDuplicates: true });
+      const { count } = await tx.cardLabel.createMany({
+        data: [{ cardId, labelId }],
+        skipDuplicates: true,
+      });
+      if (count > 0) {
+        await logActivity(tx, {
+          boardId: label.boardId,
+          userId,
+          cardId,
+          type: 'LABEL_ADDED',
+          data: { labelId, name: label.name, color: label.color },
+        });
+      }
     });
   } catch (error) {
     // The label was deleted after the checks.
@@ -290,10 +303,30 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
   }
 }
 
-/** DELETE /cards/:cardId/labels/:labelId (≥ MEMBER): a label the card does not have is a no-op. */
+/**
+ * DELETE /cards/:cardId/labels/:labelId (≥ MEMBER): a label the card does not have is a no-op.
+ * Logs LABEL_REMOVED like LABEL_ADDED. Deleting the label itself, or a move to another board that
+ * drops it, logs nothing for the cards that had it.
+ */
 export async function detachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
-  await assertCardAccess(userId, cardId, 'card.assign');
-  await prisma.cardLabel.deleteMany({ where: { cardId, labelId } });
+  const card = await assertCardAccess(userId, cardId, 'card.assign');
+  await prisma.$transaction(async (tx) => {
+    // The card row first (the log's foreign key locks it anyway), in the order a card delete
+    // takes its rows, so the two wait for each other instead of deadlocking.
+    const [held] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "Card" WHERE "id" = ${cardId} FOR KEY SHARE`;
+    if (!held) throw AppError.notFound();
+    const removed = await tx.cardLabel.deleteMany({ where: { cardId, labelId } });
+    if (removed.count === 0) return;
+    const label = await tx.label.findUnique({ where: { id: labelId } });
+    await logActivity(tx, {
+      boardId: card.boardId,
+      userId,
+      cardId,
+      type: 'LABEL_REMOVED',
+      data: { labelId, name: label?.name ?? null, color: label?.color ?? null },
+    });
+  });
 }
 
 // Card members (CARD-005, docs/api/cards.md → Card members & labels). Both are idempotent, and

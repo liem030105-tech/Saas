@@ -22,7 +22,7 @@
 |------|--------|---------------|
 | `Role` | `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` | WORKSPACE-001 |
 | `Plan` | `FREE`, `PRO` | WORKSPACE-001 (column only; used from BILLING-001) |
-| `ActivityType` | `BOARD_CREATED`, `BOARD_UPDATED`, `LIST_CREATED`, `LIST_UPDATED`, `LIST_MOVED`, `LIST_ARCHIVED`, `CARD_CREATED`, `CARD_UPDATED`, `CARD_MOVED`, `CARD_ARCHIVED`, `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`, `ATTACHMENT_ADDED` | BOARD-001; values added by the task that first logs them |
+| `ActivityType` | `BOARD_CREATED`, `BOARD_UPDATED`, `LIST_CREATED`, `LIST_UPDATED`, `LIST_MOVED`, `LIST_ARCHIVED`, `CARD_CREATED`, `CARD_UPDATED`, `CARD_MOVED`, `CARD_ARCHIVED`, `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`, `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED`, `ATTACHMENT_ADDED` | BOARD-001; values added by the task that first logs them |
 | `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `PAST_DUE`, `CANCELED`, `INCOMPLETE` (mirror of Stripe statuses we act on) | BILLING-001 |
 
 Role order for comparisons: `OWNER > ADMIN > MEMBER > VIEWER`.
@@ -247,7 +247,9 @@ enum ActivityType {
   BOARD_CREATED BOARD_UPDATED
   LIST_CREATED LIST_UPDATED LIST_MOVED LIST_ARCHIVED
   CARD_CREATED CARD_UPDATED CARD_MOVED CARD_ARCHIVED
-  MEMBER_ADDED MEMBER_REMOVED COMMENT_ADDED ATTACHMENT_ADDED
+  MEMBER_ADDED MEMBER_REMOVED COMMENT_ADDED
+  LABEL_ADDED LABEL_REMOVED CHECKLIST_ADDED CHECKLIST_REMOVED CHECKLIST_ITEM_CHECKED
+  ATTACHMENT_ADDED
 }
 
 model User {
@@ -499,3 +501,4 @@ model Subscription {
 | `20261001061114_add_card_members` | CARD-005b | `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`; `CardMember` (PK `(cardId, userId)`, FKs → `Card` and `User` cascade, index `(userId)`) |
 | `20261001065625_add_checklists` | CARD-005c | `Checklist` (FK → `Card` cascade, index `(cardId, position)`); `ChecklistItem` (FK → `Checklist` cascade, index `(checklistId, position)`) |
 | `20261001103116_add_comments` | CARD-005d | `ActivityType` += `COMMENT_ADDED`; `Comment` (FKs → `Card` cascade and `User` restrict, indexes `(cardId, createdAt)` and `(authorId)`) |
+| `20261001115753_add_label_checklist_activity` | CARD-005 (D-25) | `ActivityType` += `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED` |
