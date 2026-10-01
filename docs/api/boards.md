@@ -39,7 +39,7 @@ Schemas: `CreateBoardInputSchema`, `ListBoardsQuerySchema`, `BoardDtoSchema`; ac
 | Task | BOARD-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (`assertBoardAccess(…, 'board.view')`) |
-| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail` after the access check; non-archived lists since LIST-001 (each with `cards: []` until CARD-001); `labels` is empty until CARD-005 |
+| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail` after the access check; non-archived lists (LIST-001), each with its non-archived cards (CARD-001); `labels` is empty until CARD-005 |
 | Errors | `401` · `404` (unknown board, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 Archived boards remain viewable; the FE shows an "archived" banner.

@@ -1,5 +1,7 @@
 import { GripVerticalIcon } from 'lucide-react';
 
+import { AddCardComposer, CardItem } from '@/features/cards';
+
 import { ListHeader } from './ListHeader';
 
 import type { BoardDetailDto } from '@trello-clone/shared';
@@ -15,7 +17,7 @@ interface ListColumnProps {
   };
 }
 
-/** One list on the board (docs/design/ui.md → Board). Cards arrive with CARD-001. */
+/** One list on the board (docs/design/ui.md → Board): its header, its cards, then "Add a card". */
 export function ListColumn({ list, canEdit, dragHandle }: ListColumnProps) {
   return (
     <section
@@ -38,6 +40,18 @@ export function ListColumn({ list, canEdit, dragHandle }: ListColumnProps) {
           <ListHeader list={list} canEdit={canEdit} />
         </div>
       </div>
+      {list.cards.length > 0 && (
+        <ol aria-label={`Cards in ${list.title}`} className="flex flex-col gap-2">
+          {list.cards.map((card) => (
+            <li key={card.id}>
+              <CardItem card={card} />
+            </li>
+          ))}
+        </ol>
+      )}
+      {canEdit && (
+        <AddCardComposer boardId={list.boardId} listId={list.id} listTitle={list.title} />
+      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
-import type { Board, List } from '../../generated/prisma/client';
-import type { BoardDetailDto, BoardDto, ListDto } from '@trello-clone/shared';
+import type { Board, Card, List } from '../../generated/prisma/client';
+import type { BoardDetailDto, BoardDto, CardSummaryDto, ListDto } from '@trello-clone/shared';
 
 /** docs/api/boards.md → BoardDto. */
 export function toBoardDto(board: Board): BoardDto {
@@ -14,15 +14,38 @@ export function toBoardDto(board: Board): BoardDto {
   };
 }
 
-/**
- * docs/api/boards.md → BoardDetailDto. Cards arrive with CARD-001 and labels with CARD-005; until
- * then both are empty.
- */
-export function toBoardDetailDto(board: Board & { lists: List[] }): BoardDetailDto {
+/** docs/api/boards.md → BoardDetailDto. Labels arrive with CARD-005; until then they are empty. */
+export function toBoardDetailDto(
+  board: Board & { lists: (List & { cards: Card[] })[] },
+): BoardDetailDto {
   return {
     ...toBoardDto(board),
-    lists: board.lists.map((list) => ({ ...toDetailListDto(list), cards: [] })),
+    lists: board.lists.map((list) => ({
+      ...toDetailListDto(list),
+      cards: list.cards.map(toCardSummaryDto),
+    })),
     labels: [],
+  };
+}
+
+/**
+ * docs/api/boards.md → CardSummaryDto: a card as the board shows it. The boards module owns this
+ * shape (the cards module reaches it through boards.service). Labels, members, checklist and
+ * comment counts arrive with CARD-005 and are empty or zero until then.
+ */
+export function toCardSummaryDto(card: Card): CardSummaryDto {
+  return {
+    id: card.id,
+    listId: card.listId,
+    title: card.title,
+    position: card.position,
+    dueDate: card.dueDate?.toISOString() ?? null,
+    completed: card.completed,
+    coverUrl: card.coverUrl,
+    labelIds: [],
+    memberIds: [],
+    checklist: { done: 0, total: 0 },
+    commentCount: 0,
   };
 }
 

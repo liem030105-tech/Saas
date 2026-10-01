@@ -78,9 +78,9 @@ Dependency flow: **Route → Controller → Service → (Repository) → Prisma*
 **Direct Prisma access from the service is fine** for simple CRUD modules (e.g. `users`, `comments`, `labels`).
 Never create a repository just to wrap `prisma.x.findUnique`.
 
-Expected repositories: `boards` (load board with lists/cards, search), `cards` (move), `workspaces` (membership queries shared by authorization). The generic container rebalance lives in `lib/rebalance.ts` (LIST-003).
+Expected repositories: `boards` (load board with lists/cards, search), `cards` (move), `workspaces` (membership queries shared by authorization). The generic container ordering lives in `lib/rebalance.ts` (LIST-003): `lockContainer`, `appendPosition`, `settlePosition` (threshold check) and `rebalanceContainer`, used by lists and cards.
 
-The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts` (BOARD-001) and is called inside the same transaction as the change it records. Other modules (lists, cards, …) import it through `boards.service`, which re-exports it.
+The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts` (BOARD-001) and is called inside the same transaction as the change it records. Other modules (lists, cards, …) import it through `boards.service`, which re-exports it. The board read model's card shape, `toCardSummaryDto` (CARD-001; `CardSummaryDto` is documented in `api/boards.md`), is re-exported the same way for the cards module.
 
 ## Cross-module communication
 - Module A calls only module B's **service** (e.g. `cards.service` → `workspaces.service.assertMember()`).

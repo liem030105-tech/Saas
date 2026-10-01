@@ -1,6 +1,20 @@
 import { z } from 'zod';
 
-import { CuidSchema } from './common';
+import { CuidSchema, PositionSchema } from './common';
+
+// Field rules: docs/api/README.md → Validation rules. Messages are shown in the UI (English).
+
+export const CardTitleSchema = z
+  .string({ error: 'Enter a card title' })
+  .trim()
+  .min(1, 'Enter a card title')
+  .max(200, 'Title must be at most 200 characters');
+
+/** POST /lists/:listId/cards body; without `position` the card is appended at the end. */
+export const CreateCardInputSchema = z.object({
+  title: CardTitleSchema,
+  position: PositionSchema.optional(),
+});
 
 /**
  * A card as it appears on a board (docs/api/boards.md → CardSummaryDto). Fields owned by CARD-005

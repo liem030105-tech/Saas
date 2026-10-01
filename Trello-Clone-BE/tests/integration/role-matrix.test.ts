@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { boardData } from '../data/boards';
+import { cardData } from '../data/cards';
 import { paths } from '../data/http';
 import { listData } from '../data/lists';
 import { roleMatrixData } from '../data/workspaces';
@@ -230,4 +231,15 @@ describeRoleMatrix(getApp, {
   setup: addList,
   request: (ctx) => request(ctx.app).delete(listPath(ctx)).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /lists/:listId/cards',
+  setup: addList,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${listPath(ctx)}/cards`)
+      .set(as(ctx))
+      .send({ title: cardData.tenantCard.a }),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
 });

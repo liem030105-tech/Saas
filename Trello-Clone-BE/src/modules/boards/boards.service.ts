@@ -16,6 +16,8 @@ import type {
 
 /** Other modules log board activity through this service (backend.md → Cross-module). */
 export { logActivity } from './activity';
+/** The cards module answers with the board's card shape (docs/api/boards.md → CardSummaryDto). */
+export { toCardSummaryDto } from './boards.mapper';
 
 // docs/api/boards.md. Board-scoped endpoints (BOARD-002 onwards) authorize with assertBoardAccess;
 // the workspace-scoped ones below rely on requireWorkspaceRole on their route.

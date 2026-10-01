@@ -17,15 +17,22 @@ export function findBoardWithRole(userId: string, boardId: string) {
   });
 }
 
+/** Sort order of every ordered container (docs/database/relationships.md → Ordering). */
+const BY_POSITION = [{ position: 'asc' }, { id: 'asc' }] as const;
+
 /**
  * GET /boards/:boardId in one query after the access check: the board with its non-archived lists
- * (LIST-001). Cards (CARD-001) and labels (CARD-005) join this include as their tables arrive.
+ * (LIST-001), each with its non-archived cards (CARD-001). Labels (CARD-005) join as they arrive.
  */
 export function findDetail(boardId: string) {
   return prisma.board.findUnique({
     where: { id: boardId },
     include: {
-      lists: { where: { archived: false }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+      lists: {
+        where: { archived: false },
+        orderBy: [...BY_POSITION],
+        include: { cards: { where: { archived: false }, orderBy: [...BY_POSITION] } },
+      },
     },
   });
 }

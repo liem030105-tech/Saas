@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { boardData } from '../data/boards';
+import { cardData } from '../data/cards';
 import { paths } from '../data/http';
 import { listData } from '../data/lists';
 import { tenantData } from '../data/workspaces';
@@ -67,8 +68,10 @@ const expectNoTraceOf = (res: request.Response, b: Tenant) => {
     b.inviteId,
     b.boardId,
     b.listId,
+    b.cardId,
     boardData.tenantBoard.b,
     listData.tenantList.b,
+    cardData.tenantCard.b,
     tenantData.inviteEmail.b,
   ]) {
     expect(body).not.toContain(value);
@@ -341,6 +344,20 @@ const cases: IsolationCase[] = [
     attempt: "delete B's list",
     request: (a, b) => request(app).delete(list(b.listId)).set(bearer(a.owner.token)),
     missing: (a) => request(app).delete(list(missingId)).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /lists/:listId/cards',
+    attempt: "add a card to B's list",
+    request: (a, b) =>
+      request(app)
+        .post(`${list(b.listId)}/cards`)
+        .set(bearer(a.owner.token))
+        .send({ title: cardData.tenantCard.a }),
+    missing: (a) =>
+      request(app)
+        .post(`${list(missingId)}/cards`)
+        .set(bearer(a.owner.token))
+        .send({ title: cardData.tenantCard.a }),
   },
 ];
 

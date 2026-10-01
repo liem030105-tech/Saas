@@ -1,10 +1,8 @@
-import { initialPosition, needsRebalance, positionAfter } from '@trello-clone/shared';
-
 import { toListDto } from './lists.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
-import { lockContainer, rebalanceContainer } from '../../lib/rebalance';
+import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
 
 import type { CreateListData, ListDto, UpdateListData } from '@trello-clone/shared';
@@ -30,30 +28,6 @@ async function assertListAccess(userId: string, listId: string) {
   return list;
 }
 
-type Tx = Prisma.TransactionClient;
-
-/**
- * After a list was written at a position (inside a transaction that already holds the board's
- * list locks): rebalances the board's lists when the list sits too close to a neighbour or to 0
- * (docs/database/relationships.md → Rebalancing). Returns the list's final position.
- */
-async function settlePosition(tx: Tx, boardId: string, listId: string): Promise<number> {
-  const siblings = await tx.list.findMany({
-    where: { boardId },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
-    select: { id: true, position: true },
-  });
-  const index = siblings.findIndex((list) => list.id === listId);
-  const { position } = siblings[index]!;
-  const before = siblings[index - 1]?.position;
-  const after = siblings[index + 1]?.position;
-  const crowded =
-    needsRebalance(position, before) || (after !== undefined && needsRebalance(position, after));
-  if (!crowded) return position;
-  const positions = await rebalanceContainer(tx, 'List', 'boardId', boardId);
-  return positions.get(listId)!;
-}
-
 /**
  * POST /boards/:boardId/lists (≥ MEMBER). Without `position` the list goes after the board's last
  * list (archived ones included, so it never lands between them and a later unarchive). A client
@@ -70,10 +44,13 @@ export async function create(
   try {
     const list = await prisma.$transaction(async (tx) => {
       await lockContainer(tx, 'List', 'boardId', boardId);
-      const position = input.position ?? (await nextPosition(tx, boardId));
+      const position = input.position ?? (await appendPosition(tx, 'List', 'boardId', boardId));
       let created = await tx.list.create({ data: { boardId, title: input.title, position } });
       if (input.position !== undefined) {
-        created = { ...created, position: await settlePosition(tx, boardId, created.id) };
+        created = {
+          ...created,
+          position: await settlePosition(tx, 'List', 'boardId', boardId, created.id),
+        };
       }
       await logActivity(tx, {
         boardId,
@@ -88,11 +65,6 @@ export async function create(
     if (isMissingBoard(error)) throw AppError.notFound();
     throw error;
   }
-}
-
-async function nextPosition(tx: Tx, boardId: string) {
-  const { _max } = await tx.list.aggregate({ where: { boardId }, _max: { position: true } });
-  return _max.position === null ? initialPosition() : positionAfter(_max.position);
 }
 
 /**
@@ -118,7 +90,12 @@ export async function update(
     const list = await prisma.$transaction(async (tx) => {
       if (moved) await lockContainer(tx, 'List', 'boardId', boardId);
       let updated = await tx.list.update({ where: { id: listId }, data: changes });
-      if (moved) updated = { ...updated, position: await settlePosition(tx, boardId, listId) };
+      if (moved) {
+        updated = {
+          ...updated,
+          position: await settlePosition(tx, 'List', 'boardId', boardId, listId),
+        };
+      }
       await logActivity(tx, {
         boardId,
         userId,
