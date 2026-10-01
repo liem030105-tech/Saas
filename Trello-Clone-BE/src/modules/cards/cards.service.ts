@@ -311,6 +311,11 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
 export async function detachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
   await prisma.$transaction(async (tx) => {
+    // The card row first (the log's foreign key locks it anyway), in the order a card delete
+    // takes its rows, so the two wait for each other instead of deadlocking.
+    const [held] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "Card" WHERE "id" = ${cardId} FOR KEY SHARE`;
+    if (!held) throw AppError.notFound();
     const removed = await tx.cardLabel.deleteMany({ where: { cardId, labelId } });
     if (removed.count === 0) return;
     const label = await tx.label.findUnique({ where: { id: labelId } });

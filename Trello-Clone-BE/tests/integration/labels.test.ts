@@ -330,6 +330,32 @@ describe('labels and card moves (I2)', () => {
     expect(await testPrisma.label.count({ where: { id: labelIds[0] } })).toBe(1);
   });
 
+  it('a detach racing a card delete waits for it instead of deadlocking', async () => {
+    const { owner, cardId, labelIds } = await workspace();
+    await request(app)
+      .post(cardLabelPath(cardId, labelIds[0]!))
+      .set(bearer(owner.token))
+      .expect(204);
+    let detach: Promise<request.Response> | undefined;
+
+    // Like a card delete: the card row first, then (the cascade) its label rows.
+    await testPrisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM "Card" WHERE "id" = ${cardId} FOR UPDATE`;
+        detach = request(app)
+          .delete(cardLabelPath(cardId, labelIds[0]!))
+          .set(bearer(owner.token))
+          .then((res) => res);
+        await waitForLockWait();
+        await tx.$queryRaw`SELECT 1 FROM "CardLabel" WHERE "cardId" = ${cardId} FOR UPDATE`;
+      },
+      { timeout: 20_000 },
+    );
+
+    expect((await detach!).status).toBe(204);
+    expect(await testPrisma.activity.count({ where: { cardId, type: 'LABEL_REMOVED' } })).toBe(1);
+  });
+
   it('an attach racing a move to another board waits for it, then refuses the old label', async () => {
     const { owner, workspaceId, cardId, labelIds } = await workspace();
     const other = await boardIn(owner, workspaceId);

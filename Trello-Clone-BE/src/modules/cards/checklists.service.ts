@@ -39,6 +39,17 @@ const withNotFound = async <T>(write: () => Promise<T>): Promise<T> => {
   }
 };
 
+/**
+ * Holds the card row (FOR KEY SHARE) before a write that logs activity: the log's foreign key
+ * takes this lock anyway, and taking it first keeps the order a card delete uses (card, then its
+ * checklists and items), so the two wait for each other instead of deadlocking.
+ */
+async function lockCard(tx: Prisma.TransactionClient, cardId: string) {
+  const [card] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "Card" WHERE "id" = ${cardId} FOR KEY SHARE`;
+  if (!card) throw AppError.notFound();
+}
+
 const ITEMS = {
   items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
 } satisfies Prisma.ChecklistInclude;
@@ -77,6 +88,7 @@ export async function createChecklist(
   const card = await assertCardAccess(userId, cardId, 'card.assign');
   const checklist = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
+      await lockCard(tx, cardId);
       await lockContainer(tx, 'Checklist', 'cardId', cardId);
       const position = await appendPosition(tx, 'Checklist', 'cardId', cardId);
       const created = await tx.checklist.create({ data: { cardId, title: input.title, position } });
@@ -128,6 +140,7 @@ export async function removeChecklist(userId: string, checklistId: string): Prom
   const { cardId, boardId } = await assertChecklistAccess(userId, checklistId);
   await withNotFound(() =>
     prisma.$transaction(async (tx) => {
+      await lockCard(tx, cardId);
       const removed = await tx.checklist.delete({ where: { id: checklistId } });
       await logActivity(tx, {
         boardId,
@@ -159,8 +172,8 @@ export async function createItem(
 
 /**
  * PATCH /checklists/:checklistId/items/:itemId (≥ MEMBER): edit, tick or move within the list. A
- * change of `done` logs CHECKLIST_ITEM_CHECKED with the item's id, content and new `done`; the row
- * is locked first, so two clients ticking the same item log it once.
+ * change of `done` logs CHECKLIST_ITEM_CHECKED with the item's id, content and new `done`; the card
+ * and then the item row are locked first, so two clients ticking the same item log it once.
  */
 export async function updateItem(
   userId: string,
@@ -172,10 +185,11 @@ export async function updateItem(
   const moved = input.position !== undefined;
   const item = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
+      await lockCard(tx, checklist.cardId);
       if (moved) await lockContainer(tx, 'ChecklistItem', 'checklistId', checklistId);
       const [before] = await tx.$queryRaw<{ done: boolean }[]>`
         SELECT "done" FROM "ChecklistItem"
-        WHERE "id" = ${itemId} AND "checklistId" = ${checklistId} FOR UPDATE`;
+        WHERE "id" = ${itemId} AND "checklistId" = ${checklistId} FOR NO KEY UPDATE`;
       // Still in this checklist (no route moves an item, but the write should not assume it).
       const updated = await tx.checklistItem.update({
         where: { id: itemId, checklistId },

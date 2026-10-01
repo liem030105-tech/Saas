@@ -263,6 +263,33 @@ describe('checklists', () => {
     ).toBe(1);
   });
 
+  it('a tick racing a card delete waits for it instead of deadlocking', async () => {
+    const { owner, cardId } = await card();
+    const launch = await addChecklist(owner, cardId, 'Launch');
+    const item = await addItem(owner, launch.id, 'Ship it');
+    let tick: Promise<request.Response> | undefined;
+
+    // Like a card delete: the card row first, then (the cascade) its items.
+    await testPrisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM "Card" WHERE "id" = ${cardId} FOR UPDATE`;
+        tick = request(app)
+          .patch(`${itemsOf(launch.id)}/${item.id}`)
+          .set(bearer(owner.token))
+          .send({ done: true })
+          .then((res) => res);
+        await waitForLockWaits(1);
+        await tx.$queryRaw`SELECT 1 FROM "ChecklistItem" WHERE "id" = ${item.id} FOR UPDATE`;
+      },
+      { timeout: 20_000 },
+    );
+
+    expect((await tick!).status).toBe(200);
+    expect(
+      await testPrisma.activity.count({ where: { cardId, type: 'CHECKLIST_ITEM_CHECKED' } }),
+    ).toBe(1);
+  });
+
   it('404 for an item addressed through another checklist, even on the same card', async () => {
     const { owner, cardId } = await card();
     const a = await addChecklist(owner, cardId, 'A');
