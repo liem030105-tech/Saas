@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
+import { useCurrentUser } from '@/features/auth';
 import { BoardView, boardPath, useBoard } from '@/features/boards';
 import { CardDetailModal, CardModalStatus, CardTileProvider, useCard } from '@/features/cards';
 import { BoardLists } from '@/features/lists';
@@ -19,6 +20,7 @@ export function BoardPage() {
   const { data: board, isPending, error, refetch } = useBoard(boardId);
   const { data: workspaces, isPending: workspacesPending } = useWorkspaces();
   const card = useCard(cardId);
+  const currentUser = useCurrentUser(); // the author of their own comments (CARD-005d)
   // Who can be assigned to cards, and whose avatars the tiles show (CARD-005b).
   const members = useMembers(board?.workspaceId ?? '');
   const workspaceMembers = useMemo(
@@ -92,6 +94,15 @@ export function BoardPage() {
             retry: () => void members.refetch(),
           }}
           canEdit={canEditContent}
+          commentAccess={{
+            user: currentUser.data && {
+              id: currentUser.data.id,
+              name: currentUser.data.name,
+              avatarUrl: currentUser.data.avatarUrl,
+            },
+            canComment: !board.archived && (role ? can(role, 'comment.create') : false),
+            canDeleteAny: !board.archived && (role ? can(role, 'comment.deleteAny') : false),
+          }}
           onClose={closeCard}
         />
       ) : (

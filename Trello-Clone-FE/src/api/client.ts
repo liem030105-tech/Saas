@@ -150,10 +150,28 @@ async function request<T>(config: AxiosRequestConfig): Promise<T> {
   }
 }
 
+/** A cursor-paginated list as the API sends it (docs/api/README.md → Pagination). */
+export interface Page<T> {
+  data: T[];
+  nextCursor: string | null;
+}
+
+async function requestPage<T>(config: AxiosRequestConfig): Promise<Page<T>> {
+  try {
+    const { data } = await http.request<Page<T>>(config);
+    return { data: data.data, nextCursor: data.nextCursor };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
 /** Typed calls that unwrap `{ data }` and throw `ApiError`. Features use this, never `http`. */
 export const apiClient = {
   get: <T>(url: string, config?: AxiosRequestConfig) =>
     request<T>({ ...config, method: 'GET', url }),
+  /** GET of a paginated list: keeps `nextCursor` next to `data`. */
+  getPage: <T>(url: string, config?: AxiosRequestConfig) =>
+    requestPage<T>({ ...config, method: 'GET', url }),
   post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     request<T>({ ...config, method: 'POST', url, data }),
   put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>

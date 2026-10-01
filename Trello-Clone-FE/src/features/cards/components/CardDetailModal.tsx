@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Markdown } from '@/components/ui/Markdown';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { CommentSection, type CommentAccess } from '@/features/comments';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
 import { AddChecklistButton, ChecklistSection } from './ChecklistSection';
@@ -39,14 +40,16 @@ interface CardDetailModalProps {
   workspaceMembers: WorkspaceMembers;
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
+  /** Who is looking and what they may do with comments. */
+  commentAccess: CommentAccess;
   onClose: () => void;
 }
 
 /**
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
- * read-only. Labels since CARD-005a, members since CARD-005b, checklists since CARD-005c; comments
- * and activity arrive with the rest of CARD-005.
+ * read-only. Labels since CARD-005a, members since CARD-005b, checklists since CARD-005c, comments
+ * since CARD-005d; the activity entries arrive with CARD-005e.
  */
 export function CardDetailModal({
   card,
@@ -54,6 +57,7 @@ export function CardDetailModal({
   boardLabels,
   workspaceMembers,
   canEdit,
+  commentAccess,
   onClose,
 }: CardDetailModalProps) {
   const updateCard = useUpdateCard(card.boardId, card.id);
@@ -157,6 +161,7 @@ export function CardDetailModal({
                 canEdit={canEdit}
               />
             ))}
+            <CommentSection boardId={card.boardId} cardId={card.id} access={commentAccess} />
           </div>
 
           {canEdit && (

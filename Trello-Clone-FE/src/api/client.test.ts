@@ -18,6 +18,25 @@ describe('apiClient', () => {
     await expect(apiClient.get('/things/1')).resolves.toEqual(sampleResource);
   });
 
+  it('keeps nextCursor next to the data of a paginated list', async () => {
+    server.use(
+      mswHttp.get(apiUrl('/things'), ({ request }) =>
+        HttpResponse.json({
+          data: [sampleResource],
+          nextCursor: new URL(request.url).searchParams.get('cursor') ? null : sampleResource.id,
+        }),
+      ),
+    );
+
+    await expect(apiClient.getPage('/things')).resolves.toEqual({
+      data: [sampleResource],
+      nextCursor: sampleResource.id,
+    });
+    await expect(
+      apiClient.getPage('/things', { params: { cursor: sampleResource.id } }),
+    ).resolves.toEqual({ data: [sampleResource], nextCursor: null });
+  });
+
   it('sends the JSON body', async () => {
     let received: unknown;
     server.use(
