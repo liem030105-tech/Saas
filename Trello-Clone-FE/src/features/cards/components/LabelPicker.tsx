@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { HexColorSchema, LabelNameSchema, type LabelDto } from '@trello-clone/shared';
 import { ChevronLeftIcon, PencilIcon, TagIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -13,11 +12,10 @@ import { readableTextColor } from '@/features/boards';
 import { cn } from '@/lib/utils';
 
 import { useLabelMutations, useToggleCardLabel } from '../hooks/useLabels';
-import { colorName, LABEL_COLORS, labelText } from '../labels';
+import { LABEL_COLORS, labelText } from '../labels';
+import { errorMessage } from '../queries';
 
 const SAVE_ERROR = "Couldn't save the label. Check your connection and try again.";
-const errorMessage = (error: unknown) =>
-  error instanceof ApiError && error.code !== NETWORK_ERROR_CODE ? error.message : SAVE_ERROR;
 
 /** A label as a coloured chip with its name (or nothing, for a colour-only label). */
 export function LabelChip({ label, className }: { label: LabelDto; className?: string }) {
@@ -45,15 +43,34 @@ interface LabelPickerProps {
 
 type View = { kind: 'list' } | { kind: 'create' } | { kind: 'edit'; label: LabelDto };
 
+/** `data-focus-id` of "Create a new label"; an "Edit label" button carries its label's id. */
+const CREATE_BUTTON = 'create';
+
 /**
  * "Labels" in the card modal (docs/design/ui.md → Card modal): a popover listing the board's
  * labels as checkboxes (checked = on this card), each with "Edit"; "Create a new label" and Edit
  * open a form with a name and the colour presets, and Edit can delete the label from the board.
+ * Leaving a form puts the focus back on the button that opened it (the popover is not modal, so
+ * a focus left on a removed element would fall out of it).
  */
 export function LabelPicker({ boardId, cardId, boardLabels, cardLabels }: LabelPickerProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
+  const [returnFocus, setReturnFocus] = useState<string | null>(null);
+  const content = useRef<HTMLDivElement>(null);
   const toggle = useToggleCardLabel(boardId, cardId);
+  const backToList = (focusId: string) => {
+    setReturnFocus(focusId);
+    setView({ kind: 'list' });
+  };
+  useEffect(() => {
+    if (view.kind !== 'list' || returnFocus === null) return;
+    const target = content.current?.querySelector<HTMLElement>(`[data-focus-id="${returnFocus}"]`);
+    (
+      target ?? content.current?.querySelector<HTMLElement>(`[data-focus-id="${CREATE_BUTTON}"]`)
+    )?.focus();
+    setReturnFocus(null);
+  }, [view, returnFocus]);
 
   return (
     <Popover
@@ -69,22 +86,30 @@ export function LabelPicker({ boardId, cardId, boardLabels, cardLabels }: LabelP
           Labels
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" aria-label="Labels" className="flex flex-col gap-3">
+      <PopoverContent
+        ref={content}
+        align="start"
+        aria-label="Labels"
+        className="flex flex-col gap-3"
+      >
         {view.kind === 'list' ? (
           <>
             <h4 className="text-center text-sm font-semibold">Labels</h4>
             {boardLabels.length === 0 && (
               <p className="text-sm text-muted-foreground">This board has no labels yet.</p>
             )}
-            {/* Remounted when the card's labels change, so a refetch resets the local state. */}
             <LabelList
-              key={cardLabels.map((label) => label.id).join()}
               boardLabels={boardLabels}
               cardLabels={cardLabels}
               onToggle={(label, on) => toggle.mutate({ label, on })}
               onEdit={(label) => setView({ kind: 'edit', label })}
             />
-            <Button variant="secondary" size="sm" onClick={() => setView({ kind: 'create' })}>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-focus-id={CREATE_BUTTON}
+              onClick={() => setView({ kind: 'create' })}
+            >
               Create a new label
             </Button>
           </>
@@ -92,7 +117,7 @@ export function LabelPicker({ boardId, cardId, boardLabels, cardLabels }: LabelP
           <LabelForm
             boardId={boardId}
             label={view.kind === 'edit' ? view.label : undefined}
-            onDone={() => setView({ kind: 'list' })}
+            onDone={(focusId) => backToList(focusId)}
           />
         )}
       </PopoverContent>
@@ -102,7 +127,8 @@ export function LabelPicker({ boardId, cardId, boardLabels, cardLabels }: LabelP
 
 /**
  * The board's labels as checkboxes. Each keeps its own checked state, so it changes the moment it
- * is clicked: the optimistic cache update only lands after in-flight queries are cancelled.
+ * is clicked (the optimistic cache update only lands after in-flight queries are cancelled); the
+ * state is reset in place whenever the card's labels change, so focus stays where it is.
  */
 function LabelList({
   boardLabels,
@@ -115,7 +141,10 @@ function LabelList({
   onToggle: (label: LabelDto, on: boolean) => void;
   onEdit: (label: LabelDto) => void;
 }) {
-  const [on, setOn] = useState(() => new Set(cardLabels.map((label) => label.id)));
+  const ids = cardLabels.map((label) => label.id);
+  const [checked, setChecked] = useState({ ids: ids.join(), on: new Set(ids) });
+  if (checked.ids !== ids.join()) setChecked({ ids: ids.join(), on: new Set(ids) });
+  const { on } = checked;
 
   return (
     <ul className="flex flex-col gap-1">
@@ -127,14 +156,14 @@ function LabelList({
               className="size-4"
               checked={on.has(label.id)}
               onChange={(event) => {
-                const checked = event.target.checked;
-                setOn((current) => {
-                  const next = new Set(current);
-                  if (checked) next.add(label.id);
+                const isOn = event.target.checked;
+                setChecked((current) => {
+                  const next = new Set(current.on);
+                  if (isOn) next.add(label.id);
                   else next.delete(label.id);
-                  return next;
+                  return { ...current, on: next };
                 });
-                onToggle(label, checked);
+                onToggle(label, isOn);
               }}
             />
             <LabelChip label={label} className="flex-1" />
@@ -144,6 +173,7 @@ function LabelList({
             size="icon"
             className="size-7"
             aria-label={`Edit label ${labelText(label)}`}
+            data-focus-id={label.id}
             onClick={() => onEdit(label)}
           >
             <PencilIcon aria-hidden="true" />
@@ -166,10 +196,20 @@ function LabelForm({
 }: {
   boardId: string;
   label: LabelDto | undefined;
-  onDone: () => void;
+  /** Back to the list, focusing the button with this `data-focus-id`. */
+  onDone: (focusId: string) => void;
 }) {
   const { create, update, remove } = useLabelMutations(boardId);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteButton = useRef<HTMLButtonElement>(null);
+  const confirmed = useRef(false);
+  // Cancelling the confirmation puts the focus back on "Delete" (the confirm block is removed).
+  useEffect(() => {
+    if (confirmDelete) confirmed.current = true;
+    else if (confirmed.current) deleteButton.current?.focus();
+  }, [confirmDelete]);
+  // Where the focus goes back to: this label's "Edit" button, or "Create a new label".
+  const opener = label?.id ?? CREATE_BUTTON;
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LabelFormInput, unknown, LabelFormData>({
     resolver: zodResolver(LabelFormSchema),
@@ -177,13 +217,13 @@ function LabelForm({
   });
   const color = form.watch('color');
   const nameError = form.formState.errors.name?.message;
-  const run = async (action: () => Promise<unknown>) => {
+  const run = async (action: () => Promise<unknown>, focusId = opener) => {
     setError(null);
     try {
       await action();
-      onDone();
+      onDone(focusId);
     } catch (failure) {
-      setError(errorMessage(failure));
+      setError(errorMessage(failure, SAVE_ERROR));
     }
   };
   const busy = create.isPending || update.isPending || remove.isPending;
@@ -204,7 +244,13 @@ function LabelForm({
       }
     >
       <div className="flex items-center gap-2">
-        <Button type="button" variant="ghost" size="icon" className="size-7" onClick={onDone}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={() => onDone(opener)}
+        >
           <ChevronLeftIcon aria-hidden="true" />
           <span className="sr-only">Back to labels</span>
         </Button>
@@ -247,9 +293,6 @@ function LabelForm({
             </label>
           ))}
         </div>
-        <p className="sr-only" aria-live="polite">
-          {colorName(color)}
-        </p>
       </fieldset>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -266,8 +309,9 @@ function LabelForm({
               type="button"
               variant="destructive"
               size="sm"
+              autoFocus
               disabled={busy}
-              onClick={() => void run(() => remove.mutateAsync(label.id))}
+              onClick={() => void run(() => remove.mutateAsync(label.id), CREATE_BUTTON)}
             >
               Delete label
             </Button>
@@ -282,7 +326,13 @@ function LabelForm({
             {label ? 'Save' : 'Create'}
           </Button>
           {label && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
+            <Button
+              ref={deleteButton}
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+            >
               Delete
             </Button>
           )}

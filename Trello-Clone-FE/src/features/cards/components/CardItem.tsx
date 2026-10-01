@@ -1,9 +1,9 @@
 import { CheckIcon, ClockIcon } from 'lucide-react';
 import { Link } from 'react-router';
 
-import { useBoard } from '@/features/boards';
 import { cn } from '@/lib/utils';
 
+import { useBoardLabels } from '../boardLabels';
 import { formatDueDate, isOverdue } from '../dates';
 import { labelText } from '../labels';
 import { cardPath } from '../paths';
@@ -31,8 +31,7 @@ interface CardItemProps {
 export function CardItem({ boardId, card, dragProps, overlay = false }: CardItemProps) {
   const pending = isOptimisticCard(card);
   const overdue = isOverdue(card.dueDate, card.completed);
-  // The board's labels, from the board query the page already holds.
-  const boardLabels = useBoard(boardId).data?.labels ?? [];
+  const boardLabels = useBoardLabels();
   const labels = card.labelIds.flatMap((id) => boardLabels.filter((label) => label.id === id));
   const body = (
     <>

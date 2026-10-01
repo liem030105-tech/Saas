@@ -117,7 +117,7 @@ A centered 400px card on a neutral background: title, fields, primary button, li
 | Need | Component |
 |------|-----------|
 | Dialogs (create board, card modal) | `Dialog` |
-| Confirm destructive action | `AlertDialog` |
+| Confirm destructive action | `AlertDialog`; inside a popover (label picker), an inline confirm step instead, so the popover stays open and keeps focus |
 | Menus (list ⋯, board ⋯, avatar) | `DropdownMenu` |
 | Pickers (labels, members, colour) | `Popover` (+ `Command` once a list needs search; the label picker is a checkbox list) |
 | Due date | Native `<input type="date">` (CARD-002; no calendar dependency) |

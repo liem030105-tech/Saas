@@ -40,6 +40,13 @@ export const labelEdits = {
   rename: { typed: 'Ready', sent: { name: 'Ready', color: '#61bd4f' } },
 };
 
+/** POST /boards/:boardId/labels refused: the message shows in the label form. */
+export const labelCreateError = buildErrorBody({
+  code: 'VALIDATION_ERROR',
+  message: 'Name must be at most 50 characters',
+  details: [],
+});
+
 export const labelToggleError = buildErrorBody({
   code: 'INTERNAL_ERROR',
   message: 'Something went wrong',

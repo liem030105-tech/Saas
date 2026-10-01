@@ -22,16 +22,37 @@ const ALL_CARDS = { queryKey: ['card'] };
 
 /**
  * Puts a label on the card or takes it off (POST / DELETE /cards/:cardId/labels/:labelId),
- * optimistic on both the modal and the board tile; an error rolls both back with a toast. One
- * card's label changes run in turn, so a rollback never undoes a later toggle.
+ * optimistic on both the modal and the board tile. One card's toggles send their requests in
+ * turn (their `onMutate` runs at once, so every click shows immediately). A failed toggle undoes
+ * only itself, on the caches as they are now, so toggles made since stay; and only the last
+ * toggle to settle refetches, so an earlier one never brings back server data without the later
+ * ones.
  */
 export function useToggleCardLabel(boardId: string, cardId: string) {
   const queryClient = useQueryClient();
   const cardKey = cardKeys.detail(cardId);
   const boardKey = boardKeys.detail(boardId);
+  const scopeId = `card-labels:${cardId}`;
+
+  /** Shows `label` on (or off) the card in the modal's and the board's caches. */
+  const show = (label: LabelDto, on: boolean) => {
+    queryClient.setQueryData<CardDetailDto>(cardKey, (card) => {
+      if (!card) return card;
+      const others = card.labels.filter((item) => item.id !== label.id);
+      return { ...card, labels: on ? [...others, label].sort(byId) : others };
+    });
+    queryClient.setQueryData<BoardDetailDto>(boardKey, (board) =>
+      board
+        ? withCard(board, cardId, (card) => {
+            const ids = card.labelIds.filter((id) => id !== label.id);
+            return { ...card, labelIds: on ? [...ids, label.id].sort() : ids };
+          })
+        : board,
+    );
+  };
 
   return useMutation({
-    scope: { id: `card-labels:${cardId}` },
+    scope: { id: scopeId },
     mutationFn: ({ label, on }: { label: LabelDto; on: boolean }) =>
       on ? labelsApi.attach(cardId, label.id) : labelsApi.detach(cardId, label.id),
     onMutate: async ({ label, on }) => {
@@ -39,28 +60,15 @@ export function useToggleCardLabel(boardId: string, cardId: string) {
         queryClient.cancelQueries({ queryKey: cardKey }),
         queryClient.cancelQueries({ queryKey: boardKey }),
       ]);
-      const previousCard = queryClient.getQueryData<CardDetailDto>(cardKey);
-      const previousBoard = queryClient.getQueryData<BoardDetailDto>(boardKey);
-      const others = (previousCard?.labels ?? []).filter((item) => item.id !== label.id);
-      const labels = on ? [...others, label].sort(byId) : others;
-      if (previousCard) queryClient.setQueryData(cardKey, { ...previousCard, labels });
-      if (previousBoard) {
-        queryClient.setQueryData(
-          boardKey,
-          withCard(previousBoard, cardId, (card) => {
-            const ids = card.labelIds.filter((id) => id !== label.id);
-            return { ...card, labelIds: on ? [...ids, label.id].sort() : ids };
-          }),
-        );
-      }
-      return { previousCard, previousBoard };
+      show(label, on);
     },
-    onError: (_error, _toggle, context) => {
-      if (context?.previousCard) queryClient.setQueryData(cardKey, context.previousCard);
-      if (context?.previousBoard) queryClient.setQueryData(boardKey, context.previousBoard);
+    onError: (_error, { label, on }) => {
+      show(label, !on);
       toast.error(TOGGLE_ERROR);
     },
     onSettled: async () => {
+      const pending = queryClient.isMutating({ predicate: (m) => m.options.scope?.id === scopeId });
+      if (pending > 1) return; // this toggle still counts as pending while it settles
       await queryClient.invalidateQueries({ queryKey: cardKey });
       await refetchBoardWhenIdle(queryClient, boardId);
     },
