@@ -37,8 +37,19 @@ const socketIoFactory: Factory = (auth) =>
 let factory: Factory = socketIoFactory;
 let socket: RealtimeTransport | null = null;
 let connectedBefore = false;
-/** Rooms to be in: joined again on every reconnect. Keyed by message and id. */
-const rooms = new Map<string, { event: keyof RoomRequest; payload: object; count: number }>();
+type AckHandler = (ack: RoomAck) => void;
+/**
+ * Rooms to be in: joined again on every reconnect, each join's answer going to every holder's
+ * handler. Keyed by message and id.
+ */
+const rooms = new Map<
+  string,
+  { event: keyof RoomRequest; payload: object; holders: AckHandler[] }
+>();
+
+const answerHolders = (holders: AckHandler[]) => (ack: RoomAck) => {
+  for (const holder of [...holders]) holder(ack);
+};
 const reconnectListeners = new Set<() => void>();
 
 /** Tests replace the Socket.IO client with an in-memory transport (and back with `null`). */
@@ -58,7 +69,9 @@ function realtime(): RealtimeTransport {
   created.on('connect', () => {
     refused = 0;
     setSocketId(created.id ?? null);
-    for (const { event, payload } of rooms.values()) created.emit(event, payload);
+    for (const { event, payload, holders } of rooms.values()) {
+      created.emit(event, payload, answerHolders(holders));
+    }
     if (connectedBefore) for (const listener of reconnectListeners) listener();
     connectedBefore = true;
   });
@@ -80,30 +93,31 @@ function realtime(): RealtimeTransport {
 
 /**
  * Joins `board:{id}` or `workspace:{id}` while the returned function has not been called; joined
- * again after every reconnect. Several callers may hold the same room.
+ * again after every reconnect. Several callers may hold the same room. `onAck` hears the server's
+ * answer to every join from now on (the first, and each one after a reconnect); a caller that
+ * joins a room already held hears the next one.
  */
 export function joinRoom<E extends 'board:join' | 'workspace:join'>(
   event: E,
   payload: RoomRequest[E],
-  onRefused?: (ack: RoomAck) => void,
+  onAck: AckHandler = () => {},
 ): () => void {
   const key = `${event}:${JSON.stringify(payload)}`;
   const held = rooms.get(key);
   const current = realtime();
-  if (held) held.count += 1;
+  if (held) held.holders.push(onAck);
   else {
-    rooms.set(key, { event, payload, count: 1 });
-    if (current.connected) {
-      current.emit(event, payload, (ack: RoomAck) => {
-        if (!ack.ok) onRefused?.(ack);
-      });
-    }
+    const holders = [onAck];
+    rooms.set(key, { event, payload, holders });
+    if (current.connected) current.emit(event, payload, answerHolders(holders));
   }
+  let left = false;
   return () => {
     const room = rooms.get(key);
-    if (!room) return;
-    room.count -= 1;
-    if (room.count > 0) return;
+    if (left || !room) return;
+    left = true;
+    room.holders.splice(room.holders.indexOf(onAck), 1);
+    if (room.holders.length > 0) return;
     rooms.delete(key);
     socket?.emit(event === 'board:join' ? 'board:leave' : 'workspace:leave', payload);
   };

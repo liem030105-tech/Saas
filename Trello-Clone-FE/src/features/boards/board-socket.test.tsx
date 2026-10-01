@@ -55,11 +55,14 @@ function signedIn() {
 
 async function openBoard() {
   const state = signedIn();
-  renderApp(boardPathFor(roadmapBoard));
+  const { queryClient } = renderApp(boardPathFor(roadmapBoard));
   await screen.findByRole('heading', { name: 'To do', level: 2 });
   await waitFor(() =>
     expect(realtime().sent).toContain(`board:join {"boardId":"${roadmapBoard.id}"}`),
   );
+  // Joining refetches the board once (changes made while it loaded reach no event).
+  await waitFor(() => expect(state.boardGets).toBe(2));
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   return state;
 }
 

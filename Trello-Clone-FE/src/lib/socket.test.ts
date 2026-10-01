@@ -44,14 +44,18 @@ describe('realtime connection (lib/socket)', () => {
     expect(socket.sent.at(-1)).toBe(`board:leave {"boardId":"${boardId}"}`);
   });
 
-  it('a refused join reports its ack', async () => {
-    joinRoom('board:join', { boardId });
+  it('every join answers its holders, the first and each after a reconnect (refused too)', async () => {
+    const answers = vi.fn();
+    joinRoom('board:join', { boardId }, answers);
     await tick();
-    realtime().ack = { ok: false, code: 'NOT_FOUND' };
-    const refused = vi.fn();
-    joinRoom('board:join', { boardId: 'clx0000000000000000000032' }, refused);
+    expect(answers).toHaveBeenLastCalledWith({ ok: true });
 
-    expect(refused).toHaveBeenCalledWith({ ok: false, code: 'NOT_FOUND' });
+    // Removed while disconnected: the join after the reconnect is refused, and says so.
+    realtime().ack = { ok: false, code: 'NOT_FOUND' };
+    realtime().reconnect();
+
+    expect(answers).toHaveBeenCalledTimes(2);
+    expect(answers).toHaveBeenLastCalledWith({ ok: false, code: 'NOT_FOUND' });
   });
 
   it('delivers events to their listeners until they unsubscribe', async () => {
