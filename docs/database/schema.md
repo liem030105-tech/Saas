@@ -260,7 +260,7 @@ model User {
   updatedAt     DateTime @updatedAt
   memberships   WorkspaceMember[]
   refreshTokens RefreshToken[]
-  cardMembers   CardMember[]
+  cards         CardMember[]
   comments      Comment[]
   activities    Activity[]
   attachments   Attachment[]
@@ -495,3 +495,4 @@ model Subscription {
 | `20261001010603_add_card_activity_types` | CARD-002 | `ActivityType` += `CARD_UPDATED`, `CARD_ARCHIVED` |
 | `20261001015720_add_card_moved_type` | CARD-003 | `ActivityType` += `CARD_MOVED` |
 | `20261001052152_add_labels` | CARD-005a | `Label` (FK → `Board` cascade, index `(boardId)`); `CardLabel` (PK `(cardId, labelId)`, FKs cascade, index `(labelId)`); backfills the six default labels for every existing board (ids `c0…`, so they sort before labels created later) |
+| `20261001061114_add_card_members` | CARD-005b | `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`; `CardMember` (PK `(cardId, userId)`, FKs → `Card` and `User` cascade, index `(userId)`) |

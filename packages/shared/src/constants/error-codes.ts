@@ -25,6 +25,8 @@ export const BUSINESS_RULES = [
   'CROSS_WORKSPACE_MOVE',
   /** A card can carry only its own board's labels (invariant I2, CARD-005). */
   'LABEL_OTHER_BOARD',
+  /** Only a member of the card's workspace can be assigned to it (invariant I3, CARD-005). */
+  'NOT_WORKSPACE_MEMBER',
 ] as const;
 
 export type BusinessRule = (typeof BUSINESS_RULES)[number];

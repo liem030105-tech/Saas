@@ -7,8 +7,11 @@ import type {
   ListDto,
 } from '@trello-clone/shared';
 
-/** A card with its label ids (boards.repository CARD_LABEL_IDS), as CardSummaryDto needs it. */
-export type CardWithLabelIds = Card & { labels: { labelId: string }[] };
+/** A card with its label and member ids (boards.repository), as CardSummaryDto needs it. */
+export type CardSummaryRow = Card & {
+  labels: { labelId: string }[];
+  members: { userId: string }[];
+};
 
 /** docs/api/boards.md → BoardDto. */
 export function toBoardDto(board: Board): BoardDto {
@@ -25,7 +28,7 @@ export function toBoardDto(board: Board): BoardDto {
 
 /** docs/api/boards.md → BoardDetailDto. */
 export function toBoardDetailDto(
-  board: Board & { lists: (List & { cards: CardWithLabelIds[] })[]; labels: Label[] },
+  board: Board & { lists: (List & { cards: CardSummaryRow[] })[]; labels: Label[] },
 ): BoardDetailDto {
   return {
     ...toBoardDto(board),
@@ -44,10 +47,10 @@ export function toLabelDto(label: Label): LabelDto {
 
 /**
  * docs/api/boards.md → CardSummaryDto: a card as the board shows it. The boards module owns this
- * shape (the cards module reaches it through boards.service). Members, checklist and comment
- * counts arrive with the rest of CARD-005 and are empty or zero until then.
+ * shape (the cards module reaches it through boards.service). Checklist and comment counts
+ * arrive with the rest of CARD-005 and are zero until then.
  */
-export function toCardSummaryDto(card: CardWithLabelIds): CardSummaryDto {
+export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
   return {
     id: card.id,
     listId: card.listId,
@@ -57,7 +60,7 @@ export function toCardSummaryDto(card: CardWithLabelIds): CardSummaryDto {
     completed: card.completed,
     coverUrl: card.coverUrl,
     labelIds: card.labels.map((label) => label.labelId),
-    memberIds: [],
+    memberIds: card.members.map((member) => member.userId),
     checklist: { done: 0, total: 0 },
     commentCount: 0,
   };

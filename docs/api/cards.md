@@ -32,7 +32,7 @@
 | Task | CARD-002 (base fields) · CARD-005 (members, labels, checklists) · ATTACHMENTS-001 (attachments) |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (the card's stored `boardId` → `assertBoardAccess(…, 'card.view')`) |
-| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a; `members`, `checklists` and `attachments` are empty arrays until the rest of CARD-005 / ATTACHMENTS-001 |
+| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a, `members` (`UserSummary`, by id) since CARD-005b; `checklists` and `attachments` are empty arrays until the rest of CARD-005 / ATTACHMENTS-001 |
 | Errors | `401` · `404` (unknown card, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 ### PATCH /cards/:cardId
@@ -81,12 +81,12 @@ Moving to an archived list is allowed. Archived cards can be moved.
 ## Card members & labels (CARD-005)
 | Method | Path | Authorization | Success | Errors |
 |--------|------|---------------|---------|--------|
-| POST | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent) | `404` (card not visible) · `422` rule `NOT_WORKSPACE_MEMBER` (I3) |
+| POST | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent) | `404` (card not visible) · `422` rule `NOT_WORKSPACE_MEMBER` (I3; also for a user id that does not exist, so the answer reveals nothing). Any role of the workspace can be assigned |
 | DELETE | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent) | `404` |
 | POST | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` (card or label not visible) · `422` rule `LABEL_OTHER_BOARD` (I2) |
 | DELETE | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` |
 
-Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`. Attaching or detaching a label (CARD-005a) logs nothing; the attach re-reads the card's board under a row lock, so it cannot race a cross-board move into breaking I2; a label the card does not have detaches as a no-op, and a label of another board the caller cannot see is a `404` like one that does not exist.
+Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`, only when it changes something (CARD-005b). The assignment holds the person's workspace membership row `FOR KEY SHARE` until it commits, so it cannot race their removal from the workspace into breaking I3. Attaching or detaching a label (CARD-005a) logs nothing; the attach re-reads the card's board under a row lock, so it cannot race a cross-board move into breaking I2; a label the card does not have detaches as a no-op, and a label of another board the caller cannot see is a `404` like one that does not exist.
 
 ## Checklists (CARD-005)
 | Method | Path | Authorization | Body → Success |

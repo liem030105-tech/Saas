@@ -26,6 +26,7 @@ model User {
   memberships   WorkspaceMember[]
   invitesSent   WorkspaceInvite[]
   activities    Activity[]
+  cards         CardMember[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -125,6 +126,8 @@ enum ActivityType {
   CARD_UPDATED
   CARD_ARCHIVED
   CARD_MOVED
+  MEMBER_ADDED
+  MEMBER_REMOVED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.
@@ -165,7 +168,7 @@ model List {
 /// A card in a list, ordered by `position ASC, id ASC`. `boardId` always equals the list's
 /// (invariant I1): it is denormalized for one-query authorization and board-wide queries. CARD-001.
 model Card {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   boardId     String
   listId      String
   title       String
@@ -173,16 +176,17 @@ model Card {
   description String?
   position    Float
   dueDate     DateTime?
-  completed   Boolean     @default(false)
+  completed   Boolean      @default(false)
   /// Unused until ATTACHMENTS-001.
   coverUrl    String?
-  archived    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  board       Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  list        List        @relation(fields: [listId], references: [id], onDelete: Cascade)
+  archived    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list        List         @relation(fields: [listId], references: [id], onDelete: Cascade)
   activities  Activity[]
   labels      CardLabel[]
+  members     CardMember[]
 
   @@index([listId, position])
   @@index([boardId])
@@ -212,6 +216,19 @@ model CardLabel {
   @@id([cardId, labelId])
   /// Deleting a label detaches it from its cards.
   @@index([labelId])
+}
+
+/// A workspace member assigned to a card (invariant I3: only members of the card's workspace).
+/// CARD-005.
+model CardMember {
+  cardId String
+  userId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
+  /// Serves "cards assigned to me" and removing a member's assignments.
+  @@index([userId])
 }
 
 /// Append-only board activity feed. BOARD-001; `cardId` since CARD-001.

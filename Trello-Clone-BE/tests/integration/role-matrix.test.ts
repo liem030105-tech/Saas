@@ -351,3 +351,20 @@ describeRoleMatrix(getApp, {
   request: (ctx) => request(ctx.app).delete(cardLabelPath(ctx)).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
 });
+
+// Card members (CARD-005b): the workspace OWNER is assigned (always a member of the workspace).
+const cardMemberPath = (ctx: MatrixContext) => `${cardPath(ctx)}/members/${ctx.owner.user.id}`;
+
+describeRoleMatrix(getApp, {
+  name: 'POST /cards/:cardId/members/:userId',
+  setup: addCard,
+  request: (ctx) => request(ctx.app).post(cardMemberPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /cards/:cardId/members/:userId',
+  setup: addCard,
+  request: (ctx) => request(ctx.app).delete(cardMemberPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});

@@ -492,6 +492,47 @@ const cases: IsolationCase[] = [
         .delete(`${card(missingId)}/labels/${a.labelId}`)
         .set(bearer(a.owner.token)),
   },
+  {
+    route: 'POST /cards/:cardId/members/:userId',
+    attempt: "assign A's owner to B's card",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(b.cardId)}/members/${a.owner.user.id}`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .post(`${card(missingId)}/members/${a.owner.user.id}`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /cards/:cardId/members/:userId',
+    attempt: "assign B's owner to A's own card (not a member of A's workspace)",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(a.cardId)}/members/${b.owner.user.id}`)
+        .set(bearer(a.owner.token)),
+    // The same 422 as for a user id nothing has: the answer reveals nothing about B's owner.
+    expectResponse: (res) => {
+      expect(res.status).toBe(422);
+      expect(res.body.error.details[0].rule).toBe('NOT_WORKSPACE_MEMBER');
+    },
+    missing: (a) =>
+      request(app)
+        .post(`${card(a.cardId)}/members/${missingId}`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'DELETE /cards/:cardId/members/:userId',
+    attempt: "unassign B's member from B's card",
+    request: (a, b) =>
+      request(app)
+        .delete(`${card(b.cardId)}/members/${b.member.user.id}`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .delete(`${card(missingId)}/members/${a.owner.user.id}`)
+        .set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
