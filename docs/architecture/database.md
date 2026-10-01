@@ -24,7 +24,7 @@
 - Update `docs/database/schema.md` in the same PR.
 
 ## Performance
-- Load a board once with lists + cards + labels (selective `include`); card details (comments, checklists) load separately when the modal opens.
+- Load a board once with lists + cards + labels (selective `include`); card details (comments, checklists) load separately when the modal opens. The tiles' checklist progress is one grouped count per card (`boards.repository.findChecklistProgress`), never the items.
 - Activity log uses cursor pagination (`createdAt`, `id`).
 - Avoid N+1: never query inside a loop; use `include` / `in`.
 

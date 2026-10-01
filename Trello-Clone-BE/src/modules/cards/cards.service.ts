@@ -6,7 +6,9 @@ import { AppError } from '../../lib/app-error';
 import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
 import {
   assertBoardAccess,
+  checklistProgress,
   logActivity,
+  NO_CHECKLIST,
   toCardSummaryDto,
   toLabelDto,
 } from '../boards/boards.service';
@@ -54,11 +56,15 @@ const DETAIL = {
 type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
 
 const toDetail = (card: CardDetailRow) =>
-  toCardDetailDto(card, toCardSummaryDto(card), {
-    labels: card.labels.map(({ label }) => toLabelDto(label)),
-    members: card.members.map(({ user }) => user),
-    checklists: card.checklists.map(toChecklistDto),
-  });
+  toCardDetailDto(
+    card,
+    toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) }),
+    {
+      labels: card.labels.map(({ label }) => toLabelDto(label)),
+      members: card.members.map(({ user }) => user),
+      checklists: card.checklists.map(toChecklistDto),
+    },
+  );
 
 /**
  * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
@@ -109,7 +115,7 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto({ ...card, labels: [], members: [], checklists: [] }); // realtime emit (REALTIME-001) goes here, after the commit
+    return toCardSummaryDto({ ...card, labels: [], members: [], checklist: NO_CHECKLIST }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;

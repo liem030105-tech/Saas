@@ -142,8 +142,9 @@ export async function updateItem(
   const item = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       if (moved) await lockContainer(tx, 'ChecklistItem', 'checklistId', checklistId);
+      // Still in this checklist (no route moves an item, but the write should not assume it).
       const updated = await tx.checklistItem.update({
-        where: { id: itemId },
+        where: { id: itemId, checklistId },
         data: {
           ...(input.content !== undefined && { content: input.content }),
           ...(input.done !== undefined && { done: input.done }),
@@ -167,5 +168,5 @@ export async function updateItem(
 /** DELETE /checklists/:checklistId/items/:itemId (≥ MEMBER). */
 export async function removeItem(userId: string, checklistId: string, itemId: string) {
   await assertItemAccess(userId, checklistId, itemId);
-  await withNotFound(() => prisma.checklistItem.delete({ where: { id: itemId } }));
+  await withNotFound(() => prisma.checklistItem.delete({ where: { id: itemId, checklistId } }));
 }

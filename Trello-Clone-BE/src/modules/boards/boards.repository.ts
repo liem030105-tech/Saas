@@ -20,11 +20,10 @@ export function findBoardWithRole(userId: string, boardId: string) {
 /** Sort order of every ordered container (docs/database/relationships.md → Ordering). */
 const BY_POSITION = [{ position: 'asc' }, { id: 'asc' }] as const;
 
-/** A card's label and member ids and its checklist items' state, as CardSummaryDto needs them. */
+/** A card's label and member ids, as CardSummaryDto carries them (CARD-005). */
 const CARD_SUMMARY_IDS = {
   labels: { select: { labelId: true }, orderBy: { labelId: 'asc' } },
   members: { select: { userId: true }, orderBy: { userId: 'asc' } },
-  checklists: { select: { items: { select: { done: true } } } },
 } as const;
 
 /**
@@ -50,4 +49,22 @@ export function findDetail(boardId: string) {
       labels: { orderBy: { id: 'asc' } },
     },
   });
+}
+
+/**
+ * CardSummaryDto.checklist for the board's open cards (CARD-005c): two numbers per card, counted
+ * by the database, so the board load never reads checklist items (docs/architecture/database.md
+ * → Performance). Cards without items are left out.
+ */
+export async function findChecklistProgress(boardId: string) {
+  const rows = await prisma.$queryRaw<{ cardId: string; done: number; total: number }[]>`
+    SELECT cl."cardId",
+           (COUNT(*) FILTER (WHERE i."done"))::int AS done,
+           COUNT(*)::int AS total
+    FROM "ChecklistItem" i
+    JOIN "Checklist" cl ON cl."id" = i."checklistId"
+    JOIN "Card" c ON c."id" = cl."cardId"
+    WHERE c."boardId" = ${boardId} AND c."archived" = false
+    GROUP BY cl."cardId"`;
+  return new Map(rows.map(({ cardId, done, total }) => [cardId, { done, total }]));
 }

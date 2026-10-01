@@ -151,6 +151,38 @@ describe('checklists', () => {
     expect(detail.checklists[1]!.items.map((item) => item.content)).toEqual(['Two first', 'One']);
   });
 
+  it.each([
+    { kind: 'items', table: 'ChecklistItem' },
+    { kind: 'checklists', table: 'Checklist' },
+  ])('a move into a too-small gap renumbers the $kind and keeps the order', async ({ kind }) => {
+    const { owner, cardId } = await card();
+    const host = await addChecklist(owner, cardId, 'Host');
+    const add = (title: string) =>
+      kind === 'items' ? addItem(owner, host.id, title) : addChecklist(owner, cardId, title);
+    const first = await add('First');
+    const second = await add('Second');
+    const third = await add('Third');
+    const pathOf = (id: string) =>
+      kind === 'items' ? `${itemsOf(host.id)}/${id}` : checklistPath(id);
+
+    // Third goes between First and Second, closer to First than the rebalance threshold.
+    const res = await request(app)
+      .patch(pathOf(third.id))
+      .set(bearer(owner.token))
+      .send({ position: first.position + 1e-7 });
+
+    expect(res.status).toBe(200);
+    const detail = await cardDetail(cardId, owner);
+    const rows =
+      kind === 'items'
+        ? detail.checklists[0]!.items.map((item) => [item.content, item.position])
+        : detail.checklists.slice(1).map((checklist) => [checklist.title, checklist.position]);
+    expect(rows.map(([name]) => name)).toEqual(['First', 'Third', 'Second']);
+    expect(rows.every(([, position]) => (position as number) % 1024 === 0)).toBe(true);
+    expect(res.body.data.position).toBe(rows[1]![1]);
+    expect(second.position).not.toBe(rows[2]![1]);
+  });
+
   it('204: deleting an item, then a checklist with its items', async () => {
     const { owner, cardId } = await card();
     const launch = await addChecklist(owner, cardId, 'Launch');
@@ -199,6 +231,8 @@ describe('checklists', () => {
     { case: 'a blank item', path: 'item', body: { content: '' } },
     { case: 'an item over 500 chars', path: 'item', body: { content: 'c'.repeat(501) } },
     { case: 'a non-boolean done', path: 'updateItem', body: { done: 'yes' } },
+    { case: 'a checklist position of 0', path: 'update', body: { position: 0 } },
+    { case: 'an item position of 0', path: 'updateItem', body: { position: 0 } },
   ])('400 for $case', async ({ path, body }) => {
     const { owner, cardId } = await card();
     const launch = await addChecklist(owner, cardId, 'Launch');

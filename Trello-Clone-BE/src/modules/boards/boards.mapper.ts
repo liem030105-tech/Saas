@@ -11,8 +11,16 @@ import type {
 export type CardSummaryRow = Card & {
   labels: { labelId: string }[];
   members: { userId: string }[];
-  checklists: { items: { done: boolean }[] }[];
+  /** Done and total checklist items over all the card's checklists (CARD-005c). */
+  checklist: ChecklistProgress;
 };
+
+export interface ChecklistProgress {
+  done: number;
+  total: number;
+}
+
+export const NO_CHECKLIST: ChecklistProgress = { done: 0, total: 0 };
 
 /** docs/api/boards.md → BoardDto. */
 export function toBoardDto(board: Board): BoardDto {
@@ -29,13 +37,19 @@ export function toBoardDto(board: Board): BoardDto {
 
 /** docs/api/boards.md → BoardDetailDto. */
 export function toBoardDetailDto(
-  board: Board & { lists: (List & { cards: CardSummaryRow[] })[]; labels: Label[] },
+  board: Board & {
+    lists: (List & { cards: Omit<CardSummaryRow, 'checklist'>[] })[];
+    labels: Label[];
+  },
+  checklistProgressOf: (cardId: string) => ChecklistProgress,
 ): BoardDetailDto {
   return {
     ...toBoardDto(board),
     lists: board.lists.map((list) => ({
       ...toDetailListDto(list),
-      cards: list.cards.map(toCardSummaryDto),
+      cards: list.cards.map((card) =>
+        toCardSummaryDto({ ...card, checklist: checklistProgressOf(card.id) }),
+      ),
     })),
     labels: board.labels.map(toLabelDto),
   };
@@ -62,7 +76,7 @@ export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
     coverUrl: card.coverUrl,
     labelIds: card.labels.map((label) => label.labelId),
     memberIds: card.members.map((member) => member.userId),
-    checklist: checklistProgress(card.checklists),
+    checklist: card.checklist,
     commentCount: 0,
   };
 }
@@ -84,8 +98,8 @@ function toDetailListDto(list: List): ListDto {
   };
 }
 
-/** CardSummaryDto.checklist: done and total items over all the card's checklists (CARD-005c). */
-function checklistProgress(checklists: { items: { done: boolean }[] }[]) {
+/** CardSummaryDto.checklist from a card's loaded checklists (the card modal has them anyway). */
+export function checklistProgress(checklists: { items: { done: boolean }[] }[]): ChecklistProgress {
   const items = checklists.flatMap((checklist) => checklist.items);
   return { done: items.filter((item) => item.done).length, total: items.length };
 }

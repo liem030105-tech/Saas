@@ -411,7 +411,7 @@ model Checklist {
   position Float
   card     Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
   items    ChecklistItem[]
-  @@index([cardId])
+  @@index([cardId, position])
 }
 
 model ChecklistItem {
