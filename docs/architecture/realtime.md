@@ -1,7 +1,7 @@
 # Realtime Contract (Post-MVP, REALTIME-001)
 
-> **Domain:** Socket.IO connection, rooms, events, and FE cache synchronization. **Nothing here is implemented in the MVP (Phases 0–4).**
-> Event names and payload types become code in `packages/shared/src/constants/events.ts` and `packages/shared/src/types/realtime.ts`. Naming convention: **D-16**.
+> **Domain:** Socket.IO connection, rooms, events, and FE cache synchronization. Not part of the MVP (Phases 0–4); REALTIME-001 delivers it in sub-PRs: 001a connection and rooms, 001b service emits, 001c FE sync, 001d E2E.
+> Event names and payload types are code in `packages/shared/src/constants/events.ts` (`REALTIME_EVENTS`, `ROOM_EVENTS`; room names are built on the server only) and `packages/shared/src/types/realtime.ts` (`RealtimeEvent`, `RealtimeEventData`, `RoomAck`). Naming convention: **D-16** (its default, `domain:verb`).
 
 ## Principles
 1. **All mutations go through REST.** Sockets only broadcast changes that already happened. Clients never mutate data via sockets.
@@ -20,7 +20,8 @@
   | `board:{boardId}` | client emits `board:join { boardId }` (ack) | `assertBoardAccess(userId, boardId, 'board.view')` |
   | `workspace:{workspaceId}` | client emits `workspace:join { workspaceId }` (ack) | `assertWorkspaceAccess(userId, workspaceId, 'workspace.view')` |
 
-  - Ack payload: `{ ok: true }` or `{ ok: false, code: 'NOT_FOUND' }`. Leave with `board:leave` / `workspace:leave`.
+  - Ack payload: `{ ok: true }`, `{ ok: false, code: 'NOT_FOUND' }` (a missing room or one the caller may not see, alike), `{ ok: false, code: 'VALIDATION_ERROR' }` (the id is not a cuid) or `{ ok: false, code: 'INTERNAL_ERROR' }` (the check itself failed, e.g. the database is down; logged on the server). A socket's room messages are handled in the order sent, so a join cannot land after a later leave. Leave with `board:leave` / `workspace:leave` (same payloads, always `{ ok: true }` when valid). A message without an ack callback is still handled.
+  - Code: `Trello-Clone-BE/src/realtime/socket.ts` (`attachRealtime`, wired in `server.ts`; CORS is `CLIENT_URL`, like the REST API) and `realtime/rooms.ts`.
   - When a member is removed from a workspace, the server evicts all their sockets from that workspace's rooms (`socketsLeave`) and sends them `member:removed`.
 
 ## Event envelope

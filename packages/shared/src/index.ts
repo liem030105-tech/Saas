@@ -1,6 +1,7 @@
 // The only entry point of @trello-clone/shared: FE and BE import from here, never from src/*.
 export * from './constants/activity';
 export * from './constants/error-codes';
+export * from './constants/events';
 export * from './constants/pagination';
 export * from './constants/roles';
 export * from './schemas/auth';
@@ -22,5 +23,6 @@ export * from './types/activities';
 export * from './types/common';
 export * from './types/labels';
 export * from './types/lists';
+export * from './types/realtime';
 export * from './types/workspaces';
 export * from './utils/position';
