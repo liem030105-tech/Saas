@@ -102,3 +102,18 @@ export const CardDetailDtoSchema = CardSummaryDtoSchema.extend({
   checklists: z.array(ChecklistDtoSchema),
   attachments: z.array(AttachmentDtoSchema),
 });
+
+/** PATCH /cards/:cardId/move body: the target list (may be the current one) and the position there. */
+export const MoveCardInputSchema = z.object({
+  listId: CuidSchema,
+  position: PositionSchema,
+});
+
+/** PATCH /cards/:cardId/move answer, with the final stored position (after any rebalance). */
+export const MoveCardResultSchema = z.object({
+  id: CuidSchema,
+  listId: CuidSchema,
+  boardId: CuidSchema,
+  position: z.number(),
+  updatedAt: z.iso.datetime(),
+});

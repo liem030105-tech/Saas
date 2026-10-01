@@ -70,7 +70,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 23 | [LIST-003](LIST-003-list-ordering.md) list ordering + rebalance | 3 | L-001 | L-002, C-001 | – | Done |
 | 24 | [CARD-001](CARD-001-create-card.md) create card | 3 | L-001 | L-002, L-003 | – | Done |
 | 25 | [CARD-002](CARD-002-card-crud.md) card detail/update/delete | 3 | C-001 | L-003 | – | Done |
-| 26 | [CARD-003](CARD-003-card-move.md) card move API | 3 | C-002, L-003 | C-005 | – | Todo |
+| 26 | [CARD-003](CARD-003-card-move.md) card move API | 3 | C-002, L-003 | C-005 | – | Done |
 | 27 | [CARD-004](CARD-004-card-drag-drop.md) card drag and drop | 3 | C-003 | C-005 | – | Todo |
 | 28 | [CARD-005](CARD-005-card-details.md) card details | 4 | C-002 | C-003, C-004 | – | Todo |
 | 29 | [REALTIME-001](REALTIME-001-realtime.md) realtime | 5 | all MVP tasks | – | – | Todo |

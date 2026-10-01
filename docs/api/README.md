@@ -145,7 +145,7 @@ Implemented once, as an action → minimum-role map, in `Trello-Clone-BE/src/mod
 | **Billing** (Phase 7) – view | ✅ | ✅ | ❌ | ❌ |
 | Billing – checkout / portal | ✅ | ❌ | ❌ | ❌ |
 
-1. The last OWNER cannot leave, be removed, or be demoted (`422`, rule `LAST_OWNER`).
+1. The last OWNER cannot leave, be removed, or be demoted (`422`, rule `LAST_OWNER`). Other rules: `CROSS_WORKSPACE_MOVE` (CARD-003). The list is `BUSINESS_RULES` in `@trello-clone/shared`.
 2. Only an OWNER can grant `OWNER`.
 3. An ADMIN can act only on targets whose current role is ≤ ADMIN, and can assign at most `ADMIN`. Acting on an OWNER returns `403`.
 4. An ADMIN can invite with role ≤ ADMIN. Invites never grant `OWNER` (I5).

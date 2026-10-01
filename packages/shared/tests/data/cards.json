@@ -99,5 +99,36 @@
     "labels": [],
     "checklists": [],
     "attachments": []
-  }
+  },
+  "validMoves": [
+    {
+      "listId": "clx0000000000000000000051",
+      "position": 1024
+    },
+    {
+      "listId": "clx0000000000000000000051",
+      "position": 0.5
+    }
+  ],
+  "invalidMoves": [
+    {},
+    {
+      "position": 1024
+    },
+    {
+      "listId": "not-a-cuid",
+      "position": 1024
+    },
+    {
+      "listId": "clx0000000000000000000051"
+    },
+    {
+      "listId": "clx0000000000000000000051",
+      "position": 0
+    },
+    {
+      "listId": "clx0000000000000000000051",
+      "position": "1024"
+    }
+  ]
 }

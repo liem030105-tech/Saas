@@ -386,6 +386,34 @@ const cases: IsolationCase[] = [
     request: (a, b) => request(app).delete(card(b.cardId)).set(bearer(a.owner.token)),
     missing: (a) => request(app).delete(card(missingId)).set(bearer(a.owner.token)),
   },
+  {
+    route: 'PATCH /cards/:cardId/move',
+    attempt: "move B's card into A's own list",
+    request: (a, b) =>
+      request(app)
+        .patch(`${card(b.cardId)}/move`)
+        .set(bearer(a.owner.token))
+        .send({ listId: a.listId, position: 512 }),
+    missing: (a) =>
+      request(app)
+        .patch(`${card(missingId)}/move`)
+        .set(bearer(a.owner.token))
+        .send({ listId: a.listId, position: 512 }),
+  },
+  {
+    route: 'PATCH /cards/:cardId/move',
+    attempt: "move A's own card into B's list (the list is not visible)",
+    request: (a, b) =>
+      request(app)
+        .patch(`${card(a.cardId)}/move`)
+        .set(bearer(a.owner.token))
+        .send({ listId: b.listId, position: 512 }),
+    missing: (a) =>
+      request(app)
+        .patch(`${card(a.cardId)}/move`)
+        .set(bearer(a.owner.token))
+        .send({ listId: missingId, position: 512 }),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {

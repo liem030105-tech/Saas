@@ -5,6 +5,7 @@ import {
   CardSummaryDtoSchema,
   CardTitleSchema,
   CreateCardInputSchema,
+  MoveCardInputSchema,
   UpdateCardInputSchema,
 } from './cards';
 import data from '../../tests/data/cards.json';
@@ -54,5 +55,15 @@ describe('UpdateCardInputSchema', () => {
 describe('CardDetailDtoSchema', () => {
   it('accepts a card as GET /cards/:cardId returns it', () => {
     expect(CardDetailDtoSchema.parse(data.cardDetail)).toEqual(data.cardDetail);
+  });
+});
+
+describe('MoveCardInputSchema', () => {
+  it.each(data.validMoves)('accepts %j', (input) => {
+    expect(MoveCardInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each(data.invalidMoves)('rejects %j', (input) => {
+    expect(MoveCardInputSchema.safeParse(input).success).toBe(false);
   });
 });

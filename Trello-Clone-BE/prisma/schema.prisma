@@ -124,6 +124,7 @@ enum ActivityType {
   CARD_CREATED
   CARD_UPDATED
   CARD_ARCHIVED
+  CARD_MOVED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.

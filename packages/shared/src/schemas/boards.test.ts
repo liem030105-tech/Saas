@@ -60,6 +60,7 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'CARD_CREATED',
       'CARD_UPDATED',
       'CARD_ARCHIVED',
+      'CARD_MOVED',
     ]);
   });
 });

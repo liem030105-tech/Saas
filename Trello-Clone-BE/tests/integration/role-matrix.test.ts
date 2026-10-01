@@ -278,3 +278,14 @@ describeRoleMatrix(getApp, {
   request: (ctx) => request(ctx.app).delete(cardPath(ctx)).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
 });
+
+describeRoleMatrix(getApp, {
+  name: 'PATCH /cards/:cardId/move',
+  setup: addCard,
+  request: (ctx) =>
+    request(ctx.app)
+      .patch(`${cardPath(ctx)}/move`)
+      .set(as(ctx))
+      .send({ listId: ctx.fixture.listId, position: 512 }),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 403, NON_MEMBER: 404 },
+});
