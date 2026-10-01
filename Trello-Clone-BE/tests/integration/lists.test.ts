@@ -457,7 +457,7 @@ describe('PATCH /api/v1/lists/:listId (position)', () => {
 
 describe('rebalanceContainer', () => {
   it('renumbers archived and open lists by position, id and touches only that board', async () => {
-    const { owner, boardId, ids } = await orderedBoard();
+    const { boardId, ids } = await orderedBoard();
     const other = await listWith();
     await testPrisma.list.update({ where: { id: ids.A! }, data: { position: 3, archived: true } });
     await testPrisma.list.update({ where: { id: ids.B! }, data: { position: 2 } });
@@ -475,7 +475,6 @@ describe('rebalanceContainer', () => {
     expect(await testPrisma.list.findUnique({ where: { id: other.listId } })).toMatchObject({
       position: 1024,
     });
-    expect(owner).toBeDefined();
   });
 
   it('refuses a column that does not group that table', async () => {

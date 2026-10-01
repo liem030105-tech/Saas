@@ -57,8 +57,9 @@ async function settlePosition(tx: Tx, boardId: string, listId: string): Promise<
 /**
  * POST /boards/:boardId/lists (≥ MEMBER). Without `position` the list goes after the board's last
  * list (archived ones included, so it never lands between them and a later unarchive). A client
- * `position` goes through the rebalance check. The board's lists are locked first, so concurrent
- * creates and moves on one board run one at a time.
+ * `position` goes through the rebalance check. The board's lists are locked first, so once the
+ * board has a list, concurrent creates and moves on it run one at a time (two first lists created
+ * at the same moment may share a position; the `id` tie-break orders them).
  */
 export async function create(
   userId: string,

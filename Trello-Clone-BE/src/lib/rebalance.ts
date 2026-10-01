@@ -24,9 +24,11 @@ function identifiers<T extends RebalanceTable>(table: T, containerColumn: Contai
 }
 
 /**
- * Locks every row of one container (`FOR UPDATE`, in id order so concurrent writers always take
- * the locks in the same order and cannot deadlock). Call it first in a transaction that writes a
- * position, so the write, the threshold check and any rebalance see a stable container.
+ * Locks every row of one container (in id order, so concurrent writers always take the locks in
+ * the same order and cannot deadlock). Call it first in a transaction that writes a position, so
+ * the write, the threshold check and any rebalance see a stable container. `FOR NO KEY UPDATE`
+ * serializes position writers without blocking foreign-key checks on these rows (e.g. a card
+ * being added to a list). An empty container has no rows to lock.
  */
 export async function lockContainer<T extends RebalanceTable>(
   tx: Tx,
@@ -36,7 +38,7 @@ export async function lockContainer<T extends RebalanceTable>(
 ) {
   const sql = identifiers(table, containerColumn);
   await tx.$queryRaw`
-    SELECT "id" FROM ${sql.table} WHERE ${sql.column} = ${containerId} ORDER BY "id" FOR UPDATE`;
+    SELECT "id" FROM ${sql.table} WHERE ${sql.column} = ${containerId} ORDER BY "id" FOR NO KEY UPDATE`;
 }
 
 /**

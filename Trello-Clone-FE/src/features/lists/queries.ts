@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { initialPosition, positionAfter } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
@@ -17,6 +17,24 @@ let optimisticIds = 0;
 /** A list shown before the server created it: it has no real id yet, so it cannot be edited. */
 export const isOptimisticList = (list: Pick<BoardList, 'id'>) =>
   list.id.startsWith(OPTIMISTIC_ID_PREFIX);
+
+/**
+ * One board's list adds and moves share a mutation scope, so their requests run one at a time
+ * (each move computes its position when its request starts, from the cache the previous one left).
+ */
+export const listsScope = (boardId: string) => ({ id: `lists:${boardId}` });
+
+/**
+ * Refetches the board after a list add or move, but only once the last one in the board's scope
+ * settles: an earlier refetch would bring server data without the later optimistic changes and
+ * make those lists jump back and forth.
+ */
+export function refetchBoardWhenIdle(queryClient: QueryClient, boardId: string) {
+  const { id } = listsScope(boardId);
+  const pending = queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id });
+  if (pending > 1) return; // this mutation still counts as pending while it settles
+  return queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+}
 
 const CREATE_ERROR = "Couldn't add the list. Check your connection and try again.";
 const SAVE_ERROR = "Couldn't save the list. Check your connection and try again.";
@@ -44,7 +62,7 @@ export function useCreateList(boardId: string) {
   const key = boardKeys.detail(boardId);
 
   return useMutation({
-    scope: { id: `lists:${boardId}` },
+    scope: listsScope(boardId),
     mutationFn: (title: string) => listsApi.create(boardId, { title }),
     onMutate: async (title) => {
       await queryClient.cancelQueries({ queryKey: key });
@@ -77,7 +95,7 @@ export function useCreateList(boardId: string) {
           : CREATE_ERROR,
       );
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSettled: () => refetchBoardWhenIdle(queryClient, boardId),
   });
 }
 

@@ -95,13 +95,13 @@ Sort order is `position ASC, id ASC`; the `id` tie-break makes equal positions d
 ### Rebalancing
 - **Threshold:** after a write, if the gap between the written item and either neighbour is `< 1e-6`, or `position < 1e-6`, rebalance the whole container.
 - **Rebalance:** renumber all non-archived **and** archived items of the container in current sort order to `1024, 2048, 3072, …`.
-- **Transaction:** the write and the rebalance run in one `prisma.$transaction`. It starts with `SELECT id FROM "<Table>" WHERE "<containerId>" = $1 ORDER BY id FOR UPDATE` to lock the container's rows in a fixed order, so concurrent writes and rebalances serialize without deadlocks. Implementation: `lockContainer` and `rebalanceContainer(tx, table, containerColumn, containerId)` in `Trello-Clone-BE/src/lib/rebalance.ts` (LIST-003; CARD-003 reuses them for cards). Lists also take the lock when created, so concurrent appends to one board get distinct positions.
+- **Transaction:** the write and the rebalance run in one `prisma.$transaction`. It starts with `SELECT id FROM "<Table>" WHERE "<containerId>" = $1 ORDER BY id FOR NO KEY UPDATE` to lock the container's rows in a fixed order, so concurrent writes and rebalances serialize without deadlocks (`NO KEY` leaves foreign-key checks on those rows unblocked). Implementation: `lockContainer` and `rebalanceContainer(tx, table, containerColumn, containerId)` in `Trello-Clone-BE/src/lib/rebalance.ts` (LIST-003; CARD-003 reuses them for cards). Lists also take the lock when created, so concurrent appends to a board that has lists get distinct positions (an empty container has no rows to lock).
 - **Notification:** from REALTIME-001 on, a rebalance emits `list:reordered` or `card:reordered` with the full new position map. Before that, clients reconcile by refetching (see below).
 
 ### Server rules for client-supplied positions
 - The client sends the position it computed for its optimistic update (see [api/cards.md → Move](../api/cards.md#patch-cardscardidmove)).
 - The server rejects non-finite values and values `<= 0` with `400 VALIDATION_ERROR`, then applies the threshold check above.
-- The server returns the final stored position. The FE replaces its optimistic value with it and invalidates the board query on settle.
+- The server returns the final stored position. The FE keeps its optimistic order and takes the final positions from the board refetch after its last pending move, because a rebalance renumbers the siblings too ([frontend.md → Drag and drop](../architecture/frontend.md#drag-and-drop-with-optimistic-updates)).
 
 ### Concurrency
 - Concurrent moves are **last-write-wins** per item. No version check is done in the MVP.

@@ -12,7 +12,6 @@ import {
   doingList,
   doneList,
   listServerErrors,
-  moveDoneFirst,
   roadmapWithThreeLists,
   todoList,
 } from '@/testing/data/lists';
@@ -23,37 +22,48 @@ import { useMoveList } from './useMoveList';
 import type { BoardDetailDto } from '@trello-clone/shared';
 import type { ReactNode } from 'react';
 
-const LIST_URL = apiUrl(`/lists/${moveDoneFirst.listId}`);
 const BOARD_URL = apiUrl(`/boards/${roadmapBoard.id}`);
+const LIST_URL = apiUrl('/lists/:listId');
 
-function setup(answer: 'rebalanced' | 'error') {
-  const patches: unknown[] = [];
+type ServerList = BoardDetailDto['lists'][number];
+
+/**
+ * A fake server holding the board's lists. PATCH stores the sent position, or renumbers every list
+ * to 1024, 2048, … when `rebalance` is on (as the real server does when a gap gets too small).
+ */
+function fakeServer(options: { fail?: boolean; rebalance?: boolean } = {}) {
+  const state = {
+    lists: roadmapWithThreeLists.lists.map((list) => ({ ...list })) as ServerList[],
+    patches: [] as { listId: string; position: number }[],
+    boardGets: 0,
+  };
+  const sorted = () =>
+    [...state.lists].sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
   server.use(
-    mswHttp.patch(LIST_URL, async ({ request }) => {
-      patches.push(await request.json());
-      await delay(50);
-      if (answer === 'error') return HttpResponse.json(listServerErrors.move, { status: 500 });
-      return HttpResponse.json({
-        data: { ...doneList, position: moveDoneFirst.final, cards: undefined },
-      });
+    mswHttp.get(BOARD_URL, () => {
+      state.boardGets += 1;
+      return HttpResponse.json({ data: { ...roadmapWithThreeLists, lists: sorted() } });
     }),
-    // The refetch after the move: the server's renumbered board.
-    mswHttp.get(BOARD_URL, () =>
-      HttpResponse.json({
-        data:
-          answer === 'error'
-            ? roadmapWithThreeLists
-            : {
-                ...roadmapWithThreeLists,
-                lists: [
-                  { ...doneList, position: 1024 },
-                  { ...todoList, position: 2048 },
-                  { ...doingList, position: 3072 },
-                ],
-              },
-      }),
-    ),
+    mswHttp.patch(LIST_URL, async ({ params, request }) => {
+      const listId = params.listId as string;
+      const { position } = (await request.json()) as { position: number };
+      state.patches.push({ listId, position });
+      await delay(120);
+      if (options.fail) return HttpResponse.json(listServerErrors.move, { status: 500 });
+      state.lists.find((list) => list.id === listId)!.position = position;
+      if (options.rebalance) {
+        sorted().forEach((list, i) => {
+          list.position = (i + 1) * 1024;
+        });
+      }
+      const moved = state.lists.find((list) => list.id === listId)!;
+      return HttpResponse.json({ data: { ...moved, cards: undefined } });
+    }),
   );
+  return state;
+}
+
+function setup() {
   setAccessToken(freshAccessToken);
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } },
@@ -65,56 +75,84 @@ function setup(answer: 'rebalanced' | 'error') {
       <Toaster />
     </QueryClientProvider>
   );
-  // The board page's query is mounted, as in the app, so the move's invalidation refetches it.
+  // The board page's query is mounted, as in the app, so a settled move refetches it.
   const { result } = renderHook(
     () => ({ move: useMoveList(roadmapBoard.id), board: useBoard(roadmapBoard.id) }),
     { wrapper },
   );
-  const cached = () =>
-    queryClient.getQueryData<BoardDetailDto>(boardKeys.detail(roadmapBoard.id))!.lists;
-  return { result, patches, cached };
+  const titles = () =>
+    queryClient
+      .getQueryData<BoardDetailDto>(boardKeys.detail(roadmapBoard.id))!
+      .lists.map((list) => list.title);
+  return { result, titles };
 }
+
+const doneFirst = { listId: doneList.id, beforeId: null, afterId: todoList.id };
 
 describe('useMoveList', () => {
   afterEach(() => setAccessToken(null));
 
-  it('moves the list at once, then shows the server positions from the refetch', async () => {
-    const { result, patches, cached } = setup('rebalanced');
+  it('moves the list at once, sends the position between its new neighbours, then refetches', async () => {
+    const state = fakeServer();
+    const { result, titles } = setup();
 
-    act(() =>
-      result.current.move.mutate({
-        listId: moveDoneFirst.listId,
-        position: moveDoneFirst.predicted,
-      }),
-    );
+    act(() => result.current.move.mutate(doneFirst));
 
-    await waitFor(() =>
-      expect(cached().map((list) => list.title)).toEqual(['Done', 'To do', 'Doing']),
-    );
-    expect(cached()[0]!.position).toBe(moveDoneFirst.predicted);
+    await waitFor(() => expect(titles()).toEqual(['Done', 'To do', 'Doing']));
     await waitFor(() => expect(result.current.move.isSuccess).toBe(true));
-    expect(patches).toEqual([{ position: moveDoneFirst.predicted }]);
-    await waitFor(() =>
-      expect(cached().map((list) => [list.title, list.position])).toEqual([
-        ['Done', 1024],
-        ['To do', 2048],
-        ['Doing', 3072],
-      ]),
-    );
+    expect(state.patches).toEqual([{ listId: doneList.id, position: 512 }]);
+    await waitFor(() => expect(state.boardGets).toBe(1));
+    expect(titles()).toEqual(['Done', 'To do', 'Doing']);
   });
 
   it('rolls back and says so when the move fails', async () => {
-    const { result, cached } = setup('error');
+    fakeServer({ fail: true });
+    const { result, titles } = setup();
 
-    act(() =>
-      result.current.move.mutate({
-        listId: moveDoneFirst.listId,
-        position: moveDoneFirst.predicted,
-      }),
-    );
+    act(() => result.current.move.mutate(doneFirst));
 
-    await waitFor(() => expect(cached()[0]!.title).toBe('Done'));
+    await waitFor(() => expect(titles()[0]).toBe('Done'));
     expect(await screen.findByText("Couldn't move the list. Try again.")).toBeInTheDocument();
-    expect(cached().map((list) => list.title)).toEqual(['To do', 'Doing', 'Done']);
+    expect(titles()).toEqual(['To do', 'Doing', 'Done']);
+  });
+
+  it('two quick moves run in turn and refetch only once, after the last', async () => {
+    const state = fakeServer();
+    const { result, titles } = setup();
+
+    act(() => {
+      result.current.move.mutate(doneFirst); // Done, To do, Doing
+      // Then Doing between Done and To do.
+      result.current.move.mutate({
+        listId: doingList.id,
+        beforeId: doneList.id,
+        afterId: todoList.id,
+      });
+    });
+
+    await waitFor(() => expect(state.patches).toHaveLength(2));
+    expect(state.patches[1]).toEqual({ listId: doingList.id, position: (512 + 1024) / 2 });
+    await waitFor(() => expect(state.boardGets).toBe(1));
+    expect(titles()).toEqual(['Done', 'Doing', 'To do']);
+  });
+
+  it('after a rebalance, the next move is computed from the renumbered board', async () => {
+    const state = fakeServer({ rebalance: true });
+    const { result, titles } = setup();
+
+    act(() => {
+      result.current.move.mutate(doneFirst);
+      result.current.move.mutate({
+        listId: doingList.id,
+        beforeId: doneList.id,
+        afterId: todoList.id,
+      });
+    });
+
+    await waitFor(() => expect(state.patches).toHaveLength(2));
+    // The first move came back renumbered (Done 1024, To do 2048), so the second goes between
+    // those numbers, not the stale 512 and 1024.
+    expect(state.patches[1]).toEqual({ listId: doingList.id, position: 1536 });
+    await waitFor(() => expect(titles()).toEqual(['Done', 'Doing', 'To do']));
   });
 });

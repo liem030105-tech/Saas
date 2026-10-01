@@ -65,6 +65,3 @@ export const roadmapWithThreeLists: BoardDetailDto = {
   ...roadmapDetail,
   lists: [todoList, doingList, doneList],
 };
-
-/** Done moved before To do: the position the FE predicts, and what a rebalancing server returns. */
-export const moveDoneFirst = { listId: doneList.id, predicted: 512, final: 1024 };

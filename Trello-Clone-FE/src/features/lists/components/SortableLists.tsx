@@ -21,7 +21,6 @@ import { boardKeys } from '@/features/boards';
 import { cn } from '@/lib/utils';
 
 import { useMoveList } from '../hooks/useMoveList';
-import { positionAt } from '../positions';
 import { isOptimisticList } from '../queries';
 import { ListColumn } from './ListColumn';
 
@@ -69,8 +68,13 @@ export function SortableLists({ boardId, lists, canEdit }: SortableListsProps) {
     const from = lists.findIndex((list) => list.id === active.id);
     const to = lists.findIndex((list) => list.id === over.id);
     if (from < 0 || to < 0) return;
+    // The new neighbours: in the order without the dragged list, it goes in at index `to`.
     const siblings = lists.filter((list) => list.id !== active.id);
-    moveList.mutate({ listId: String(active.id), position: positionAt(siblings, to) });
+    moveList.mutate({
+      listId: String(active.id),
+      beforeId: siblings[to - 1]?.id ?? null,
+      afterId: siblings[to]?.id ?? null,
+    });
   };
 
   return (

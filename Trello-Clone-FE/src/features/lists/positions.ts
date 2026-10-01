@@ -17,3 +17,14 @@ export function positionAt(siblings: readonly { position: number }[], index: num
   if (!after) return positionAfter(before.position);
   return positionBetween(before.position, after.position);
 }
+
+/**
+ * The position between two neighbours given by their stored positions (either may be missing at
+ * the start or end of the container).
+ */
+export function positionBetweenNeighbours(before?: number, after?: number): number {
+  const siblings = [before, after]
+    .filter((p): p is number => p !== undefined)
+    .map((position) => ({ position }));
+  return positionAt(siblings, before === undefined ? 0 : 1);
+}

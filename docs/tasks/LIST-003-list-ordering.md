@@ -23,7 +23,7 @@ Ordering and rebalancing spec: [relationships.md](../database/relationships.md#r
 Card drag and drop (CARD-004).
 
 # Frontend Changes
-`features/lists/hooks/useMoveList.ts`, DnD wiring in `pages/BoardPage.tsx`.
+`features/lists/hooks/useMoveList.ts`, DnD wiring in `features/lists/components/SortableLists.tsx` (rendered by `pages/BoardPage.tsx` through `BoardLists`).
 
 # Backend Changes
 `lib/rebalance.ts`, `lists.service.update` (position path).

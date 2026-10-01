@@ -78,7 +78,7 @@ features/cards/
 - **Forms:** React Hook Form + `zodResolver` with schemas from `@trello-clone/shared`.
 
 ## Drag and drop with optimistic updates
-Lists (LIST-003): `features/lists/components/SortableLists.tsx` (the `DndContext` for the list row) and `features/lists/hooks/useMoveList.ts`; the final positions arrive with the board refetch, because a rebalance renumbers every list. Cards (CARD-004) add their own sortable contexts inside it.
+Lists (LIST-003): `features/lists/components/SortableLists.tsx` (the `DndContext` for the list row) and `features/lists/hooks/useMoveList.ts`. A move is given as its new neighbours; one board's adds and moves share a mutation scope, so they run in turn and each computes its position when its request starts. The final positions arrive with the board refetch after the last pending one (a rebalance renumbers every list, and the board is refetched right away when one happened). Cards (CARD-004) add their own sortable contexts inside it.
 
 1. `onDragEnd` computes the new `position` with `positionBetween(prev, next)` from `@trello-clone/shared` (never a local copy).
 2. `onMutate`: cancel in-flight queries, snapshot the cache, update the cache.
