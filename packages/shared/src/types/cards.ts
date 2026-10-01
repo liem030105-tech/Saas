@@ -2,6 +2,8 @@ import type {
   CardDetailDtoSchema,
   CardSummaryDtoSchema,
   CreateCardInputSchema,
+  MoveCardInputSchema,
+  MoveCardResultSchema,
   UpdateCardInputSchema,
   UserSummarySchema,
 } from '../schemas/cards';
@@ -15,3 +17,6 @@ export type UpdateCardInput = z.input<typeof UpdateCardInputSchema>;
 export type UpdateCardData = z.output<typeof UpdateCardInputSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;
 export type CardDetailDto = z.infer<typeof CardDetailDtoSchema>;
+export type MoveCardInput = z.input<typeof MoveCardInputSchema>;
+export type MoveCardData = z.output<typeof MoveCardInputSchema>;
+export type MoveCardResult = z.infer<typeof MoveCardResultSchema>;

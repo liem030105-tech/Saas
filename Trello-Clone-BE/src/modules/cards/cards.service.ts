@@ -1,4 +1,5 @@
 import { toCardDetailDto } from './cards.mapper';
+import * as cardsRepository from './cards.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
@@ -10,6 +11,8 @@ import type {
   CardDetailDto,
   CardSummaryDto,
   CreateCardData,
+  MoveCardData,
+  MoveCardResult,
   UpdateCardData,
 } from '@trello-clone/shared';
 
@@ -30,8 +33,8 @@ const isMissingCard = (error: unknown) =>
 async function assertCardAccess(userId: string, cardId: string, action: WorkspaceAction) {
   const card = await prisma.card.findUnique({ where: { id: cardId } });
   if (!card) throw AppError.notFound();
-  await assertBoardAccess(userId, card.boardId, action);
-  return card;
+  const { board } = await assertBoardAccess(userId, card.boardId, action);
+  return { ...card, workspaceId: board.workspaceId };
 }
 
 /**
@@ -147,6 +150,54 @@ export async function remove(userId: string, cardId: string): Promise<void> {
     await prisma.card.delete({ where: { id: cardId } });
   } catch (error) {
     if (isMissingCard(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/**
+ * PATCH /cards/:cardId/move (≥ MEMBER on the card's workspace): within a list, to another list, or
+ * to another board of the same workspace. Step 1 of docs/api/cards.md → Transaction: the card must
+ * be editable by the caller (404 / 403); the target list must be visible to them (404 otherwise,
+ * so a list elsewhere looks like no list at all); a visible list in another workspace is a 422
+ * CROSS_WORKSPACE_MOVE (I6). The rest runs in one transaction in cards.repository.move.
+ */
+export async function move(
+  userId: string,
+  cardId: string,
+  input: MoveCardData,
+): Promise<MoveCardResult> {
+  const card = await assertCardAccess(userId, cardId, 'card.edit');
+  const target = await prisma.list.findUnique({
+    where: { id: input.listId },
+    select: { id: true, boardId: true },
+  });
+  if (!target) throw AppError.notFound();
+  const { board: targetBoard } = await assertBoardAccess(userId, target.boardId, 'card.view');
+  if (targetBoard.workspaceId !== card.workspaceId) {
+    throw AppError.businessRule(
+      'CROSS_WORKSPACE_MOVE',
+      'A card can only move to a list in its own workspace',
+    );
+  }
+  try {
+    const moved = await prisma.$transaction((tx) =>
+      cardsRepository.move(tx, {
+        cardId,
+        userId,
+        to: { listId: target.id, boardId: target.boardId },
+        position: input.position,
+      }),
+    );
+    return {
+      id: moved.id,
+      listId: moved.listId,
+      boardId: moved.boardId,
+      position: moved.position,
+      updatedAt: moved.updatedAt.toISOString(),
+    }; // realtime emit (REALTIME-001: card:moved) goes here, after the commit
+  } catch (error) {
+    // The card (P2025) or the target list (P2003) was deleted after the checks.
+    if (isMissingCard(error) || isMissingList(error)) throw AppError.notFound();
     throw error;
   }
 }

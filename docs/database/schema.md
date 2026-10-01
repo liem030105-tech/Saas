@@ -492,3 +492,4 @@ model Subscription {
 | `20261001000501_add_list_moved_type` | LIST-003 | `ActivityType` += `LIST_MOVED` |
 | `20261001004430_add_cards` | CARD-001 | `Card` (FKs → `Board` and `List` with cascade, indexes `(listId, position)` and `(boardId)`); `Activity.cardId` (FK → `Card` set null, index `(cardId, createdAt)`); `ActivityType` += `CARD_CREATED`. `Card` has no member, label, checklist, comment or attachment relations yet (CARD-005, ATTACHMENTS-001) |
 | `20261001010603_add_card_activity_types` | CARD-002 | `ActivityType` += `CARD_UPDATED`, `CARD_ARCHIVED` |
+| `20261001015720_add_card_moved_type` | CARD-003 | `ActivityType` += `CARD_MOVED` |

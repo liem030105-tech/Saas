@@ -50,3 +50,25 @@ export const invalidCardUpdates = [
   { case: 'dueDate not a date', body: { dueDate: 'tomorrow' } },
   { case: 'completed not a boolean', body: { completed: 'yes' } },
 ] as const;
+
+/** Card move tests (CARD-003). */
+export const moveData = {
+  workspaceName: { home: 'Moves', other: 'Elsewhere' },
+  boards: { a: 'Board A', b: 'Board B', other: 'Other workspace board' },
+  lists: { todo: 'To do', doing: 'Doing', done: 'Done' },
+  /** Cards in "To do" at 1024, 2048, 3072. */
+  cards: ['First', 'Second', 'Third'],
+  /** How many moves go into one gap: far more than the ~30 halvings that reach the threshold. */
+  gapMoves: 40,
+  /** Rounds of two opposite moves run in parallel (an even number: the cards end where they began). */
+  parallelRounds: 16,
+};
+
+/** One invalid PATCH /cards/:cardId/move body per rule; each must fail with 400. */
+export const invalidMoveBodies = [
+  { case: 'no body', body: {} },
+  { case: 'missing listId', body: { position: 1024 } },
+  { case: 'listId not a cuid', body: { listId: 'not-a-cuid', position: 1024 } },
+  { case: 'position zero', body: { listId: 'clx0000000000000000000051', position: 0 } },
+  { case: 'position as text', body: { listId: 'clx0000000000000000000051', position: '1' } },
+] as const;

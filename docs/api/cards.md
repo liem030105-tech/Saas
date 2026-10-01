@@ -51,18 +51,21 @@ Schemas: `UpdateCardInputSchema`, `CardDetailDtoSchema` (`@trello-clone/shared`)
 | | |
 |--|--|
 | Task | CARD-003 |
+| Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ MEMBER on the card's workspace |
-| Body | `{ listId: cuid, position: number }`. `listId` may equal the current list (reorder) |
+| Body | `{ listId: cuid, position: number }` (`position` finite and `> 0`). `listId` may equal the current list (reorder) |
 | Success | `200 { data: { id, listId, boardId, position, updatedAt } }` with the **final stored** position |
-| Errors | `400` (invalid position) · `401` · `403` · `404` (card or target list not visible to the caller) · `422` rule `CROSS_WORKSPACE_MOVE` (target list is visible but in another workspace) |
+| Errors | `400` (invalid body) · `401` · `403` · `404` (card or target list not visible to the caller, or deleted meanwhile) · `409 CONFLICT` (the card kept moving under concurrent moves; retry) · `422` rule `CROSS_WORKSPACE_MOVE` (target list is visible but in another workspace) · `429 RATE_LIMITED` |
 
 **Transaction** (`cards.repository.move`):
-1. Load the card and target list with access checks (tenant rule 4).
-2. Lock the target list's card rows (`FOR UPDATE`).
+1. Load the card and target list with access checks (tenant rule 4), in `cards.service.move` before the transaction: `card.edit` on the card's board; the target list's board must be visible to the caller (`404` otherwise); a different workspace is the `422`.
+2. Lock the card rows of the card's current list and of the target list, together in one id-ordered statement (`lockContainers`, `FOR NO KEY UPDATE`), so moves in opposite directions between two lists wait for each other instead of deadlocking. The card's current list is read again under the locks (it is the `from` of the activity); if a concurrent move took the card elsewhere first, that list is locked too (after three such changes the move answers `409 CONFLICT`).
 3. Set `listId`, `boardId` (from the target list), and `position`.
-4. If the board changed, delete `CardLabel` rows whose label belongs to the old board (I2). Card members stay, because they share the workspace.
+4. If the board changed, delete `CardLabel` rows whose label belongs to the old board (I2; added with card labels in CARD-005). Card members stay, because they share the workspace.
 5. Rebalance the target list if the threshold is hit ([relationships.md](../database/relationships.md#rebalancing)).
-6. Log `CARD_MOVED` with `data = { fromListId, toListId, fromBoardId, toBoardId }`.
+6. Log `CARD_MOVED` on the target board with `data = { fromListId, toListId, fromBoardId, toBoardId }`, in the same transaction.
+
+Schemas: `MoveCardInputSchema`, `MoveCardResultSchema` (`@trello-clone/shared`). Moves that touch the same non-empty list run one after the other (step 2); an empty list has no rows to lock, so two moves into it may commit together. Either way the order is always `position, id`.
 
 Moving to an archived list is allowed. Archived cards can be moved.
 

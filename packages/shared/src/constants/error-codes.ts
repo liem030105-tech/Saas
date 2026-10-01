@@ -21,6 +21,8 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 export const BUSINESS_RULES = [
   /** The last OWNER cannot leave, be removed, or be demoted (permission matrix footnote 1). */
   'LAST_OWNER',
+  /** A card can move only within its workspace (invariant I6, CARD-003). */
+  'CROSS_WORKSPACE_MOVE',
 ] as const;
 
 export type BusinessRule = (typeof BUSINESS_RULES)[number];

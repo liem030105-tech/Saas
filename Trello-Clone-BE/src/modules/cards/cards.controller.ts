@@ -2,7 +2,7 @@ import * as cardsService from './cards.service';
 import { currentUserId } from '../../middlewares/authenticate';
 import { validated } from '../../middlewares/validate';
 
-import type { CreateCardData, UpdateCardData } from '@trello-clone/shared';
+import type { CreateCardData, MoveCardData, UpdateCardData } from '@trello-clone/shared';
 import type { Request, Response } from 'express';
 
 // List- and card-scoped routes authorize in the service (assertBoardAccess on the stored board).
@@ -30,4 +30,10 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await cardsService.remove(currentUserId(req), cardIdOf(req));
   res.status(204).end();
+}
+
+export async function move(req: Request, res: Response) {
+  const { body } = validated<unknown, unknown, MoveCardData>(res);
+  const card = await cardsService.move(currentUserId(req), cardIdOf(req), body);
+  res.status(200).json({ data: card });
 }

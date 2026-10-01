@@ -29,21 +29,35 @@ function identifiers<T extends RebalanceTable>(table: T, containerColumn: Contai
 }
 
 /**
- * Locks every row of one container (in id order, so concurrent writers always take the locks in
- * the same order and cannot deadlock). Call it first in a transaction that writes a position, so
- * the write, the threshold check and any rebalance see a stable container. `FOR NO KEY UPDATE`
- * serializes position writers without blocking foreign-key checks on these rows (e.g. a card
- * being added to a list). An empty container has no rows to lock.
+ * Locks every row of the given containers in one statement, in id order: every writer takes its
+ * locks in the same global order, so writers on overlapping containers (a card moving from one
+ * list to another while another card moves back) wait for each other instead of deadlocking.
+ * Call it first in a transaction that writes a position, so the write, the threshold check and
+ * any rebalance see stable containers. `FOR NO KEY UPDATE` serializes position writers without
+ * blocking foreign-key checks on these rows (e.g. a card being added to a list). An empty
+ * container has no rows to lock.
  */
-export async function lockContainer<T extends RebalanceTable>(
+export async function lockContainers<T extends RebalanceTable>(
+  tx: Tx,
+  table: T,
+  containerColumn: ContainerColumn<T>,
+  containerIds: string[],
+) {
+  const sql = identifiers(table, containerColumn);
+  await tx.$queryRaw`
+    SELECT "id" FROM ${sql.table}
+    WHERE ${sql.column} IN (${Prisma.join([...new Set(containerIds)])})
+    ORDER BY "id" FOR NO KEY UPDATE`;
+}
+
+/** lockContainers for one container. */
+export function lockContainer<T extends RebalanceTable>(
   tx: Tx,
   table: T,
   containerColumn: ContainerColumn<T>,
   containerId: string,
 ) {
-  const sql = identifiers(table, containerColumn);
-  await tx.$queryRaw`
-    SELECT "id" FROM ${sql.table} WHERE ${sql.column} = ${containerId} ORDER BY "id" FOR NO KEY UPDATE`;
+  return lockContainers(tx, table, containerColumn, [containerId]);
 }
 
 /**
