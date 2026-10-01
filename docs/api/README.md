@@ -155,7 +155,7 @@ Implemented once, as an action → minimum-role map, in `Trello-Clone-BE/src/mod
 1. Every request touching workspace data resolves the workspace from the **stored** resource, never from a client-supplied `workspaceId` (e.g. `PATCH /cards/:cardId` → card → `boardId` → `workspaceId`).
 2. Membership and role are checked in the same query that loads the resource. Shared helpers live in the `workspaces` module (`assertWorkspaceAccess`) and the `boards` module (`assertBoardAccess`).
 3. Non-member **or** non-existent → `404 NOT_FOUND`. Member with an insufficient role → `403 FORBIDDEN`. Existence is never leaked.
-4. Every client-supplied foreign key (`listId` in a move, `labelId`, `userId` to assign) must resolve inside the **same workspace** (and the same board for labels). If the caller cannot see it → `404`. If it is visible but violates a rule → `422`.
+4. Every client-supplied foreign key (`listId` in a move, `labelId`, `userId` to assign) must resolve inside the **same workspace** (and the same board for labels). If the caller cannot see it → `404`. If it is visible but violates a rule → `422`. The one exception is the `userId` to assign to a card: anyone who is not a member of the card's workspace, including an id that does not exist, is the same `422 NOT_WORKSPACE_MEMBER` ([cards.md](cards.md#card-members--labels-card-005)), so the answer reveals nothing about users elsewhere.
 5. List endpoints only ever return rows scoped by the caller's memberships.
 6. Realtime rooms apply the same checks on join (see [realtime.md](../architecture/realtime.md#connection-and-authorization)).
 7. Every endpoint's integration tests include a **non-member → 404** case (see [testing.md](../development/testing.md)).

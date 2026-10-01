@@ -283,8 +283,8 @@ export async function detachLabel(userId: string, cardId: string, labelId: strin
 /**
  * POST /cards/:cardId/members/:userId (≥ MEMBER). Only a member of the card's workspace can be
  * assigned (422 NOT_WORKSPACE_MEMBER otherwise, I3; the same answer for a user that does not
- * exist, so the id reveals nothing). Their membership row is held FOR SHARE until the insert
- * commits, so a concurrent removal from the workspace either waits for it (and then removes the
+ * exist, so the id reveals nothing). Their membership row is held FOR KEY SHARE until the insert
+ * commits (enough to hold off its deletion, without blocking a role change), so a concurrent removal from the workspace either waits for it (and then removes the
  * assignment too) or wins and the assignment is refused. Logs MEMBER_ADDED with `data.userId`.
  */
 export async function assignMember(
@@ -297,7 +297,7 @@ export async function assignMember(
     await prisma.$transaction(async (tx) => {
       const [membership] = await tx.$queryRaw<{ userId: string }[]>`
         SELECT "userId" FROM "WorkspaceMember"
-        WHERE "userId" = ${memberId} AND "workspaceId" = ${card.workspaceId} FOR SHARE`;
+        WHERE "userId" = ${memberId} AND "workspaceId" = ${card.workspaceId} FOR KEY SHARE`;
       if (!membership) {
         throw AppError.businessRule(
           'NOT_WORKSPACE_MEMBER',

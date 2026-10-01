@@ -523,10 +523,10 @@ const cases: IsolationCase[] = [
   },
   {
     route: 'DELETE /cards/:cardId/members/:userId',
-    attempt: "unassign someone from B's card",
+    attempt: "unassign B's member from B's card",
     request: (a, b) =>
       request(app)
-        .delete(`${card(b.cardId)}/members/${b.owner.user.id}`)
+        .delete(`${card(b.cardId)}/members/${b.member.user.id}`)
         .set(bearer(a.owner.token)),
     missing: (a) =>
       request(app)

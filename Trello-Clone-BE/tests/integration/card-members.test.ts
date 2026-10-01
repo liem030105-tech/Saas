@@ -188,6 +188,30 @@ describe('leaving or being removed from the workspace (I3)', () => {
     expect(await testPrisma.cardMember.count({ where: { cardId: other.cardId } })).toBe(1);
   });
 
+  it('a removal racing an assignment waits for it, then removes the assignment too', async () => {
+    const { owner, teammate, workspaceId, cardId } = await workspace();
+    let removal: Promise<request.Response> | undefined;
+
+    // The assignment holds the membership row and inserts (as cards.service.assignMember does).
+    await testPrisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "userId" FROM "WorkspaceMember"
+          WHERE "userId" = ${teammate.user.id} AND "workspaceId" = ${workspaceId} FOR KEY SHARE`;
+        await tx.cardMember.create({ data: { cardId, userId: teammate.user.id } });
+        removal = request(app)
+          .delete(`${paths.workspaces}/${workspaceId}/members/${teammate.user.id}`)
+          .set(bearer(owner.token))
+          .then((res) => res);
+        await Promise.race([waitForLockWait(), removal]);
+      },
+      { timeout: 20_000 },
+    );
+
+    expect((await removal!).status).toBe(204);
+    expect(await testPrisma.cardMember.count({ where: { cardId } })).toBe(0);
+  });
+
   it('an assignment racing the removal waits for it, then is refused', async () => {
     const { owner, teammate, workspaceId, cardId } = await workspace();
     let assign: Promise<request.Response> | undefined;
@@ -222,5 +246,5 @@ async function waitForLockWait() {
     if (row && row.waiting > 0n) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error('The assignment never waited for the removal');
+  throw new Error('Nothing ever waited on a row lock');
 }

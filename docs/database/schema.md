@@ -260,7 +260,7 @@ model User {
   updatedAt     DateTime @updatedAt
   memberships   WorkspaceMember[]
   refreshTokens RefreshToken[]
-  cardMembers   CardMember[]
+  cards         CardMember[]
   comments      Comment[]
   activities    Activity[]
   attachments   Attachment[]
