@@ -28,30 +28,6 @@ async function assertListAccess(userId: string, listId: string) {
   return list;
 }
 
-type Tx = Prisma.TransactionClient;
-
-/**
- * After a list was written at a position (inside a transaction that already holds the board's
- * list locks): rebalances the board's lists when the list sits too close to a neighbour or to 0
- * (docs/database/relationships.md → Rebalancing). Returns the list's final position.
- */
-async function settlePosition(tx: Tx, boardId: string, listId: string): Promise<number> {
-  const siblings = await tx.list.findMany({
-    where: { boardId },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
-    select: { id: true, position: true },
-  });
-  const index = siblings.findIndex((list) => list.id === listId);
-  const { position } = siblings[index]!;
-  const before = siblings[index - 1]?.position;
-  const after = siblings[index + 1]?.position;
-  const crowded =
-    needsRebalance(position, before) || (after !== undefined && needsRebalance(position, after));
-  if (!crowded) return position;
-  const positions = await rebalanceContainer(tx, 'List', 'boardId', boardId);
-  return positions.get(listId)!;
-}
-
 /**
  * POST /boards/:boardId/lists (≥ MEMBER). Without `position` the list goes after the board's last
  * list (archived ones included, so it never lands between them and a later unarchive). A client
