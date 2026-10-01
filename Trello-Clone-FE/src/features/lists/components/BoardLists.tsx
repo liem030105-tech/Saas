@@ -1,3 +1,5 @@
+import { BoardLabelsProvider } from '@/features/cards';
+
 import { AddListComposer } from './AddListComposer';
 import { SortableLists } from './SortableLists';
 
@@ -21,7 +23,11 @@ export function BoardLists({ board, canEdit }: BoardListsProps) {
   }
   return (
     <div className="flex flex-1 items-start gap-3 overflow-x-auto px-4 pt-2 pb-4">
-      {lists.length > 0 && <SortableLists boardId={board.id} lists={lists} canEdit={canEdit} />}
+      {lists.length > 0 && (
+        <BoardLabelsProvider value={board.labels}>
+          <SortableLists boardId={board.id} lists={lists} canEdit={canEdit} />
+        </BoardLabelsProvider>
+      )}
       {canEdit && <AddListComposer boardId={board.id} listCount={lists.length} />}
     </div>
   );

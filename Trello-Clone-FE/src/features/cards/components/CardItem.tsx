@@ -3,7 +3,9 @@ import { Link } from 'react-router';
 
 import { cn } from '@/lib/utils';
 
+import { useBoardLabels } from '../boardLabels';
 import { formatDueDate, isOverdue } from '../dates';
+import { labelText } from '../labels';
 import { cardPath } from '../paths';
 import { isOptimisticCard } from '../queries';
 
@@ -14,7 +16,8 @@ import type { HTMLAttributes } from 'react';
  * A card tile in a list (docs/design/ui.md → Card tile): its title (at most three lines) and the
  * due-date badge (red when overdue, green when completed). It opens the card modal and, for a
  * member, can be dragged (CARD-004); a card still being created has no id to open or move yet.
- * Labels and the other badges arrive with CARD-005.
+ * Label chips (colour only; CARD-005a) sit above the title; the other badges arrive with the rest
+ * of CARD-005.
  */
 interface CardItemProps {
   boardId: string;
@@ -28,9 +31,27 @@ interface CardItemProps {
 export function CardItem({ boardId, card, dragProps, overlay = false }: CardItemProps) {
   const pending = isOptimisticCard(card);
   const overdue = isOverdue(card.dueDate, card.completed);
+  const boardLabels = useBoardLabels();
+  const labels = card.labelIds.flatMap((id) => boardLabels.filter((label) => label.id === id));
   const body = (
     <>
+      {labels.length > 0 && (
+        <span className="mb-1 flex flex-wrap gap-1">
+          {labels.map((label) => (
+            <span
+              key={label.id}
+              aria-hidden="true"
+              title={labelText(label)}
+              className="h-2 w-10 rounded-full"
+              style={{ backgroundColor: label.color }}
+            />
+          ))}
+        </span>
+      )}
       <p className="line-clamp-3 break-words">{card.title}</p>
+      {labels.length > 0 && (
+        <span className="sr-only">Labels: {labels.map(labelText).join(', ')}</span>
+      )}
       {(card.dueDate || card.completed) && (
         <p className="mt-1 flex flex-wrap items-center gap-1 text-xs">
           {card.dueDate ? (

@@ -17,7 +17,8 @@ import type {
 const CREATE_ERROR = "Couldn't add the card. Check your connection and try again.";
 const SAVE_ERROR = "Couldn't save the card. Check your connection and try again.";
 
-const errorMessage = (error: unknown, fallback: string) =>
+/** The API's message for an error it explains, otherwise `fallback` (offline, timeout, …). */
+export const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError && error.code !== NETWORK_ERROR_CODE ? error.message : fallback;
 
 // Query keys: docs/architecture/frontend.md → State management (`['card', cardId]`).
@@ -104,7 +105,7 @@ export function useCard(cardId: string | undefined) {
 }
 
 /** The board cache with `cardId`'s summary changed (or removed, when archived or deleted). */
-function withCard(
+export function withCard(
   board: BoardDetailDto,
   cardId: string,
   change: (card: CardSummaryDto) => CardSummaryDto | null,
