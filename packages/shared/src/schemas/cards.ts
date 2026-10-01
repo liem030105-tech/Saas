@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ChecklistDtoSchema } from './checklists';
 import { CuidSchema, PositionSchema } from './common';
 import { LabelDtoSchema } from './labels';
 
@@ -64,16 +65,6 @@ export const UserSummarySchema = z.object({
   id: CuidSchema,
   name: z.string(),
   avatarUrl: z.url().nullable(),
-});
-
-/** docs/api/cards.md → ChecklistDto (CARD-005). */
-export const ChecklistDtoSchema = z.object({
-  id: CuidSchema,
-  title: z.string(),
-  position: z.number(),
-  items: z.array(
-    z.object({ id: CuidSchema, content: z.string(), done: z.boolean(), position: z.number() }),
-  ),
 });
 
 /** docs/api/cards.md → AttachmentDto (ATTACHMENTS-001). */

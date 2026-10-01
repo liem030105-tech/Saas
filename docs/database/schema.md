@@ -156,7 +156,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | Field | Type | N | Default | Key |
 |-------|------|---|---------|-----|
 | id | String | | cuid | PK |
-| cardId | String | | | FK → Card (Cascade), IX |
+| cardId | String | | | FK → Card (Cascade), IX(cardId, position) |
 | title | String | | | |
 | position | Float | | | |
 
@@ -411,7 +411,7 @@ model Checklist {
   position Float
   card     Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
   items    ChecklistItem[]
-  @@index([cardId])
+  @@index([cardId, position])
 }
 
 model ChecklistItem {
@@ -496,3 +496,4 @@ model Subscription {
 | `20261001015720_add_card_moved_type` | CARD-003 | `ActivityType` += `CARD_MOVED` |
 | `20261001052152_add_labels` | CARD-005a | `Label` (FK → `Board` cascade, index `(boardId)`); `CardLabel` (PK `(cardId, labelId)`, FKs cascade, index `(labelId)`); backfills the six default labels for every existing board (ids `c0…`, so they sort before labels created later) |
 | `20261001061114_add_card_members` | CARD-005b | `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`; `CardMember` (PK `(cardId, userId)`, FKs → `Card` and `User` cascade, index `(userId)`) |
+| `20261001065625_add_checklists` | CARD-005c | `Checklist` (FK → `Card` cascade, index `(cardId, position)`); `ChecklistItem` (FK → `Checklist` cascade, index `(checklistId, position)`) |

@@ -1,5 +1,5 @@
 import { logActivity } from './activity';
-import { toBoardDetailDto, toBoardDto, toLabelDto } from './boards.mapper';
+import { NO_CHECKLIST, toBoardDetailDto, toBoardDto, toLabelDto } from './boards.mapper';
 import * as boardsRepository from './boards.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -20,7 +20,7 @@ import type {
 /** Other modules log board activity through this service (backend.md → Cross-module). */
 export { logActivity } from './activity';
 /** The cards module answers with the board's card shape (docs/api/boards.md → CardSummaryDto). */
-export { toCardSummaryDto, toLabelDto } from './boards.mapper';
+export { checklistProgress, NO_CHECKLIST, toCardSummaryDto, toLabelDto } from './boards.mapper';
 
 /** The labels every new board starts with: colour-only, in this order (docs/api/boards.md). */
 export const DEFAULT_LABEL_COLORS = [
@@ -92,9 +92,12 @@ const isNotFound = (error: unknown) =>
 /** GET /boards/:boardId (≥ VIEWER): archived boards stay viewable. */
 export async function get(userId: string, boardId: string): Promise<BoardDetailDto> {
   await assertBoardAccess(userId, boardId, 'board.view');
-  const board = await boardsRepository.findDetail(boardId);
+  const [board, progress] = await Promise.all([
+    boardsRepository.findDetail(boardId),
+    boardsRepository.findChecklistProgress(boardId),
+  ]);
   if (!board) throw AppError.notFound();
-  return toBoardDetailDto(board);
+  return toBoardDetailDto(board, (cardId) => progress.get(cardId) ?? NO_CHECKLIST);
 }
 
 /**

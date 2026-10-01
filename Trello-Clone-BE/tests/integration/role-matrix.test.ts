@@ -368,3 +368,78 @@ describeRoleMatrix(getApp, {
   request: (ctx) => request(ctx.app).delete(cardMemberPath(ctx)).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
 });
+
+// Checklists (CARD-005c).
+
+/** A card with one checklist holding one item, all created by the workspace OWNER. */
+async function addChecklist(ctx: Omit<MatrixContext, 'caller' | 'fixture'>) {
+  const fixture = await addCard(ctx);
+  const checklist = await request(ctx.app)
+    .post(`${paths.cards}/${fixture.cardId}/checklists`)
+    .set(bearer(ctx.owner.token))
+    .send({ title: 'Launch' })
+    .expect(201);
+  const checklistId = checklist.body.data.id as string;
+  const item = await request(ctx.app)
+    .post(`${paths.checklists}/${checklistId}/items`)
+    .set(bearer(ctx.owner.token))
+    .send({ content: 'Docs' })
+    .expect(201);
+  return { ...fixture, checklistId, itemId: item.body.data.id as string };
+}
+
+const checklistPath = (ctx: MatrixContext) => `${paths.checklists}/${ctx.fixture.checklistId}`;
+const itemPath = (ctx: MatrixContext) => `${checklistPath(ctx)}/items/${ctx.fixture.itemId}`;
+const CHECKLIST_EDIT = { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 403, NON_MEMBER: 404 };
+const CHECKLIST_ADD = { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 };
+const CHECKLIST_DELETE = { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 };
+
+describeRoleMatrix(getApp, {
+  name: 'POST /cards/:cardId/checklists',
+  setup: addCard,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${cardPath(ctx)}/checklists`)
+      .set(as(ctx))
+      .send({ title: 'QA' }),
+  expected: CHECKLIST_ADD,
+});
+
+describeRoleMatrix(getApp, {
+  name: 'PATCH /checklists/:checklistId',
+  setup: addChecklist,
+  request: (ctx) => request(ctx.app).patch(checklistPath(ctx)).set(as(ctx)).send({ title: 'QA' }),
+  expected: CHECKLIST_EDIT,
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /checklists/:checklistId',
+  setup: addChecklist,
+  request: (ctx) => request(ctx.app).delete(checklistPath(ctx)).set(as(ctx)),
+  expected: CHECKLIST_DELETE,
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /checklists/:checklistId/items',
+  setup: addChecklist,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${checklistPath(ctx)}/items`)
+      .set(as(ctx))
+      .send({ content: 'Ship' }),
+  expected: CHECKLIST_ADD,
+});
+
+describeRoleMatrix(getApp, {
+  name: 'PATCH /checklists/:checklistId/items/:itemId',
+  setup: addChecklist,
+  request: (ctx) => request(ctx.app).patch(itemPath(ctx)).set(as(ctx)).send({ done: true }),
+  expected: CHECKLIST_EDIT,
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /checklists/:checklistId/items/:itemId',
+  setup: addChecklist,
+  request: (ctx) => request(ctx.app).delete(itemPath(ctx)).set(as(ctx)),
+  expected: CHECKLIST_DELETE,
+});

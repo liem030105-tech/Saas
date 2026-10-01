@@ -13,6 +13,7 @@ export const paths = {
   lists: '/api/v1/lists',
   cards: '/api/v1/cards',
   labels: '/api/v1/labels',
+  checklists: '/api/v1/checklists',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',

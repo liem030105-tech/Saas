@@ -12,9 +12,15 @@ import { Prisma } from '../generated/prisma/client';
 
 /**
  * The ordered containers and the column that groups them: lists by board (LIST-003), cards by
- * list (CARD-003). Identifiers only ever come from this map, never from a caller's string.
+ * list (CARD-003), checklists by card and their items by checklist (CARD-005). Identifiers only
+ * ever come from this map, never from a caller's string.
  */
-const CONTAINER_COLUMNS = { List: 'boardId', Card: 'listId' } as const;
+const CONTAINER_COLUMNS = {
+  List: 'boardId',
+  Card: 'listId',
+  Checklist: 'cardId',
+  ChecklistItem: 'checklistId',
+} as const;
 
 export type RebalanceTable = keyof typeof CONTAINER_COLUMNS;
 export type ContainerColumn<T extends RebalanceTable> = (typeof CONTAINER_COLUMNS)[T];
