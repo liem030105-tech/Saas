@@ -93,6 +93,10 @@ export function SortableLists({ boardId, lists: boardLists, canEdit }: SortableL
     const activeType = typeOf(active);
     const fromListId = active?.data.current?.listId;
     const sideways = event.code === 'ArrowLeft' || event.code === 'ArrowRight';
+    // Sideways goes to the adjacent list only (a closer card two lists over must not win).
+    const from = listsRef.current.findIndex((list) => list.id === fromListId);
+    const step = event.code === 'ArrowLeft' ? -1 : 1;
+    const targetListId = sideways ? listsRef.current[from + step]?.id : fromListId;
     const isEmptyList = (listId: unknown) =>
       listsRef.current
         .find((list) => list.id === listId)
@@ -102,7 +106,7 @@ export function SortableLists({ boardId, lists: boardLists, canEdit }: SortableL
       if (!acceptsDrop(activeType, type)) return false;
       if (activeType !== 'card') return true;
       const listId = container.data.current?.listId;
-      if (sideways === (listId === fromListId)) return false;
+      if (targetListId === undefined || listId !== targetListId) return false;
       return type !== 'card-list' || isEmptyList(listId);
     });
     const filtered = {

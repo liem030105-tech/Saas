@@ -34,7 +34,9 @@ export function SortableCards({ boardId, listId, listTitle, cards, canEdit }: So
     <SortableContext items={cards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
       <ol
         ref={setNodeRef}
-        aria-label={`Cards in ${listTitle}`}
+        // An empty list is still a drop target, but not announced as an empty list of cards.
+        aria-label={cards.length > 0 ? `Cards in ${listTitle}` : undefined}
+        role={cards.length > 0 ? undefined : 'presentation'}
         className={cn('flex flex-col gap-2', canEdit && 'min-h-2')}
       >
         {cards.map((card) => (

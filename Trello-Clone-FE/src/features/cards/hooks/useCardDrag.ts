@@ -42,7 +42,9 @@ export function useCardDrag(boardId: string, boardLists: BoardLists) {
   const moveCard = useMoveCard(boardId);
   const [activeCard, setActiveCard] = useState<CardSummaryDto | null>(null);
   const [preview, setPreview] = useState<{ base: BoardLists; lists: BoardLists } | null>(null);
-  // After a drop, new board data (the optimistic move, or a refetch) replaces the preview.
+  // After a drop, new board data (the optimistic move, a rollback or a refetch) replaces the
+  // preview (state adjusted during render: https://react.dev/learn/you-might-not-need-an-effect).
+  if (preview && !activeCard && preview.base !== boardLists) setPreview(null);
   const lists = preview && (activeCard || preview.base === boardLists) ? preview.lists : boardLists;
 
   const onDragStart = (active: Active) => {

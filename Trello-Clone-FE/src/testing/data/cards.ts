@@ -98,3 +98,18 @@ export const cardMoveErrors = {
     body: buildErrorBody({ code: 'INTERNAL_ERROR', message: 'Something went wrong', details: [] }),
   },
 };
+
+/** "Doing" with two cards (CARD-004 drag tests). */
+export const doingCards = [
+  card('clx0000000000000000000064', doingList.id, 'Plan', 1024),
+  card('clx0000000000000000000065', doingList.id, 'Ship', 2048),
+];
+
+/** roadmapBoard: "To do" holds Fix login and Sign-up form, "Doing" Plan and Ship. */
+export const boardWithCardsInBothLists: BoardDetailDto = {
+  ...roadmapDetail,
+  lists: [
+    { ...todoList, cards: [loginCard, signupCard] },
+    { ...doingList, cards: doingCards },
+  ],
+};
