@@ -63,6 +63,7 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'CARD_MOVED',
       'MEMBER_ADDED',
       'MEMBER_REMOVED',
+      'COMMENT_ADDED',
     ]);
   });
 });

@@ -13,6 +13,7 @@ export const ACTIVITY_TYPES = [
   'CARD_MOVED',
   'MEMBER_ADDED',
   'MEMBER_REMOVED',
+  'COMMENT_ADDED',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

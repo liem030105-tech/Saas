@@ -12,6 +12,7 @@ import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
 import { boardsRouter } from './modules/boards/boards.routes';
 import { cardsRouter } from './modules/cards/cards.routes';
+import { commentsRouter } from './modules/comments/comments.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { listsRouter } from './modules/lists/lists.routes';
 import { usersRouter } from './modules/users/users.routes';
@@ -47,6 +48,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   api.use(boardsRouter);
   api.use(listsRouter);
   api.use(cardsRouter);
+  api.use(commentsRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

@@ -13,7 +13,7 @@ import type { Express } from 'express';
 // Two-tenant fixture (WORKSPACE-006): two users, each OWNER of their own workspace with a second
 // member, a pending invite and a board (BOARD-001) with a list (LIST-001) holding a card
 // (CARD-001); the board's default labels (CARD-005) carry one on the card, the member is assigned to it, and
-// it has a checklist with one item. Later tasks add their own sample data here,
+// it has a checklist with one item and a comment by the member. Later tasks add their own sample data here,
 // their tables to snapshotWorkspace (it is what detects a cross-tenant change), and their
 // endpoints to tests/integration/tenant-isolation.test.ts.
 
@@ -79,6 +79,11 @@ async function tenant(
     .set(bearer(owner.token))
     .send({ content: cardTitle })
     .expect(201);
+  const comment = await request(app)
+    .post(`${paths.cards}/${cardId}/comments`)
+    .set(bearer(member.token))
+    .send({ content: cardTitle })
+    .expect(201);
   return {
     owner,
     member,
@@ -89,6 +94,7 @@ async function tenant(
     labelId: label.id,
     checklistId,
     itemId: item.body.data.id as string,
+    commentId: comment.body.data.id as string,
     slug: created.body.data.slug as string,
     inviteId: invite.body.data.id as string,
     /** The raw token from the invite link, as its recipient would have it. */
@@ -134,6 +140,7 @@ export async function snapshotWorkspace(workspaceId: string) {
     cardMembers,
     checklists,
     checklistItems,
+    comments,
   ] = await Promise.all([
     testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
     testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
@@ -159,6 +166,10 @@ export async function snapshotWorkspace(workspaceId: string) {
       where: { checklist: { card: { board: { workspaceId } } } },
       orderBy: { id: 'asc' },
     }),
+    testPrisma.comment.findMany({
+      where: { card: { board: { workspaceId } } },
+      orderBy: { id: 'asc' },
+    }),
   ]);
   return {
     workspace,
@@ -173,5 +184,6 @@ export async function snapshotWorkspace(workspaceId: string) {
     cardMembers,
     checklists,
     checklistItems,
+    comments,
   };
 }
