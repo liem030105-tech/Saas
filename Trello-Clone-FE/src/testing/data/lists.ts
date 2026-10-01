@@ -40,6 +40,7 @@ const serverError = (message: string) =>
   buildErrorBody({ code: 'INTERNAL_ERROR', message, details: [] });
 
 export const listServerErrors = {
+  move: serverError('The list could not be moved'),
   add: serverError('The list could not be added'),
   addAfterClose: serverError('The list could not be added (composer closed)'),
   archive: serverError('The list could not be archived'),
@@ -51,3 +52,19 @@ export const listEdits = {
   rename: { typed: '  Up next ', sent: { title: 'Up next' } },
   archive: { sent: { archived: true } },
 };
+
+export const doneList = {
+  ...todoList,
+  id: 'clx0000000000000000000054',
+  title: 'Done',
+  position: 3072,
+};
+
+/** roadmapBoard with To do, Doing, Done (1024, 2048, 3072). */
+export const roadmapWithThreeLists: BoardDetailDto = {
+  ...roadmapDetail,
+  lists: [todoList, doingList, doneList],
+};
+
+/** Done moved before To do: the position the FE predicts, and what a rebalancing server returns. */
+export const moveDoneFirst = { listId: doneList.id, predicted: 512, final: 1024 };

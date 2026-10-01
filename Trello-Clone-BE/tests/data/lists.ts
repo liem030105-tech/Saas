@@ -14,6 +14,10 @@ export const listData = {
   /** A well-formed list id nothing has, and an id that is not a cuid: both answer 404. */
   unknownListId: 'clx0000000000000000000097',
   malformedListId: 'not-a-cuid',
+  /** Lists for the ordering tests, in creation order (positions 1024, 2048, 3072). */
+  ordered: ['A', 'B', 'C'],
+  /** How many inserts go into one gap: far more than the ~30 halvings that reach the threshold. */
+  gapInserts: 60,
 };
 
 /** One invalid POST /boards/:boardId/lists body per rule; each must fail with 400. */
@@ -31,5 +35,7 @@ export const invalidListUpdates = [
   { case: 'no field', body: {} },
   { case: 'blank title', body: { title: '   ' } },
   { case: 'archived not a boolean', body: { archived: 'yes' } },
-  { case: 'position only (LIST-003)', body: { position: 2048 } },
+  { case: 'position zero', body: { position: 0 } },
+  { case: 'negative position', body: { position: -5 } },
+  { case: 'position as text', body: { position: '2048' } },
 ] as const;

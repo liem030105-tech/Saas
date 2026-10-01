@@ -24,7 +24,8 @@
   "validUpdates": [
     { "title": "Renamed" },
     { "archived": true },
-    { "title": "Renamed", "archived": false }
+    { "title": "Renamed", "archived": false },
+    { "position": 1536 }
   ],
-  "invalidUpdates": [{}, { "title": "  " }, { "archived": "yes" }, { "position": 2048 }]
+  "invalidUpdates": [{}, { "title": "  " }, { "archived": "yes" }, { "position": 0 }]
 }

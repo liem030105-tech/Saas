@@ -45,7 +45,7 @@ function positionAt(siblings: { position: number }[], index: number) {
   return positionBetween(prev.position, next.position);
 }
 ```
-  Then call the move mutation (optimistic update per [tanstack-query.md](tanstack-query.md)); on success replace the optimistic position with the server's final position.
+  Then call the move mutation (optimistic update per [tanstack-query.md](tanstack-query.md)). Keep the optimistic order until the `onSettled` refetch: after a rebalance the server renumbers every sibling, so patching only the moved item with its final position would tie it with stale neighbours and make it jump (LIST-003, `useMoveList`).
 - `onDragCancel` (Escape): restore the snapshot; no request.
 - Dropping in the same place: no request.
 

@@ -56,6 +56,7 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'LIST_CREATED',
       'LIST_UPDATED',
       'LIST_ARCHIVED',
+      'LIST_MOVED',
     ]);
   });
 });

@@ -27,12 +27,15 @@ export const ListDtoSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-/** PATCH /lists/:listId body: rename, archive or unarchive (at least one field; `position` is LIST-003). */
+/** PATCH /lists/:listId body: rename, archive or unarchive, move (at least one field). */
 export const UpdateListInputSchema = z
   .object({
     title: ListTitleSchema.optional(),
     archived: z.boolean().optional(),
+    position: PositionSchema.optional(),
   })
-  .refine((input) => input.title !== undefined || input.archived !== undefined, {
-    error: 'Change at least one field',
-  });
+  .refine(
+    (input) =>
+      input.title !== undefined || input.archived !== undefined || input.position !== undefined,
+    { error: 'Change at least one field' },
+  );
