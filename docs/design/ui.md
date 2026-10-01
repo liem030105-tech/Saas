@@ -102,6 +102,8 @@ CARD-002 implements the title (renames in place), "in list {list}", an "archived
 
 CARD-005a adds labels: the card's labels show as chips (name, or colour only) under "Labels", and a member gets "Labels" under "Add to card", a popover listing the board's labels as checkboxes (checked = on this card; the change shows at once and goes back with the toast "Couldn't update the card's labels. Try again." on failure). Each label has "Edit label {name}" (name, the ten colour presets, Save, and Delete, which asks first: "The label is removed from every card."); "Create a new label" opens the same form. A colour-only label reads as "{Colour} label". Card tiles show the label chips (colour only) above the title, named for screen readers ("Labels: Urgent, Green label").
 
+CARD-005b adds members: the people on the card show under "Members" (avatar and name), and a member gets "Members" under "Add to card", a popover listing the workspace's members as checkboxes (checked = on this card; the change shows at once and goes back with the toast "Couldn't update the card's members. Try again." on failure). Card tiles show up to three member avatars below the title, then "+n", named for screen readers ("Members: Ada Owner").
+
 **Due dates are whole days in UTC:** the picker (a native date input) stores the end of that day in UTC, the day is shown in UTC (so it reads the same in every time zone), and a card is overdue once that day has ended.
 
 ### Auth pages `/login`, `/register`

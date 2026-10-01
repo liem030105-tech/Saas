@@ -1,10 +1,11 @@
+import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { BoardView, boardPath, useBoard } from '@/features/boards';
-import { CardDetailModal, CardModalStatus, useCard } from '@/features/cards';
+import { CardDetailModal, CardModalStatus, CardTileProvider, useCard } from '@/features/cards';
 import { BoardLists } from '@/features/lists';
-import { can, useWorkspaces, workspacePath } from '@/features/workspaces';
+import { can, useMembers, useWorkspaces, workspacePath } from '@/features/workspaces';
 
 import { NotFoundPage } from './NotFoundPage';
 
@@ -18,6 +19,9 @@ export function BoardPage() {
   const { data: board, isPending, error, refetch } = useBoard(boardId);
   const { data: workspaces, isPending: workspacesPending } = useWorkspaces();
   const card = useCard(cardId);
+  // Who can be assigned to cards, and whose avatars the tiles show (CARD-005b).
+  const members = useMembers(board?.workspaceId ?? '');
+  const workspaceMembers = useMemo(() => members.data?.map(({ user }) => user), [members.data]);
 
   // Wait for the caller's role too, so the actions shown are final from the first render.
   if (isPending || workspacesPending) {
@@ -64,15 +68,18 @@ export function BoardPage() {
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
     >
       {/* An archived board is read-only (docs/design/ui.md → Board). */}
-      <BoardLists
-        board={board}
-        canEdit={!board.archived && (role ? can(role, 'list.manage') : false)}
-      />
+      <CardTileProvider value={{ labels: board.labels, members: workspaceMembers ?? [] }}>
+        <BoardLists
+          board={board}
+          canEdit={!board.archived && (role ? can(role, 'list.manage') : false)}
+        />
+      </CardTileProvider>
       {card.data ? (
         <CardDetailModal
           card={card.data}
           listTitle={board.lists.find((list) => list.id === card.data.listId)?.title}
           boardLabels={board.labels}
+          workspaceMembers={workspaceMembers}
           canEdit={canEditContent}
           onClose={closeCard}
         />

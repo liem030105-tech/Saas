@@ -22,7 +22,3 @@ export const colorName = (color: string) =>
 /** What a label reads as: its name, or its colour for a colour-only label. */
 export const labelText = (label: Pick<LabelDto, 'name' | 'color'>) =>
   label.name || `${colorName(label.color)} label`;
-
-/** Labels in the order the API lists them (by id), e.g. after an optimistic insert. */
-export const byId = (a: { id: string }, b: { id: string }) =>
-  a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
