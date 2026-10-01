@@ -69,7 +69,7 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 ## FE synchronization rules
 | Concern | Rule |
 |---------|------|
-| Subscription | `useBoardSocket(boardId)` joins on mount and leaves on unmount; the workspace sidebar joins `workspace:{id}` for each of the caller's workspaces (`useWorkspacesSocket`), and the boards grid holds its workspace's room too (`useWorkspaceBoardsSocket`: `board:*` events and every join refetch `['boards', workspaceId]`) |
+| Subscription | `useBoardSocket` joins `board:{id}` on mount and leaves on unmount; the workspace sidebar joins `workspace:{id}` for each of the caller's workspaces (`useWorkspacesSocket`), and the boards grid holds its workspace's room too (`useWorkspaceBoardsSocket`: `board:*` events and every join refetch `['boards', workspaceId]`) |
 | Own actions | Already applied optimistically, so the server never sends a change back to the tab that made it: the FE sends its socket id as the `X-Socket-Id` header on every REST request, and `emitEvent` sends to the rooms `.except(thatSocket)` (BE `realtime/origin.ts`). The same user's other tabs still get the event, so `actorId` is not a reason to ignore one |
 | Duplicates | Keep the last ~200 `eventId`s in an LRU; ignore repeats |
 | Stale events | Ignore an event whose `version` ≤ the cached record's `updatedAt`. Delete events always apply |

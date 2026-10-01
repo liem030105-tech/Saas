@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useCurrentUser } from '@/features/auth';
 import { createEventDedupe, joinRoom, onEvent, onReconnect } from '@/lib/socket';
@@ -37,19 +37,39 @@ export function useWorkspacesSocket() {
   const userId = useCurrentUser().data?.id;
   const ids = (useWorkspaces().data ?? []).map((workspace) => workspace.id);
   const joined = ids.sort().join(',');
+  /** The rooms held, by workspace id, with their leave functions. */
+  const rooms = useRef(new Map<string, () => void>());
 
+  // Joins and leaves only the workspaces that came or went: leaving and joining again would drop
+  // the room's events in between.
   useEffect(() => {
-    if (!userId || !joined) return;
-    const leaves = joined.split(',').map((workspaceId) =>
-      joinRoom('workspace:join', { workspaceId }, (ack) => {
-        if (!ack.ok)
+    if (!userId) return;
+    const held = rooms.current;
+    const wanted = new Set(joined ? joined.split(',') : []);
+    for (const [workspaceId, leave] of held) {
+      if (wanted.has(workspaceId)) continue;
+      leave();
+      held.delete(workspaceId);
+    }
+    for (const workspaceId of wanted) {
+      if (held.has(workspaceId)) continue;
+      const leave = joinRoom('workspace:join', { workspaceId }, (ack) => {
+        if (!ack.ok) {
           void queryClient.invalidateQueries({ queryKey: workspaceKeys.all, exact: true });
-      }),
-    );
-    return () => {
-      for (const leave of leaves) leave();
-    };
+        }
+      });
+      held.set(workspaceId, leave);
+    }
   }, [joined, userId, queryClient]);
+
+  // All of them on unmount, or for another user.
+  useEffect(() => {
+    const held = rooms.current;
+    return () => {
+      for (const leave of held.values()) leave();
+      held.clear();
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;

@@ -6,6 +6,7 @@ import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import { boardPathFor, roadmapBoard, sprintBoard } from '@/testing/data/boards';
 import { roadmapWithCards } from '@/testing/data/cards';
+import { firstWorkspacePage } from '@/testing/data/routes';
 import {
   acmeWorkspace,
   betaWorkspace,
@@ -31,6 +32,7 @@ const envelope = (workspaceId = acmeWorkspace.id) => ({
 function signedIn() {
   const state = {
     workspaces: [acmeWorkspace, betaWorkspace] as WorkspaceDto[],
+    workspaceGets: 0,
     boards: [roadmapBoard],
     boardGets: 0,
     memberGets: 0,
@@ -40,7 +42,10 @@ function signedIn() {
       HttpResponse.json({ data: { accessToken: freshAccessToken } }),
     ),
     mswHttp.get(apiUrl('/auth/me'), () => HttpResponse.json({ data: currentUser })),
-    mswHttp.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: state.workspaces })),
+    mswHttp.get(apiUrl('/workspaces'), () => {
+      state.workspaceGets += 1;
+      return HttpResponse.json({ data: state.workspaces });
+    }),
     mswHttp.get(apiUrl(`/workspaces/${acmeWorkspace.id}/boards`), () => {
       state.boardGets += 1;
       return HttpResponse.json({ data: state.boards });
@@ -57,6 +62,7 @@ function signedIn() {
 }
 
 const joined = (workspace: WorkspaceDto) => `workspace:join {"workspaceId":"${workspace.id}"}`;
+const left = (workspace: WorkspaceDto) => `workspace:leave {"workspaceId":"${workspace.id}"}`;
 
 describe('workspace realtime sync (REALTIME-001c)', () => {
   afterEach(() => setAccessToken(null));
@@ -82,6 +88,11 @@ describe('workspace realtime sync (REALTIME-001c)', () => {
     realtime().serverSends('board:created', { ...envelope(), data: sprintBoard });
     expect(await screen.findByRole('link', { name: sprintBoard.title })).toBeVisible();
 
+    const renamed = { ...sprintBoard, title: 'Sprint 13' };
+    state.boards = [renamed, roadmapBoard];
+    realtime().serverSends('board:updated', { ...envelope(), data: renamed });
+    expect(await screen.findByRole('link', { name: renamed.title })).toBeVisible();
+
     // An event of another workspace changes nothing here.
     const gets = state.boardGets;
     realtime().serverSends('board:deleted', {
@@ -92,23 +103,30 @@ describe('workspace realtime sync (REALTIME-001c)', () => {
     expect(state.boardGets).toBe(gets);
   });
 
-  it('removed from the workspace elsewhere: its page goes to / and it leaves the sidebar', async () => {
+  it('removed from a workspace elsewhere: only its room is left; removed from this one, the page goes to /', async () => {
     const state = signedIn();
     const { router } = renderApp(workspacePathFor(acmeWorkspace));
     await screen.findByRole('heading', { level: 1, name: acmeWorkspace.name });
+    await waitFor(() => expect(realtime().sent).toContain(joined(betaWorkspace)));
 
-    state.workspaces = [betaWorkspace];
+    // Removed from another workspace: this page stays, and only that room is left.
+    state.workspaces = [acmeWorkspace];
+    realtime().serverSends('member:removed', {
+      ...envelope(betaWorkspace.id),
+      data: { userId: currentUser.id },
+    });
+    await waitFor(() => expect(realtime().sent).toContain(left(betaWorkspace)));
+    expect(router.state.location.pathname).toBe(workspacePathFor(acmeWorkspace));
+    expect(realtime().sent).not.toContain(left(acmeWorkspace));
+
+    // Then from this one: no workspace is left, so `/` asks for a first one.
+    state.workspaces = [];
     realtime().serverSends('member:removed', { ...envelope(), data: { userId: currentUser.id } });
 
-    await waitFor(() =>
-      expect(router.state.location.pathname).not.toBe(workspacePathFor(acmeWorkspace)),
-    );
-    // `/` opens the first workspace left.
-    await waitFor(() =>
-      expect(router.state.location.pathname).toBe(workspacePathFor(betaWorkspace)),
-    );
-    const sidebar = await screen.findByRole('navigation', { name: 'Workspaces' });
-    expect(within(sidebar).queryByRole('link', { name: acmeWorkspace.name })).toBeNull();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: firstWorkspacePage.heading }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('removed from the board’s workspace: the board page goes to /', async () => {
@@ -116,11 +134,53 @@ describe('workspace realtime sync (REALTIME-001c)', () => {
     const { router } = renderApp(boardPathFor(roadmapBoard));
     await screen.findByRole('heading', { level: 1, name: roadmapBoard.title });
 
-    state.workspaces = [betaWorkspace];
+    // Removed from another workspace: the board stays.
+    realtime().serverSends('member:removed', {
+      ...envelope(betaWorkspace.id),
+      data: { userId: currentUser.id },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(router.state.location.pathname).toBe(boardPathFor(roadmapBoard));
+
+    state.workspaces = [];
     realtime().serverSends('member:removed', { ...envelope(), data: { userId: currentUser.id } });
 
     await waitFor(() =>
       expect(router.state.location.pathname).not.toBe(boardPathFor(roadmapBoard)),
+    );
+  });
+
+  it('a workspace that comes or goes joins or leaves only its own room', async () => {
+    const state = signedIn();
+    const { queryClient } = renderApp(workspacePathFor(acmeWorkspace));
+    await waitFor(() => expect(realtime().sent).toContain(joined(betaWorkspace)));
+    const gamma = { ...betaWorkspace, id: 'clx0000000000000000000013', slug: 'gamma' };
+
+    // A new workspace whose join is refused (gone again already): the list is fetched again.
+    state.workspaces = [acmeWorkspace, betaWorkspace, gamma];
+    realtime().ack = { ok: false, code: 'NOT_FOUND' };
+    const gets = state.workspaceGets;
+    void queryClient.invalidateQueries({ queryKey: ['workspaces'], exact: true });
+    await waitFor(() => expect(realtime().sent).toContain(joined(gamma)));
+    await waitFor(() => expect(state.workspaceGets).toBe(gets + 2));
+
+    const sent = realtime().sent;
+    for (const workspace of [acmeWorkspace, betaWorkspace]) {
+      expect(sent.filter((m) => m === joined(workspace))).toHaveLength(1);
+      expect(sent).not.toContain(left(workspace));
+    }
+  });
+
+  it('removed while on the members page: it goes to /', async () => {
+    const state = signedIn();
+    const { router } = renderApp(`${workspacePathFor(acmeWorkspace)}/members`);
+    await waitFor(() => expect(state.memberGets).toBe(1));
+
+    state.workspaces = [betaWorkspace];
+    realtime().serverSends('member:removed', { ...envelope(), data: { userId: currentUser.id } });
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(workspacePathFor(betaWorkspace)),
     );
   });
 
