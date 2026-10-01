@@ -187,6 +187,7 @@ model Card {
   activities  Activity[]
   labels      CardLabel[]
   members     CardMember[]
+  checklists  Checklist[]
 
   @@index([listId, position])
   @@index([boardId])
@@ -229,6 +230,30 @@ model CardMember {
   @@id([cardId, userId])
   /// Serves "cards assigned to me" and removing a member's assignments.
   @@index([userId])
+}
+
+/// A checklist on a card, ordered by `position ASC, id ASC` within the card. CARD-005.
+model Checklist {
+  id       String          @id @default(cuid())
+  cardId   String
+  title    String
+  position Float
+  card     Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  items    ChecklistItem[]
+
+  @@index([cardId, position])
+}
+
+/// An item of a checklist, ordered by `position ASC, id ASC` within the checklist. CARD-005.
+model ChecklistItem {
+  id          String    @id @default(cuid())
+  checklistId String
+  content     String
+  done        Boolean   @default(false)
+  position    Float
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId, position])
 }
 
 /// Append-only board activity feed. BOARD-001; `cardId` since CARD-001.

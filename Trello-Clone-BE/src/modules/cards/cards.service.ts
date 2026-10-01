@@ -1,4 +1,4 @@
-import { toCardDetailDto } from './cards.mapper';
+import { toCardDetailDto, toChecklistDto } from './cards.mapper';
 import * as cardsRepository from './cards.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -35,8 +35,9 @@ const isMissingCard = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 
 /**
- * A card's labels and members, ordered by id: CardSummaryDto's `labelIds` and `memberIds`, and
- * CardDetailDto's `labels` and `members`.
+ * A card's labels and members (ordered by id) and its checklists with their items (by `position,
+ * id`, docs/database/relationships.md → Ordering): CardSummaryDto's `labelIds`, `memberIds` and
+ * `checklist`, and CardDetailDto's `labels`, `members` and `checklists`.
  */
 const DETAIL = {
   labels: { include: { label: true }, orderBy: { labelId: 'asc' } },
@@ -44,7 +45,11 @@ const DETAIL = {
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { userId: 'asc' },
   },
-} as const;
+  checklists: {
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    include: { items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } },
+  },
+} satisfies Prisma.CardInclude;
 
 type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
 
@@ -52,13 +57,14 @@ const toDetail = (card: CardDetailRow) =>
   toCardDetailDto(card, toCardSummaryDto(card), {
     labels: card.labels.map(({ label }) => toLabelDto(label)),
     members: card.members.map(({ user }) => user),
+    checklists: card.checklists.map(toChecklistDto),
   });
 
 /**
  * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
  * ADR-006). An unknown or malformed id and a card the caller cannot see are the same 404.
  */
-async function assertCardAccess(userId: string, cardId: string, action: WorkspaceAction) {
+export async function assertCardAccess(userId: string, cardId: string, action: WorkspaceAction) {
   const card = await prisma.card.findUnique({ where: { id: cardId } });
   if (!card) throw AppError.notFound();
   const { board } = await assertBoardAccess(userId, card.boardId, action);
@@ -103,7 +109,7 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto({ ...card, labels: [], members: [] }); // realtime emit (REALTIME-001) goes here, after the commit
+    return toCardSummaryDto({ ...card, labels: [], members: [], checklists: [] }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;

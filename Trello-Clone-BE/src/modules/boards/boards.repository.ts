@@ -20,10 +20,11 @@ export function findBoardWithRole(userId: string, boardId: string) {
 /** Sort order of every ordered container (docs/database/relationships.md → Ordering). */
 const BY_POSITION = [{ position: 'asc' }, { id: 'asc' }] as const;
 
-/** A card's label and member ids, as CardSummaryDto carries them (CARD-005). */
+/** A card's label and member ids and its checklist items' state, as CardSummaryDto needs them. */
 const CARD_SUMMARY_IDS = {
   labels: { select: { labelId: true }, orderBy: { labelId: 'asc' } },
   members: { select: { userId: true }, orderBy: { userId: 'asc' } },
+  checklists: { select: { items: { select: { done: true } } } },
 } as const;
 
 /**

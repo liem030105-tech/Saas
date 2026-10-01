@@ -11,6 +11,7 @@ import type {
 export type CardSummaryRow = Card & {
   labels: { labelId: string }[];
   members: { userId: string }[];
+  checklists: { items: { done: boolean }[] }[];
 };
 
 /** docs/api/boards.md → BoardDto. */
@@ -47,8 +48,8 @@ export function toLabelDto(label: Label): LabelDto {
 
 /**
  * docs/api/boards.md → CardSummaryDto: a card as the board shows it. The boards module owns this
- * shape (the cards module reaches it through boards.service). Checklist and comment counts
- * arrive with the rest of CARD-005 and are zero until then.
+ * shape (the cards module reaches it through boards.service). The comment count arrives with
+ * CARD-005d and is zero until then.
  */
 export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
   return {
@@ -61,7 +62,7 @@ export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
     coverUrl: card.coverUrl,
     labelIds: card.labels.map((label) => label.labelId),
     memberIds: card.members.map((member) => member.userId),
-    checklist: { done: 0, total: 0 },
+    checklist: checklistProgress(card.checklists),
     commentCount: 0,
   };
 }
@@ -81,4 +82,10 @@ function toDetailListDto(list: List): ListDto {
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),
   };
+}
+
+/** CardSummaryDto.checklist: done and total items over all the card's checklists (CARD-005c). */
+function checklistProgress(checklists: { items: { done: boolean }[] }[]) {
+  const items = checklists.flatMap((checklist) => checklist.items);
+  return { done: items.filter((item) => item.done).length, total: items.length };
 }

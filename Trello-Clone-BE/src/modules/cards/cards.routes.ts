@@ -1,11 +1,16 @@
 import {
   CreateCardInputSchema,
+  CreateChecklistInputSchema,
+  CreateChecklistItemInputSchema,
   MoveCardInputSchema,
   UpdateCardInputSchema,
+  UpdateChecklistInputSchema,
+  UpdateChecklistItemInputSchema,
 } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './cards.controller';
+import * as checklists from './checklists.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { apiRateLimit } from '../../middlewares/rate-limit';
 import { validate } from '../../middlewares/validate';
@@ -49,3 +54,37 @@ cardsRouter.delete(CARD_LABEL, authenticate, apiRateLimit, controller.detachLabe
 const CARD_MEMBER = `${CARD}/members/:userId`;
 cardsRouter.post(CARD_MEMBER, authenticate, apiRateLimit, controller.assignMember);
 cardsRouter.delete(CARD_MEMBER, authenticate, apiRateLimit, controller.unassignMember);
+
+// Checklists (CARD-005c): authorized in the service, on the card's stored board.
+cardsRouter.post(
+  `${CARD}/checklists`,
+  authenticate,
+  apiRateLimit,
+  validate({ body: CreateChecklistInputSchema }),
+  checklists.createChecklist,
+);
+const CHECKLIST = '/checklists/:checklistId';
+cardsRouter.patch(
+  CHECKLIST,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateChecklistInputSchema }),
+  checklists.updateChecklist,
+);
+cardsRouter.delete(CHECKLIST, authenticate, apiRateLimit, checklists.removeChecklist);
+cardsRouter.post(
+  `${CHECKLIST}/items`,
+  authenticate,
+  apiRateLimit,
+  validate({ body: CreateChecklistItemInputSchema }),
+  checklists.createItem,
+);
+const ITEM = `${CHECKLIST}/items/:itemId`;
+cardsRouter.patch(
+  ITEM,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateChecklistItemInputSchema }),
+  checklists.updateItem,
+);
+cardsRouter.delete(ITEM, authenticate, apiRateLimit, checklists.removeItem);

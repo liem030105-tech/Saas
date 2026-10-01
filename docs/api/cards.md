@@ -32,7 +32,7 @@
 | Task | CARD-002 (base fields) · CARD-005 (members, labels, checklists) · ATTACHMENTS-001 (attachments) |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (the card's stored `boardId` → `assertBoardAccess(…, 'card.view')`) |
-| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a, `members` (`UserSummary`, by id) since CARD-005b; `checklists` and `attachments` are empty arrays until the rest of CARD-005 / ATTACHMENTS-001 |
+| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a, `members` (`UserSummary`, by id) since CARD-005b, `checklists` (and their items, by `position, id`) since CARD-005c; `attachments` is an empty array until ATTACHMENTS-001 |
 | Errors | `401` · `404` (unknown card, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 ### PATCH /cards/:cardId
@@ -99,6 +99,8 @@ Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data
 | DELETE | `/checklists/:checklistId/items/:itemId` | ≥ MEMBER | → `204` |
 
 Errors for all: `400` · `401` · `403` · `404` (including an `itemId` that does not belong to `checklistId`).
+
+Since CARD-005c. All six need `card.assign` (≥ MEMBER) on the card's stored board; an unknown or malformed id and one the caller cannot see are the same `404`. Checklists are ordered within the card and items within the checklist by `position, id`, exactly like lists and cards: a new one is appended, a client `position` goes through the rebalance check, and each container's rows are locked first so concurrent writers run in turn. Checklist changes log nothing. Schemas: `CreateChecklistInputSchema`, `UpdateChecklistInputSchema`, `CreateChecklistItemInputSchema`, `UpdateChecklistItemInputSchema`, `ChecklistDtoSchema`, `ChecklistItemDtoSchema` (`@trello-clone/shared`).
 
 ## Comments (CARD-005, `comments` module)
 | Method | Path | Authorization | Body → Success |

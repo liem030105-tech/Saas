@@ -52,6 +52,8 @@ const board = (boardId: string) => `${paths.boards}/${boardId}`;
 const list = (listId: string) => `${paths.lists}/${listId}`;
 const card = (cardId: string) => `${paths.cards}/${cardId}`;
 const label = (labelId: string) => `${paths.labels}/${labelId}`;
+const checklist = (checklistId: string) => `${paths.checklists}/${checklistId}`;
+const item = (checklistId: string, itemId: string) => `${checklist(checklistId)}/items/${itemId}`;
 const expect404 = (res: request.Response) => {
   expect(res.status).toBe(404);
   expect(res.body.error.code).toBe('NOT_FOUND');
@@ -533,6 +535,83 @@ const cases: IsolationCase[] = [
         .delete(`${card(missingId)}/members/${a.owner.user.id}`)
         .set(bearer(a.owner.token)),
   },
+  {
+    route: 'POST /cards/:cardId/checklists',
+    attempt: "add a checklist to B's card",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(b.cardId)}/checklists`)
+        .set(bearer(a.owner.token))
+        .send({ title: 'A' }),
+    missing: (a) =>
+      request(app)
+        .post(`${card(missingId)}/checklists`)
+        .set(bearer(a.owner.token))
+        .send({ title: 'A' }),
+  },
+  {
+    route: 'PATCH /checklists/:checklistId',
+    attempt: "rename B's checklist",
+    request: (a, b) =>
+      request(app).patch(checklist(b.checklistId)).set(bearer(a.owner.token)).send({ title: 'A' }),
+    missing: (a) =>
+      request(app).patch(checklist(missingId)).set(bearer(a.owner.token)).send({ title: 'A' }),
+  },
+  {
+    route: 'DELETE /checklists/:checklistId',
+    attempt: "delete B's checklist",
+    request: (a, b) => request(app).delete(checklist(b.checklistId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(checklist(missingId)).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /checklists/:checklistId/items',
+    attempt: "add an item to B's checklist",
+    request: (a, b) =>
+      request(app)
+        .post(`${checklist(b.checklistId)}/items`)
+        .set(bearer(a.owner.token))
+        .send({ content: 'A' }),
+    missing: (a) =>
+      request(app)
+        .post(`${checklist(missingId)}/items`)
+        .set(bearer(a.owner.token))
+        .send({ content: 'A' }),
+  },
+  {
+    route: 'PATCH /checklists/:checklistId/items/:itemId',
+    attempt: "tick B's item",
+    request: (a, b) =>
+      request(app)
+        .patch(item(b.checklistId, b.itemId))
+        .set(bearer(a.owner.token))
+        .send({ done: true }),
+    missing: (a) =>
+      request(app)
+        .patch(item(missingId, missingId))
+        .set(bearer(a.owner.token))
+        .send({ done: true }),
+  },
+  {
+    route: 'PATCH /checklists/:checklistId/items/:itemId',
+    attempt: "tick B's item through A's own checklist",
+    request: (a, b) =>
+      request(app)
+        .patch(item(a.checklistId, b.itemId))
+        .set(bearer(a.owner.token))
+        .send({ done: true }),
+    missing: (a) =>
+      request(app)
+        .patch(item(a.checklistId, missingId))
+        .set(bearer(a.owner.token))
+        .send({ done: true }),
+  },
+  {
+    route: 'DELETE /checklists/:checklistId/items/:itemId',
+    attempt: "delete B's item through A's own checklist",
+    request: (a, b) =>
+      request(app).delete(item(a.checklistId, b.itemId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(item(a.checklistId, missingId)).set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
@@ -565,10 +644,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/* and /labels/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/* and /checklists/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels)(\/|$)/.test(route),
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists)(\/|$)/.test(route),
     );
     const covered = new Set(cases.map((c) => c.route));
 
