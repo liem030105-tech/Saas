@@ -1,16 +1,51 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { boardWithLists } from './helpers/board';
 
 // Scenario 3 (docs/development/testing.md), CARD-001 acceptance: create board → list → card;
 // cards appear in creation order and persist after reload.
 // CARD-002: the card modal edits a card, and its shared URL opens the same card after a reload.
+// Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
+// (keyboard-driven, as pointer drags are flaky in CI).
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
 const CARD_TITLES = ['Fix login', 'Sign-up form', 'Write tests'];
+/** A tile's text starts with its title (the due-date badge follows it). */
+const exact = (title: string) => new RegExp(`^${title}`);
 
-test('board → list → cards in order; the card modal edits a card at a shareable URL', async ({
+/**
+ * Drags the card `title` with the keyboard: Space picks it up, each key in `keys` moves it (each
+ * waits for the screen-reader announcement), Space drops it. Resolves once the server stored the
+ * move and the board was refetched.
+ */
+async function dragCard(page: Page, title: string, keys: string[], expected: string[]) {
+  const announcement = page.locator('[id^="DndLiveRegion"]');
+  const moved = page.waitForResponse(
+    (res) => res.request().method() === 'PATCH' && res.url().endsWith('/move') && res.ok(),
+  );
+  const refetched = page.waitForResponse(
+    (res) => res.request().method() === 'GET' && /\/boards\/[^/]+$/.test(res.url()) && res.ok(),
+  );
+  await page.getByRole('link', { name: new RegExp(`^${title}`) }).focus();
+  await page.keyboard.press('Space');
+  // The pickup announcement is replaced at once by where the card is.
+  await expect(announcement).toContainText(`Card ${title} is at position`);
+  // dnd-kit measures the droppables in the frames right after a pickup (see lists.spec.ts).
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  for (const [i, key] of keys.entries()) {
+    await page.keyboard.press(key);
+    await expect(announcement).toContainText(`Card ${title} is ${expected[i]!}.`);
+  }
+  await page.keyboard.press('Space');
+  await expect(announcement).toContainText(`Card ${title} was dropped`);
+  await moved;
+  await refetched;
+}
+
+test('board → list → cards in order; the card modal edits a card at a shareable URL; cards drag', async ({
   page,
 }) => {
   await boardWithLists(page, ['To do', 'Doing']);
@@ -63,4 +98,24 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await expect(dialog.getByRole('checkbox', { name: 'Complete' })).toBeChecked();
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(toDo.getByRole('link', { name: /Fix login/ })).toContainText('Jan 1');
+
+  // Scenario 4: drag cards with the keyboard. "Write tests" to the top of To do …
+  await dragCard(
+    page,
+    'Write tests',
+    ['ArrowUp', 'ArrowUp'],
+    ['at position 2 of 3 in To do', 'at position 1 of 3 in To do'],
+  );
+  await expect(cards).toHaveText(['Write tests', 'Fix login', 'Sign-up form'].map(exact));
+  // … then "Sign-up form" into the empty Doing list. Enter still opens a card, not a drag.
+  const doing = page.getByRole('region', { name: 'Doing' });
+  await dragCard(page, 'Sign-up form', ['ArrowRight'], ['at position 1 of 1 in Doing']);
+  await expect(cards).toHaveText(['Write tests', 'Fix login'].map(exact));
+  await expect(doing.getByRole('article')).toHaveText(['Sign-up form']);
+
+  await page.reload();
+  await expect(cards).toHaveText(['Write tests', 'Fix login'].map(exact));
+  await expect(doing.getByRole('article')).toHaveText(['Sign-up form']);
+  await doing.getByRole('link', { name: 'Sign-up form' }).press('Enter');
+  await expect(page.getByRole('dialog', { name: 'Sign-up form' })).toContainText('in list Doing');
 });

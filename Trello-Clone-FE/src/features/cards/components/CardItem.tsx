@@ -8,13 +8,24 @@ import { cardPath } from '../paths';
 import { isOptimisticCard } from '../queries';
 
 import type { CardSummaryDto } from '@trello-clone/shared';
+import type { HTMLAttributes } from 'react';
 
 /**
  * A card tile in a list (docs/design/ui.md → Card tile): its title (at most three lines) and the
- * due-date badge (red when overdue, green when completed). It opens the card modal; a card still
- * being created has no id to open yet. Labels and the other badges arrive with CARD-005.
+ * due-date badge (red when overdue, green when completed). It opens the card modal and, for a
+ * member, can be dragged (CARD-004); a card still being created has no id to open or move yet.
+ * Labels and the other badges arrive with CARD-005.
  */
-export function CardItem({ boardId, card }: { boardId: string; card: CardSummaryDto }) {
+interface CardItemProps {
+  boardId: string;
+  card: CardSummaryDto;
+  /** dnd-kit's listeners and description for dragging this tile (absent when it cannot move). */
+  dragProps?: HTMLAttributes<HTMLElement>;
+  /** The copy that follows the pointer while the card is dragged (DragOverlay): tilted. */
+  overlay?: boolean;
+}
+
+export function CardItem({ boardId, card, dragProps, overlay = false }: CardItemProps) {
   const pending = isOptimisticCard(card);
   const overdue = isOverdue(card.dueDate, card.completed);
   const body = (
@@ -53,12 +64,20 @@ export function CardItem({ boardId, card }: { boardId: string; card: CardSummary
   );
   const tile = 'block rounded-md bg-card px-3 py-2 text-sm text-card-foreground shadow-sm';
 
+  if (overlay) {
+    return (
+      <div aria-hidden="true" className={cn(tile, 'rotate-3 cursor-grabbing shadow-lg')}>
+        {body}
+      </div>
+    );
+  }
   return (
     <article aria-label={card.title} aria-busy={pending || undefined}>
       {pending ? (
         <div className={cn(tile, 'opacity-70')}>{body}</div>
       ) : (
         <Link
+          {...dragProps}
           to={cardPath(boardId, card.id)}
           className={cn(
             tile,

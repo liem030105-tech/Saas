@@ -281,3 +281,19 @@ describe('card tile badges', () => {
     expect(within(tile).getByText(label, { exact: false })).toBeInTheDocument();
   });
 });
+
+describe('card drag (CARD-004)', () => {
+  afterEach(() => setAccessToken(null));
+
+  it.each([
+    { role: 'MEMBER' as const, draggable: true },
+    { role: 'VIEWER' as const, draggable: false },
+  ])('a $role can drag cards: $draggable', async ({ role, draggable }) => {
+    signedInAs(role);
+    renderApp(boardPathFor(roadmapBoard));
+
+    const tile = await screen.findByRole('link', { name: loginCard.title });
+    // dnd-kit's drag instructions are attached only to a card that can be picked up.
+    expect(tile.hasAttribute('aria-describedby')).toBe(draggable);
+  });
+});
