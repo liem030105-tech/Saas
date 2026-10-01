@@ -227,7 +227,8 @@ export async function changeMemberRole(
 
 /**
  * DELETE /workspaces/:workspaceId/members/:userId: any member may remove themselves (leave);
- * removing someone else needs ≥ ADMIN. The last OWNER can never go.
+ * removing someone else needs ≥ ADMIN. The last OWNER can never go. Their card assignments in the
+ * workspace are removed with them (I3).
  */
 export async function removeMember(
   workspaceId: string,
@@ -244,9 +245,14 @@ export async function removeMember(
     if (!leaving) assertMayManage(actorRole, target.role);
     if (target.role === 'OWNER' && (await countOwners(tx, workspaceId)) <= 1) throw lastOwner();
 
-    // The member's CardMember rows in this workspace are removed here too from CARD-005 (I3).
     await tx.workspaceMember.delete({
       where: { userId_workspaceId: { userId: targetUserId, workspaceId } },
+    });
+    // Their card assignments in this workspace go too (I3). After the membership row is gone, so
+    // an assignment that held that row (cards.service.assignMember) has committed and is removed
+    // here, and a later one finds no membership and is refused.
+    await tx.cardMember.deleteMany({
+      where: { userId: targetUserId, card: { board: { workspaceId } } },
     });
   });
 }

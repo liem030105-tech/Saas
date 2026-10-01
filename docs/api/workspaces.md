@@ -91,7 +91,7 @@ The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. 
 | Task | WORKSPACE-003 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN (subject to footnotes), **or** `userId` = caller (leave, any role) |
-| Success | `204`. Also removes the user's `CardMember` rows in this workspace (I3; from CARD-005, when that table exists) and revokes nothing else |
+| Success | `204`. Also removes the user's `CardMember` rows in this workspace (I3, since CARD-005b; after the membership row, so a concurrent assignment is either removed or refused) and revokes nothing else |
 | Errors | `401` · `403` · `404` · `422` rule `LAST_OWNER` · `429 RATE_LIMITED` |
 
 **Behavior (PATCH and DELETE):** each runs in one transaction that first locks the workspace row (`SELECT … FOR NO KEY UPDATE`), so member changes in a workspace run one at a time, then re-reads the caller's role and counts the OWNERs. Two OWNERs demoting or removing each other at the same time therefore always leave one OWNER (I4), and an OWNER demoted at the same moment cannot still grant OWNER. A `422` body is `details: [{ rule: "LAST_OWNER", message }]`; rule names are `BUSINESS_RULES` in `@trello-clone/shared`. Schemas: `ChangeMemberRoleInputSchema`, `MemberDtoSchema`.

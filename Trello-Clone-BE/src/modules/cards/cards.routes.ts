@@ -44,3 +44,8 @@ cardsRouter.patch(
 const CARD_LABEL = `${CARD}/labels/:labelId`;
 cardsRouter.post(CARD_LABEL, authenticate, apiRateLimit, controller.attachLabel);
 cardsRouter.delete(CARD_LABEL, authenticate, apiRateLimit, controller.detachLabel);
+
+// Card members (CARD-005): authorized in the service, on the card's stored board.
+const CARD_MEMBER = `${CARD}/members/:userId`;
+cardsRouter.post(CARD_MEMBER, authenticate, apiRateLimit, controller.assignMember);
+cardsRouter.delete(CARD_MEMBER, authenticate, apiRateLimit, controller.unassignMember);

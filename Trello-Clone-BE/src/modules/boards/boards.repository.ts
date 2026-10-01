@@ -20,9 +20,10 @@ export function findBoardWithRole(userId: string, boardId: string) {
 /** Sort order of every ordered container (docs/database/relationships.md → Ordering). */
 const BY_POSITION = [{ position: 'asc' }, { id: 'asc' }] as const;
 
-/** A card's label ids, as CardSummaryDto carries them (CARD-005). */
-const CARD_LABEL_IDS = {
+/** A card's label and member ids, as CardSummaryDto carries them (CARD-005). */
+const CARD_SUMMARY_IDS = {
   labels: { select: { labelId: true }, orderBy: { labelId: 'asc' } },
+  members: { select: { userId: true }, orderBy: { userId: 'asc' } },
 } as const;
 
 /**
@@ -38,7 +39,11 @@ export function findDetail(boardId: string) {
         where: { archived: false },
         orderBy: [...BY_POSITION],
         include: {
-          cards: { where: { archived: false }, orderBy: [...BY_POSITION], include: CARD_LABEL_IDS },
+          cards: {
+            where: { archived: false },
+            orderBy: [...BY_POSITION],
+            include: CARD_SUMMARY_IDS,
+          },
         },
       },
       labels: { orderBy: { id: 'asc' } },

@@ -34,19 +34,25 @@ const isMissingReference = (error: unknown) =>
 const isMissingCard = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
 
-/** A card's labels, ordered by id: CardSummaryDto's `labelIds` and CardDetailDto's `labels`. */
-const WITH_LABELS = {
+/**
+ * A card's labels and members, ordered by id: CardSummaryDto's `labelIds` and `memberIds`, and
+ * CardDetailDto's `labels` and `members`.
+ */
+const DETAIL = {
   labels: { include: { label: true }, orderBy: { labelId: 'asc' } },
+  members: {
+    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    orderBy: { userId: 'asc' },
+  },
 } as const;
 
-type CardWithLabels = Prisma.CardGetPayload<{ include: typeof WITH_LABELS }>;
+type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
 
-const toDetail = (card: CardWithLabels) =>
-  toCardDetailDto(
-    card,
-    toCardSummaryDto(card),
-    card.labels.map(({ label }) => toLabelDto(label)),
-  );
+const toDetail = (card: CardDetailRow) =>
+  toCardDetailDto(card, toCardSummaryDto(card), {
+    labels: card.labels.map(({ label }) => toLabelDto(label)),
+    members: card.members.map(({ user }) => user),
+  });
 
 /**
  * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
@@ -97,7 +103,7 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto({ ...card, labels: [] }); // realtime emit (REALTIME-001) goes here, after the commit
+    return toCardSummaryDto({ ...card, labels: [], members: [] }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;
@@ -106,13 +112,10 @@ export async function create(
 
 /** GET /cards/:cardId (≥ VIEWER). Archived cards are returned (the modal shows a banner). */
 export async function get(userId: string, cardId: string): Promise<CardDetailDto> {
-  const card = await assertCardAccess(userId, cardId, 'card.view');
-  const labels = await prisma.cardLabel.findMany({
-    where: { cardId },
-    include: { label: true },
-    orderBy: { labelId: 'asc' },
-  });
-  return toDetail({ ...card, labels });
+  await assertCardAccess(userId, cardId, 'card.view');
+  const card = await prisma.card.findUnique({ where: { id: cardId }, include: DETAIL });
+  if (!card) throw AppError.notFound(); // deleted after the check
+  return toDetail(card);
 }
 
 /**
@@ -142,7 +145,7 @@ export async function update(
       const updated = await tx.card.update({
         where: { id: cardId },
         data: changes,
-        include: WITH_LABELS,
+        include: DETAIL,
       });
       await logActivity(tx, {
         boardId,
@@ -272,4 +275,76 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
 export async function detachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
   await assertCardAccess(userId, cardId, 'card.assign');
   await prisma.cardLabel.deleteMany({ where: { cardId, labelId } });
+}
+
+// Card members (CARD-005, docs/api/cards.md → Card members & labels). Both are idempotent, and
+// each logs only when it changes something.
+
+/**
+ * POST /cards/:cardId/members/:userId (≥ MEMBER). Only a member of the card's workspace can be
+ * assigned (422 NOT_WORKSPACE_MEMBER otherwise, I3; the same answer for a user that does not
+ * exist, so the id reveals nothing). Their membership row is held FOR SHARE until the insert
+ * commits, so a concurrent removal from the workspace either waits for it (and then removes the
+ * assignment too) or wins and the assignment is refused. Logs MEMBER_ADDED with `data.userId`.
+ */
+export async function assignMember(
+  userId: string,
+  cardId: string,
+  memberId: string,
+): Promise<void> {
+  const card = await assertCardAccess(userId, cardId, 'card.assign');
+  try {
+    await prisma.$transaction(async (tx) => {
+      const [membership] = await tx.$queryRaw<{ userId: string }[]>`
+        SELECT "userId" FROM "WorkspaceMember"
+        WHERE "userId" = ${memberId} AND "workspaceId" = ${card.workspaceId} FOR SHARE`;
+      if (!membership) {
+        throw AppError.businessRule(
+          'NOT_WORKSPACE_MEMBER',
+          'Only members of this workspace can be assigned to its cards',
+        );
+      }
+      const { count } = await tx.cardMember.createMany({
+        data: [{ cardId, userId: memberId }],
+        skipDuplicates: true,
+      });
+      if (count > 0) {
+        await logActivity(tx, {
+          boardId: card.boardId,
+          userId,
+          cardId,
+          type: 'MEMBER_ADDED',
+          data: { userId: memberId },
+        });
+      }
+    });
+  } catch (error) {
+    // The card was deleted after the check.
+    if (isMissingReference(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/**
+ * DELETE /cards/:cardId/members/:userId (≥ MEMBER): someone not assigned is a no-op. Logs
+ * MEMBER_REMOVED with `data.userId`.
+ */
+export async function unassignMember(
+  userId: string,
+  cardId: string,
+  memberId: string,
+): Promise<void> {
+  const card = await assertCardAccess(userId, cardId, 'card.assign');
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.cardMember.deleteMany({ where: { cardId, userId: memberId } });
+    if (count > 0) {
+      await logActivity(tx, {
+        boardId: card.boardId,
+        userId,
+        cardId,
+        type: 'MEMBER_REMOVED',
+        data: { userId: memberId },
+      });
+    }
+  });
 }

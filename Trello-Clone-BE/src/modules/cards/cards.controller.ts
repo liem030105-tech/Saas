@@ -49,3 +49,15 @@ export async function detachLabel(req: Request, res: Response) {
   await cardsService.detachLabel(currentUserId(req), cardIdOf(req), labelIdOf(req));
   res.status(204).end();
 }
+
+const memberIdOf = (req: Request) => req.params.userId as string;
+
+export async function assignMember(req: Request, res: Response) {
+  await cardsService.assignMember(currentUserId(req), cardIdOf(req), memberIdOf(req));
+  res.status(204).end();
+}
+
+export async function unassignMember(req: Request, res: Response) {
+  await cardsService.unassignMember(currentUserId(req), cardIdOf(req), memberIdOf(req));
+  res.status(204).end();
+}
