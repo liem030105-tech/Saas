@@ -69,9 +69,13 @@ Schemas: `UpdateBoardInputSchema`, `BoardDetailDtoSchema`, `ListDtoSchema`, `Car
 | | |
 |--|--|
 | Task | CARD-005 |
-| Authorization | ≥ VIEWER |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ VIEWER (`assertBoardAccess(…, 'board.view')`) |
 | Query | `limit`, `cursor` ([pagination](README.md#pagination)), optional `cardId` (filters to one card, which must belong to this board, else `404`) |
 | Success | `200 { data: ActivityDto[], nextCursor }` |
+| Errors | `400` (invalid `limit`, `cursor` or `cardId`; a cursor outside this feed) · `401` · `404` (unknown board, not a member, or `cardId` not on this board) · `429 RATE_LIMITED` |
+
+Since CARD-005e. Newest first by `createdAt, id`; `cursor` is the id of the last entry of the previous page and must be an entry of the feed asked for (this board, and this card when `cardId` is given), else `400 VALIDATION_ERROR` (`path: "cursor"`), the same for a foreign id and one nothing has. `cardId` must be a card on this board now: a card that moved here shows only the entries logged on this board (its `CARD_MOVED` included). `data` is the event's details as logged (e.g. `CARD_MOVED`: `fromListId`, `toListId`, `fromBoardId`, `toBoardId`; `CARD_UPDATED`: the changed fields, `description: true` for a new description); clients ignore fields they do not know. Schemas: `ListActivitiesQuerySchema`, `ActivityDtoSchema`, `ActivitiesPageSchema` (`@trello-clone/shared`).
 
 ## Labels (CARD-005)
 

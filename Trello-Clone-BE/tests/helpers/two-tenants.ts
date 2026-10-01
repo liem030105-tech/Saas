@@ -84,6 +84,7 @@ async function tenant(
     .set(bearer(member.token))
     .send({ content: cardTitle })
     .expect(201);
+  const activity = await testPrisma.activity.findFirstOrThrow({ where: { boardId } });
   return {
     owner,
     member,
@@ -95,6 +96,7 @@ async function tenant(
     checklistId,
     itemId: item.body.data.id as string,
     commentId: comment.body.data.id as string,
+    activityId: activity.id,
     slug: created.body.data.slug as string,
     inviteId: invite.body.data.id as string,
     /** The raw token from the invite link, as its recipient would have it. */

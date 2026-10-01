@@ -1,5 +1,11 @@
 import { logActivity } from './activity';
-import { NO_CHECKLIST, toBoardDetailDto, toBoardDto, toLabelDto } from './boards.mapper';
+import {
+  NO_CHECKLIST,
+  toActivityDto,
+  toBoardDetailDto,
+  toBoardDto,
+  toLabelDto,
+} from './boards.mapper';
 import * as boardsRepository from './boards.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -7,11 +13,13 @@ import { AppError } from '../../lib/app-error';
 import { hasPermission, type WorkspaceAction } from '../workspaces/permissions';
 
 import type {
+  ActivitiesPage,
   BoardDetailDto,
   BoardDto,
   CreateBoardData,
   CreateLabelData,
   LabelDto,
+  ListActivitiesQuery,
   ListBoardsQuery,
   UpdateBoardData,
   UpdateLabelData,
@@ -148,6 +156,56 @@ async function assertLabelAccess(userId: string, labelId: string, action: Worksp
   if (!label) throw AppError.notFound();
   await assertBoardAccess(userId, label.boardId, action);
   return label;
+}
+
+const ACTOR = { user: { select: { id: true, name: true, avatarUrl: true } } } as const;
+
+/**
+ * GET /boards/:boardId/activities (≥ VIEWER): the board's activity, newest first (`id` breaks
+ * ties), one page after `cursor`; with `cardId`, only that card's entries on this board.
+ */
+export async function listActivities(
+  userId: string,
+  boardId: string,
+  query: ListActivitiesQuery,
+): Promise<ActivitiesPage> {
+  await assertBoardAccess(userId, boardId, 'board.view');
+  if (query.cardId) {
+    // The card must be on this board now; otherwise it is not found here (docs/api/boards.md).
+    const card = await prisma.card.findFirst({ where: { id: query.cardId, boardId } });
+    if (!card) throw AppError.notFound();
+  }
+  const scope: Prisma.ActivityWhereInput = {
+    boardId,
+    ...(query.cardId && { cardId: query.cardId }),
+  };
+  let after: Prisma.ActivityWhereInput = {};
+  if (query.cursor) {
+    // The cursor must be an entry of this feed, else it is a bad request (docs/api/README.md).
+    const from = await prisma.activity.findFirst({ where: { id: query.cursor, ...scope } });
+    if (!from) {
+      throw new AppError('VALIDATION_ERROR', 400, 'Request validation failed', [
+        { path: 'cursor', message: 'Unknown cursor' },
+      ]);
+    }
+    after = {
+      OR: [
+        { createdAt: { lt: from.createdAt } },
+        { createdAt: from.createdAt, id: { lt: from.id } },
+      ],
+    };
+  }
+  const rows = await prisma.activity.findMany({
+    where: { ...scope, ...after },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    include: ACTOR,
+    take: query.limit + 1,
+  });
+  const page = rows.slice(0, query.limit);
+  return {
+    data: page.map(toActivityDto),
+    nextCursor: rows.length > query.limit ? page.at(-1)!.id : null,
+  };
 }
 
 /** GET /boards/:boardId/labels (≥ VIEWER), in creation order. */

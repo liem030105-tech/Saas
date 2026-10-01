@@ -5,6 +5,7 @@ import { validated } from '../../middlewares/validate';
 import type {
   CreateBoardData,
   CreateLabelData,
+  ListActivitiesQuery,
   ListBoardsQuery,
   UpdateBoardData,
   UpdateLabelData,
@@ -44,6 +45,13 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   await boardsService.remove(currentUserId(req), boardIdOf(req));
   res.status(204).end();
+}
+
+/** A page of activity: `{ data, nextCursor }` at the top level (docs/api/README.md → Pagination). */
+export async function listActivities(req: Request, res: Response) {
+  const { query } = validated<unknown, ListActivitiesQuery, unknown>(res);
+  const page = await boardsService.listActivities(currentUserId(req), boardIdOf(req), query);
+  res.status(200).json(page);
 }
 
 export async function listLabels(req: Request, res: Response) {
