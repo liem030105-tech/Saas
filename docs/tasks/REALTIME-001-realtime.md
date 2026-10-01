@@ -13,6 +13,8 @@ Everyone viewing a board sees changes by others within about a second, without r
 # Context
 Full contract: [architecture/realtime.md](../architecture/realtime.md). ADR-009.
 
+May be delivered as sub-PRs, each meeting the DoD: 001a connection and rooms (requirement 1 without emitters, 3) → 001b emits (1–2) → 001c FE (4) → 001d E2E (5).
+
 # Requirements
 1. BE `realtime/socket.ts` (handshake authentication), `rooms.ts` (`board:join/leave`, `workspace:join/leave` with ack and authorization), `events/*.events.ts` for every event in the table.
 2. Emit after commit from the existing services (boards, lists, cards, comments, workspaces.removeMember), including the rebalance events.
