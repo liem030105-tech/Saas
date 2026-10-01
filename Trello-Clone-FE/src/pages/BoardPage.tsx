@@ -21,7 +21,14 @@ export function BoardPage() {
   const card = useCard(cardId);
   // Who can be assigned to cards, and whose avatars the tiles show (CARD-005b).
   const members = useMembers(board?.workspaceId ?? '');
-  const workspaceMembers = useMemo(() => members.data?.map(({ user }) => user), [members.data]);
+  const workspaceMembers = useMemo(
+    () => members.data?.map(({ user: { id, name, avatarUrl } }) => ({ id, name, avatarUrl })),
+    [members.data],
+  );
+  const tileData = useMemo(
+    () => ({ labels: board?.labels ?? [], members: workspaceMembers ?? [] }),
+    [board?.labels, workspaceMembers],
+  );
 
   // Wait for the caller's role too, so the actions shown are final from the first render.
   if (isPending || workspacesPending) {
@@ -68,7 +75,7 @@ export function BoardPage() {
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
     >
       {/* An archived board is read-only (docs/design/ui.md → Board). */}
-      <CardTileProvider value={{ labels: board.labels, members: workspaceMembers ?? [] }}>
+      <CardTileProvider value={tileData}>
         <BoardLists
           board={board}
           canEdit={!board.archived && (role ? can(role, 'list.manage') : false)}
@@ -79,7 +86,11 @@ export function BoardPage() {
           card={card.data}
           listTitle={board.lists.find((list) => list.id === card.data.listId)?.title}
           boardLabels={board.labels}
-          workspaceMembers={workspaceMembers}
+          workspaceMembers={{
+            list: workspaceMembers,
+            failed: members.isError,
+            retry: () => void members.refetch(),
+          }}
           canEdit={canEditContent}
           onClose={closeCard}
         />

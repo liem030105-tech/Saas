@@ -9,11 +9,18 @@ import { useToggleCardMember } from '../hooks/useMembers';
 
 import type { UserSummary } from '@trello-clone/shared';
 
+/** The members of the board's workspace, who can be assigned (the workspace members query). */
+export interface WorkspaceMembers {
+  /** `undefined` while loading, or when loading failed. */
+  list: UserSummary[] | undefined;
+  failed: boolean;
+  retry: () => void;
+}
+
 interface MemberPickerProps {
   boardId: string;
   cardId: string;
-  /** The members of the board's workspace, who can be assigned; `undefined` while loading. */
-  workspaceMembers: UserSummary[] | undefined;
+  workspaceMembers: WorkspaceMembers;
   /** The members on the card. */
   cardMembers: UserSummary[];
 }
@@ -43,15 +50,17 @@ export function MemberPicker({
           Members
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" aria-label="Members" className="flex flex-col gap-3">
-        <h4 className="text-center text-sm font-semibold">Members</h4>
-        {workspaceMembers === undefined ? (
-          <p className="text-sm text-muted-foreground" aria-busy="true">
-            Loading members…
-          </p>
-        ) : (
+      <PopoverContent
+        align="start"
+        aria-labelledby="member-picker-title"
+        className="flex flex-col gap-3"
+      >
+        <h4 id="member-picker-title" className="text-center text-sm font-semibold">
+          Members
+        </h4>
+        {workspaceMembers.list ? (
           <ul className="flex flex-col gap-1">
-            {workspaceMembers.map((user) => (
+            {workspaceMembers.list.map((user) => (
               <li key={user.id}>
                 <label className="flex items-center gap-2 rounded px-1 py-1 hover:bg-muted">
                   <input
@@ -75,6 +84,17 @@ export function MemberPicker({
               </li>
             ))}
           </ul>
+        ) : workspaceMembers.failed ? (
+          <div role="alert" className="flex flex-col items-start gap-2 text-sm">
+            Couldn&apos;t load the workspace members.
+            <Button variant="secondary" size="sm" onClick={workspaceMembers.retry}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground" aria-busy="true">
+            Loading members…
+          </p>
         )}
       </PopoverContent>
     </Popover>

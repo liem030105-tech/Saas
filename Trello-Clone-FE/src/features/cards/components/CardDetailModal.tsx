@@ -5,7 +5,6 @@ import {
   type CardDetailDto,
   type LabelDto,
   type UpdateCardInput,
-  type UserSummary,
 } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
@@ -24,7 +23,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar';
 import { dueDateFromInput, dueDateInputValue } from '../dates';
 import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
 import { LabelChip, LabelPicker } from './LabelPicker';
-import { MemberPicker } from './MemberPicker';
+import { MemberPicker, type WorkspaceMembers } from './MemberPicker';
 
 const DELETE_ERROR = "Couldn't delete the card. Check your connection and try again.";
 
@@ -34,8 +33,8 @@ interface CardDetailModalProps {
   listTitle: string | undefined;
   /** The board's labels, for the label picker. */
   boardLabels: LabelDto[];
-  /** The workspace's members, for the member picker (`undefined` while they load). */
-  workspaceMembers: UserSummary[] | undefined;
+  /** The workspace's members, for the member picker. */
+  workspaceMembers: WorkspaceMembers;
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
   onClose: () => void;

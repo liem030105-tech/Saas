@@ -13,6 +13,9 @@ import { useCardTileData } from '../tileContext';
 import type { CardSummaryDto } from '@trello-clone/shared';
 import type { HTMLAttributes } from 'react';
 
+/** Avatars shown on a tile; more members show as "+n" (docs/design/ui.md → Card tile). */
+const MAX_AVATARS = 3;
+
 /**
  * A card tile in a list (docs/design/ui.md → Card tile): its title (at most three lines) and the
  * due-date badge (red when overdue, green when completed). It opens the card modal and, for a
@@ -20,9 +23,6 @@ import type { HTMLAttributes } from 'react';
  * Label chips (colour only; CARD-005a) sit above the title and member avatars (CARD-005b, at most
  * three, then "+n") below it; the checklist and comment badges arrive with the rest of CARD-005.
  */
-/** Avatars shown on a tile; more members show as "+n" (docs/design/ui.md → Card tile). */
-const MAX_AVATARS = 3;
-
 interface CardItemProps {
   boardId: string;
   card: CardSummaryDto;

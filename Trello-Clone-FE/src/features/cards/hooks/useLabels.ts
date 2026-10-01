@@ -20,9 +20,7 @@ const ALL_CARDS = { queryKey: cardKeys.all };
 
 /** Puts a label on the card or takes it off (POST / DELETE /cards/:cardId/labels/:labelId). */
 export const useToggleCardLabel = (boardId: string, cardId: string) =>
-  useToggleOnCard<LabelDto>(boardId, cardId, {
-    detail: 'labels',
-    summary: 'labelIds',
+  useToggleOnCard(boardId, cardId, 'labels', {
     attach: labelsApi.attach,
     detach: labelsApi.detach,
     error: TOGGLE_ERROR,

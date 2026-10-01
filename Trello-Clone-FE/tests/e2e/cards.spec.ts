@@ -141,12 +141,20 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   const assigned = page.waitForResponse(
     (res) => res.request().method() === 'POST' && res.url().includes('/members/') && res.ok(),
   );
-  await page.getByRole('dialog', { name: 'Members' }).getByRole('checkbox').first().check();
+  const memberPicker = page.getByRole('dialog', { name: 'Members' });
+  const ownerName = await memberPicker
+    .locator('label')
+    .first()
+    .locator('span.truncate')
+    .innerText();
+  await memberPicker.getByRole('checkbox', { name: ownerName }).check();
   await assigned;
   await page.reload();
   await expect(signup.getByRole('region', { name: 'Members' }).getByRole('listitem')).toHaveCount(
     1,
   );
   await signup.getByRole('button', { name: 'Close' }).click();
-  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('Members:');
+  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText(
+    `Members: ${ownerName}`,
+  );
 });
