@@ -65,6 +65,12 @@ afterAll(async () => {
   await testPrisma.$disconnect();
 });
 
+/**
+ * The 429 tests first use up the auth limit with real registrations or logins: about 11 bcrypt
+ * hashes at cost 12 (~0.4 s each), right at Vitest's 5 s default timeout on a busy runner.
+ */
+const SLOW = { timeout: 20_000 };
+
 describe('POST /api/v1/auth/register', () => {
   it('201: creates the user and returns the user and a valid access token', async () => {
     const input = buildRegisterInput();
@@ -174,7 +180,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(await testPrisma.refreshToken.count()).toBe(1);
   });
 
-  it('429 RATE_LIMITED with Retry-After once the per-IP limit is used up', async () => {
+  it('429 RATE_LIMITED with Retry-After once the per-IP limit is used up', SLOW, async () => {
     for (let i = 0; i < RATE_LIMITS.auth.limit; i += 1) {
       await request(app).post(REGISTER).send(buildRegisterInput()).expect(201);
     }
@@ -259,7 +265,7 @@ describe('POST /api/v1/auth/login', () => {
     expect(refreshCookie(res)).toBeUndefined();
   });
 
-  it('429 RATE_LIMITED with Retry-After once the per-IP limit is used up', async () => {
+  it('429 RATE_LIMITED with Retry-After once the per-IP limit is used up', SLOW, async () => {
     for (let i = 0; i < RATE_LIMITS.auth.limit; i += 1) {
       await request(app).post(LOGIN).send({ email, password: wrongPassword }).expect(401);
     }
