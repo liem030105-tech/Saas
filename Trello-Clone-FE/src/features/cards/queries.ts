@@ -23,6 +23,7 @@ export const errorMessage = (error: unknown, fallback: string) =>
 
 // Query keys: docs/architecture/frontend.md → State management (`['card', cardId]`).
 export const cardKeys = {
+  all: ['card'] as const,
   detail: (cardId: string) => ['card', cardId] as const,
 };
 

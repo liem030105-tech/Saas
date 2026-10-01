@@ -18,10 +18,12 @@ import { EditableTitle } from '@/components/forms/EditableTitle';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Markdown } from '@/components/ui/Markdown';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
 import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
 import { LabelChip, LabelPicker } from './LabelPicker';
+import { MemberPicker, type WorkspaceMembers } from './MemberPicker';
 
 const DELETE_ERROR = "Couldn't delete the card. Check your connection and try again.";
 
@@ -31,6 +33,8 @@ interface CardDetailModalProps {
   listTitle: string | undefined;
   /** The board's labels, for the label picker. */
   boardLabels: LabelDto[];
+  /** The workspace's members, for the member picker. */
+  workspaceMembers: WorkspaceMembers;
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
   onClose: () => void;
@@ -39,13 +43,14 @@ interface CardDetailModalProps {
 /**
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
- * read-only. Labels since CARD-005a; members, checklists and activity arrive with the rest of
- * CARD-005.
+ * read-only. Labels since CARD-005a, members since CARD-005b; checklists and activity arrive with
+ * the rest of CARD-005.
  */
 export function CardDetailModal({
   card,
   listTitle,
   boardLabels,
+  workspaceMembers,
   canEdit,
   onClose,
 }: CardDetailModalProps) {
@@ -89,6 +94,24 @@ export function CardDetailModal({
 
         <div className="grid gap-6 sm:grid-cols-[1fr_auto]">
           <div className="flex min-w-0 flex-col gap-6">
+            {card.members.length > 0 && (
+              <section aria-labelledby="card-members" className="flex flex-col gap-1">
+                <h3
+                  id="card-members"
+                  className="text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  Members
+                </h3>
+                <ul className="flex flex-wrap gap-2">
+                  {card.members.map((user) => (
+                    <li key={user.id} className="flex items-center gap-1.5 text-sm">
+                      <UserAvatar user={user} size="sm" />
+                      {user.name}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {card.labels.length > 0 && (
               <section aria-labelledby="card-labels" className="flex flex-col gap-1">
                 <h3
@@ -97,7 +120,7 @@ export function CardDetailModal({
                 >
                   Labels
                 </h3>
-                <ul aria-labelledby="card-labels" className="flex flex-wrap gap-1">
+                <ul className="flex flex-wrap gap-1">
                   {card.labels.map((label) => (
                     <li key={label.id}>
                       <LabelChip label={label} />
@@ -122,6 +145,12 @@ export function CardDetailModal({
                 <h3 id="card-add" className="text-xs font-semibold text-muted-foreground uppercase">
                   Add to card
                 </h3>
+                <MemberPicker
+                  boardId={card.boardId}
+                  cardId={card.id}
+                  workspaceMembers={workspaceMembers}
+                  cardMembers={card.members}
+                />
                 <LabelPicker
                   boardId={card.boardId}
                   cardId={card.id}

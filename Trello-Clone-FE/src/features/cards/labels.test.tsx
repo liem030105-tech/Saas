@@ -105,9 +105,9 @@ const tileOf = () => screen.getByRole('link', { name: /Fix login/, hidden: true 
 
 /** The label chips shown in the card modal (the section is left out when there are none). */
 const modalChips = (dialog: HTMLElement) => {
-  const list = within(dialog).queryByRole('list', { name: 'Labels' });
-  return list
-    ? within(list)
+  const section = within(dialog).queryByRole('region', { name: 'Labels' });
+  return section
+    ? within(section)
         .getAllByRole('listitem')
         .map((item) => item.textContent)
     : [];

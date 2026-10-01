@@ -42,3 +42,13 @@ export const labelsApi = {
   detach: (cardId: string, labelId: string) =>
     apiClient.delete<void>(`/cards/${cardId}/labels/${labelId}`),
 };
+
+/** The members on a card (≥ MEMBER to change; only members of the card's workspace). */
+export const cardMembersApi = {
+  /** POST /cards/:cardId/members/:userId (idempotent). */
+  assign: (cardId: string, userId: string) =>
+    apiClient.post<void>(`/cards/${cardId}/members/${userId}`),
+  /** DELETE /cards/:cardId/members/:userId (idempotent). */
+  unassign: (cardId: string, userId: string) =>
+    apiClient.delete<void>(`/cards/${cardId}/members/${userId}`),
+};

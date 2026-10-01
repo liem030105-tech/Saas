@@ -6,7 +6,8 @@ import { boardWithLists } from './helpers/board';
 // cards appear in creation order and persist after reload.
 // CARD-002: the card modal edits a card, and its shared URL opens the same card after a reload.
 // Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
-// (keyboard-driven, as pointer drags are flaky in CI). CARD-005a: a label on a card persists.
+// (keyboard-driven, as pointer drags are flaky in CI).
+// CARD-005a/b: a label and a member put on a card persist.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -128,9 +129,32 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await page.getByRole('dialog', { name: 'Labels' }).getByRole('checkbox').first().check();
   await labelled;
   await page.reload();
-  await expect(signup.getByRole('list', { name: 'Labels' }).getByRole('listitem')).toHaveCount(1);
+  await expect(signup.getByRole('region', { name: 'Labels' }).getByRole('listitem')).toHaveCount(1);
   await signup.getByRole('button', { name: 'Close' }).click();
   await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText(
     'Labels: Green label',
+  );
+
+  // CARD-005b: assign the only workspace member (the owner) to the card; kept after a reload.
+  await doing.getByRole('link', { name: /Sign-up form/ }).click();
+  await signup.getByRole('button', { name: 'Members' }).click();
+  const assigned = page.waitForResponse(
+    (res) => res.request().method() === 'POST' && res.url().includes('/members/') && res.ok(),
+  );
+  const memberPicker = page.getByRole('dialog', { name: 'Members' });
+  const ownerName = await memberPicker
+    .locator('label')
+    .first()
+    .locator('span.truncate')
+    .innerText();
+  await memberPicker.getByRole('checkbox', { name: ownerName }).check();
+  await assigned;
+  await page.reload();
+  await expect(signup.getByRole('region', { name: 'Members' }).getByRole('listitem')).toHaveCount(
+    1,
+  );
+  await signup.getByRole('button', { name: 'Close' }).click();
+  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText(
+    `Members: ${ownerName}`,
   );
 });

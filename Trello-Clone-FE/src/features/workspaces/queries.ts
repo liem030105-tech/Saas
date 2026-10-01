@@ -103,11 +103,12 @@ export function useDeleteWorkspace(workspaceId: string) {
   });
 }
 
-/** The workspace's members (WORKSPACE-003). */
+/** The workspace's members (WORKSPACE-003); waits while `workspaceId` is not known yet (''). */
 export function useMembers(workspaceId: string) {
   return useQuery({
     queryKey: workspaceKeys.members(workspaceId),
     queryFn: () => workspacesApi.listMembers(workspaceId),
+    enabled: workspaceId !== '',
   });
 }
 

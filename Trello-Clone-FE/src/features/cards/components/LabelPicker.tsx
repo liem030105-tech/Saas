@@ -101,7 +101,7 @@ export function LabelPicker({ boardId, cardId, boardLabels, cardLabels }: LabelP
             <LabelList
               boardLabels={boardLabels}
               cardLabels={cardLabels}
-              onToggle={(label, on) => toggle.mutate({ label, on })}
+              onToggle={(label, on) => toggle.mutate({ item: label, on })}
               onEdit={(label) => setView({ kind: 'edit', label })}
             />
             <Button
