@@ -53,7 +53,7 @@ Naming: `<domain>:<past-tense-verb>` (existing convention; D-16 records the alte
 | `list:reordered` | `board:{id}` | list rebalance | `{ positions: { [listId]: number } }` |
 | `list:deleted` | `board:{id}` | DELETE `/lists/:id` | `{ listId }` |
 | `card:created` | `board:{id}` | POST `/lists/:id/cards` | `CardSummaryDto` |
-| `card:updated` | `board:{id}` | PATCH `/cards/:id`, member/label/checklist changes | `CardSummaryDto` |
+| `card:updated` | `board:{id}` | PATCH `/cards/:id`, member/label/checklist changes, comment added/deleted | `CardSummaryDto & { archived }` |
 | `card:moved` | `board:{from}` (+ `board:{to}` if different) | PATCH `/cards/:id/move` | `{ cardId, fromListId, toListId, fromBoardId, toBoardId, position }` |
 | `card:reordered` | `board:{id}` | card rebalance in a list | `{ listId, positions: { [cardId]: number } }` |
 | `card:deleted` | `board:{id}` | DELETE `/cards/:id` | `{ cardId, listId }` |
@@ -62,7 +62,9 @@ Naming: `<domain>:<past-tense-verb>` (existing convention; D-16 records the alte
 | `comment:deleted` | `board:{id}` | DELETE `/comments/:id` | `{ commentId, cardId }` |
 | `member:removed` | `workspace:{id}` + removed user's sockets | DELETE `/workspaces/:id/members/:userId` | `{ userId }` |
 
-Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). A PATCH `/lists/:id` that renames and moves at once sends both `list:updated` and `list:moved`; a create or move that rebalances also sends one `list:reordered`. Emitters: `Trello-Clone-BE/src/realtime/events/{boards,lists,members}.events.ts` (001b1); cards and comments follow in 001b2. Attachment events are specified in ATTACHMENTS-001 if needed.
+Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). A PATCH `/lists/:id` that renames and moves at once sends both `list:updated` and `list:moved` with the **same** `version`, so a client that applies `list:updated` (which already carries the settled position) must not expect to apply `list:moved` too; a create or move that rebalances also sends one `list:reordered`.
+
+`card:updated` is the tile as it is now (`CardSummaryDto`, plus `archived` so the board can drop or bring back the tile). A PATCH sends it with the card's `updatedAt`. A real change to the card's labels or members, a checklist item added, ticked or deleted, a checklist deleted, and a comment added or deleted also send it (with `version` now, as those do not touch the card row); a repeated attach, a renamed item and the like send nothing. A card rebalance sends one `card:reordered` for its list. `card:moved` carries the new board's id in the envelope. Emitters: `Trello-Clone-BE/src/realtime/events/{boards,lists,members,cards,comments}.events.ts`; a failed read of the tile after a commit only loses that `card:updated` (logged). Attachment events are specified in ATTACHMENTS-001 if needed.
 
 ## FE synchronization rules
 | Concern | Rule |
@@ -71,6 +73,7 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 | Own actions | Already applied optimistically; ignore events with `actorId === currentUserId` |
 | Duplicates | Keep the last ~200 `eventId`s in an LRU; ignore repeats |
 | Stale events | Ignore an event whose `version` ≤ the cached record's `updatedAt`. Delete events always apply |
+| Moves across boards | `card:moved` names ids only; a card that arrives from another board (not in the cache) → `invalidateQueries(['board', toBoardId])` |
 | Applying | Small changes (`*:updated`, `*:moved`, `*:created`) patch the cache with `queryClient.setQueryData(['board', id], …)`; `*:reordered` replaces positions; anything unexpected → `invalidateQueries(['board', id])` |
 | Optimistic conflicts | If a foreign event touches an item with a pending own mutation, apply the event after the mutation settles (the `onSettled` invalidate reconciles) |
 | Reconnect | On every reconnect after the first: re-join rooms, then `invalidateQueries(['board', id])` and `['boards', workspaceId]` to recover missed events |

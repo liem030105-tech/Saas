@@ -69,3 +69,19 @@ export async function findChecklistProgress(boardId: string) {
     GROUP BY cl."cardId"`;
   return new Map(rows.map(({ cardId, done, total }) => [cardId, { done, total }]));
 }
+
+/**
+ * One card as the board shows it (CardSummaryDto's ids and counts, plus its checklist progress),
+ * for the `card:updated` realtime event; null if it was deleted.
+ */
+export async function findCardSummary(cardId: string) {
+  const [card, progress] = await Promise.all([
+    prisma.card.findUnique({ where: { id: cardId }, include: CARD_SUMMARY_IDS }),
+    prisma.$queryRaw<{ done: number; total: number }[]>`
+      SELECT (COUNT(*) FILTER (WHERE i."done"))::int AS done, COUNT(*)::int AS total
+      FROM "ChecklistItem" i
+      JOIN "Checklist" cl ON cl."id" = i."checklistId"
+      WHERE cl."cardId" = ${cardId}`,
+  ]);
+  return card && { card, checklist: progress[0] ?? { done: 0, total: 0 } };
+}

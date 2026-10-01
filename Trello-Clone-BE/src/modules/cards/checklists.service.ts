@@ -1,5 +1,5 @@
 import { toChecklistDto, toChecklistItemDto } from './cards.mapper';
-import { assertCardAccess } from './cards.service';
+import { assertCardAccess, emitCardChanged } from './cards.service';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
@@ -64,8 +64,13 @@ async function assertChecklistAccess(userId: string, checklistId: string) {
     select: { id: true, cardId: true, card: { select: { boardId: true } } },
   });
   if (!checklist) throw AppError.notFound();
-  await assertBoardAccess(userId, checklist.card.boardId, 'card.assign');
-  return { id: checklist.id, cardId: checklist.cardId, boardId: checklist.card.boardId };
+  const { board } = await assertBoardAccess(userId, checklist.card.boardId, 'card.assign');
+  return {
+    id: checklist.id,
+    cardId: checklist.cardId,
+    boardId: checklist.card.boardId,
+    workspaceId: board.workspaceId,
+  };
 }
 
 /** Loads an item of a checklist the caller may edit; an item of another checklist is a 404. */
@@ -137,7 +142,7 @@ export async function updateChecklist(
  * CHECKLIST_REMOVED with its id and title.
  */
 export async function removeChecklist(userId: string, checklistId: string): Promise<void> {
-  const { cardId, boardId } = await assertChecklistAccess(userId, checklistId);
+  const { cardId, boardId, workspaceId } = await assertChecklistAccess(userId, checklistId);
   await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       await lockCard(tx, cardId);
@@ -151,6 +156,8 @@ export async function removeChecklist(userId: string, checklistId: string): Prom
       });
     }),
   );
+  // Its items no longer count toward the tile's progress (REALTIME-001).
+  await emitCardChanged(userId, cardId, workspaceId);
 }
 
 /** POST /checklists/:checklistId/items (≥ MEMBER): appended after the checklist's last item. */
@@ -159,7 +166,7 @@ export async function createItem(
   checklistId: string,
   input: CreateChecklistItemData,
 ): Promise<ChecklistItemDto> {
-  await assertChecklistAccess(userId, checklistId);
+  const { cardId, workspaceId } = await assertChecklistAccess(userId, checklistId);
   const item = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       await lockContainer(tx, 'ChecklistItem', 'checklistId', checklistId);
@@ -167,6 +174,7 @@ export async function createItem(
       return tx.checklistItem.create({ data: { checklistId, content: input.content, position } });
     }),
   );
+  await emitCardChanged(userId, cardId, workspaceId); // one more item on the tile's progress
   return toChecklistItemDto(item);
 }
 
@@ -183,6 +191,7 @@ export async function updateItem(
 ): Promise<ChecklistItemDto> {
   const { checklist } = await assertItemAccess(userId, checklistId, itemId);
   const moved = input.position !== undefined;
+  let ticked = false;
   const item = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       await lockCard(tx, checklist.cardId);
@@ -200,6 +209,7 @@ export async function updateItem(
         },
       });
       if (before && input.done !== undefined && input.done !== before.done) {
+        ticked = true;
         await logActivity(tx, {
           boardId: checklist.boardId,
           userId,
@@ -219,11 +229,14 @@ export async function updateItem(
       return { ...updated, position };
     }),
   );
+  // A tick changes the tile's progress (REALTIME-001); edits and moves do not.
+  if (ticked) await emitCardChanged(userId, checklist.cardId, checklist.workspaceId);
   return toChecklistItemDto(item);
 }
 
 /** DELETE /checklists/:checklistId/items/:itemId (≥ MEMBER). */
 export async function removeItem(userId: string, checklistId: string, itemId: string) {
-  await assertItemAccess(userId, checklistId, itemId);
+  const { checklist } = await assertItemAccess(userId, checklistId, itemId);
   await withNotFound(() => prisma.checklistItem.delete({ where: { id: itemId, checklistId } }));
+  await emitCardChanged(userId, checklist.cardId, checklist.workspaceId);
 }
