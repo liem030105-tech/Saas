@@ -10,6 +10,7 @@ import { Markdown } from '@/components/ui/Markdown';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { formatDateTime } from '@/lib/format-date';
 
+import { useCommentsSocket } from '../hooks/useCommentsSocket';
 import {
   isOptimisticComment,
   useAddComment,
@@ -61,6 +62,7 @@ export function CommentSection({
   headerAction,
   children,
 }: CommentSectionProps) {
+  useCommentsSocket(cardId, access.user?.id); // comments made elsewhere appear (REALTIME-001)
   const comments = useComments(cardId);
   const list = comments.data?.pages.flatMap((page) => page.data) ?? [];
 

@@ -52,6 +52,7 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 ### ADR-009: Socket.IO realtime, rooms per board, no Redis initially
 - **Decision:** all mutations go through REST; sockets only broadcast. Events carry `eventId` + `version`. All emits are centralized in `realtime/events/*`.
 - **Rationale:** a single write path, easy authorization; adding a Redis adapter later requires no service changes.
+- **Amendment (REALTIME-001c):** a change is not sent back to the tab that made it. The FE sends its socket id as the `X-Socket-Id` header on REST requests; BE middleware keeps it for the request (AsyncLocalStorage, `realtime/origin.ts`) and `emitEvent` emits to the rooms `.except()` that socket. Filtering by `actorId` on the FE was rejected: it would also hide the change from the same user's other tabs. Trade-off: a request sent while the socket is reconnecting has no id, so its events come back to that tab; dedupe, the stale-version check and the mutation's own refetch absorb them.
 - **Status:** Accepted
 
 ### ADR-010: In-memory access token + rotating refresh token in an httpOnly cookie

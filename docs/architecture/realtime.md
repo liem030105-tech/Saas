@@ -12,7 +12,7 @@
 ## Connection and authorization
 - **Transport:** Socket.IO on the API origin (`VITE_SOCKET_URL`), path `/socket.io`.
 - **Authentication:** the client passes the access token in the handshake, `io(url, { auth: { token } })`. The `io.use()` middleware verifies the JWT and sets `socket.data.userId`. Invalid or expired → connection refused with `Error('UNAUTHORIZED')`.
-- **Token expiry:** the server does not re-check tokens on an open socket. When the FE refreshes its access token, it reconnects with the new token.
+- **Token expiry:** the server does not re-check tokens on an open socket. Every handshake (the first and each reconnect) sends the FE's current access token; a handshake refused as `UNAUTHORIZED` makes the FE refresh the token and connect again (at most 3 times in a row), and a refresh refused with 401 ends the session like a REST request would.
 - **Rooms:**
 
   | Room | Joined via | Authorization |
@@ -33,7 +33,7 @@ interface RealtimeEvent<TType extends string, TData> {
   type: TType;       // same as the Socket.IO event name
   boardId: string | null;       // null for workspace-level events
   workspaceId: string;
-  actorId: string;   // user who caused the change
+  actorId: string;   // user who caused the change (display only; never a reason to skip an event)
   version: number;   // updatedAt (epoch ms) of the changed record; Date.now() for deletes and *:reordered
   data: TData;
 }
@@ -70,14 +70,16 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 | Concern | Rule |
 |---------|------|
 | Subscription | `useBoardSocket(boardId)` joins on mount and leaves on unmount; the workspace sidebar joins `workspace:{id}` |
-| Own actions | Already applied optimistically; ignore events with `actorId === currentUserId` |
+| Own actions | Already applied optimistically, so the server never sends a change back to the tab that made it: the FE sends its socket id as the `X-Socket-Id` header on every REST request, and `emitEvent` sends to the rooms `.except(thatSocket)` (BE `realtime/origin.ts`). The same user's other tabs still get the event, so `actorId` is not a reason to ignore one |
 | Duplicates | Keep the last ~200 `eventId`s in an LRU; ignore repeats |
 | Stale events | Ignore an event whose `version` ≤ the cached record's `updatedAt`. Delete events always apply |
 | Moves across boards | `card:moved` names ids only; a card that arrives from another board (not in the cache) → `invalidateQueries(['board', toBoardId])` |
 | Applying | Small changes (`*:updated`, `*:moved`, `*:created`) patch the cache with `queryClient.setQueryData(['board', id], …)`; `*:reordered` replaces positions; anything unexpected → `invalidateQueries(['board', id])` |
-| Optimistic conflicts | If a foreign event touches an item with a pending own mutation, apply the event after the mutation settles (the `onSettled` invalidate reconciles) |
-| Reconnect | On every reconnect after the first: re-join rooms, then `invalidateQueries(['board', id])` and `['boards', workspaceId]` to recover missed events |
+| Optimistic conflicts | While one of this tab's own optimistic changes to the board is pending (the board's add/move scope, or a mutation keyed `boardChangeKey(boardId)`: renames, toggles on a card, checklists, comment counts), board events are not patched in; the change refetches the board when it settles, which brings them. The open card likewise skips its refetch while a change in its modal is pending. Comments are patched from the event (never refetched), so a refetch cannot drop or bring back a comment this tab is still adding or deleting |
+| Reconnect | Every reconnect re-joins the rooms. Each successful board join (the first one too, since the board loads in parallel with it) refetches `['board', id]` and its activity, so changes made before the socket was in the room are not lost; on reconnect also `['boards', workspaceId]` (001c2). A refused join's answer reaches the room's holders too |
 | Removed from workspace | On `member:removed` for self: leave rooms, clear workspace caches, redirect to `/` |
+
+Code: `Trello-Clone-FE/src/lib/socket.ts` (one connection for the app: `joinRoom`, `onEvent`, `onReconnect`, `createEventDedupe`; a refused handshake refreshes the token and reconnects), `features/boards/realtime.ts` (`applyBoardEvent`, the pure cache patch), and the hooks `useBoardSocket`, `useCardSocket` (open card modal) and `useCommentsSocket`. Sign-out closes the connection. Tests replace the Socket.IO client with `FakeRealtime` ([testing.md](../development/testing.md)).
 
 ## Scaling / Redis adapter path
 - Initially one API instance with the in-memory adapter. **No Redis.**

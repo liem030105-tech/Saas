@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 
 import { isSessionOver, onSessionEnded, refreshAccessToken } from '@/api/client';
 import { getAccessToken } from '@/api/token-store';
+import { closeRealtime } from '@/lib/socket';
 
 import type { QueryClient } from '@tanstack/react-query';
 import type { createBrowserRouter } from 'react-router';
@@ -53,6 +54,7 @@ export function loginPathFor({ pathname, search, hash }: Router['state']['locati
  */
 export function handleSessionEnd(router: Router, queryClient: QueryClient) {
   return onSessionEnded(() => {
+    closeRealtime();
     queryClient.clear();
     toast.error(SESSION_EXPIRED_MESSAGE, { id: SESSION_TOAST_ID });
     void router.navigate(loginPathFor(router.state.location), { replace: true });

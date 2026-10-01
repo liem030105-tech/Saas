@@ -19,7 +19,7 @@ May be delivered as sub-PRs, each meeting the DoD: 001a connection and rooms (re
 1. BE `realtime/socket.ts` (handshake authentication), `rooms.ts` (`board:join/leave`, `workspace:join/leave` with ack and authorization), `events/*.events.ts` for every event in the table.
 2. Emit after commit from the existing services (boards, lists, cards, comments, workspaces.removeMember), including the rebalance events.
 3. Shared: event name constants and `RealtimeEvent` payload types.
-4. FE `lib/socket.ts` (connect with the access token; reconnect with a new token after refresh), `useBoardSocket`, `useWorkspaceSocket`; every FE synchronization rule in the table (own-event skip, dedupe LRU, stale version, reconnect invalidate, removed-member redirect).
+4. FE `lib/socket.ts` (connect with the current access token; refresh and reconnect when a handshake is refused), `useBoardSocket`, `useWorkspaceSocket`; every FE synchronization rule in the table (own changes not echoed (`X-Socket-Id`), dedupe LRU, stale version, reconnect invalidate, removed-member redirect).
 5. E2E scenario 7.
 
 # Out of Scope

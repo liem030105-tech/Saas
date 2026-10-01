@@ -113,6 +113,26 @@ export function useDeleteBoard(boardId: string, workspaceId: string) {
 export const boardMutationScope = (boardId: string) => ({ id: `board-content:${boardId}` });
 
 /**
+ * Marks a mutation that changes the board's cache before the server answers and refetches the board
+ * when it settles (a rename, a toggle on a card, a comment's count, …). Realtime events that arrive
+ * meanwhile are not patched in: that refetch brings them (useBoardSocket).
+ */
+export const boardChangeKey = (boardId: string) => ['board-change', boardId] as const;
+
+/** One of this tab's own changes to the board is pending: a board-scope add or move, or a `boardChangeKey` one. */
+export function ownBoardChangePending(queryClient: QueryClient, boardId: string) {
+  const { id } = boardMutationScope(boardId);
+  const [tag] = boardChangeKey(boardId);
+  return (
+    queryClient.isMutating({
+      predicate: ({ options }) =>
+        options.scope?.id === id ||
+        (options.mutationKey?.[0] === tag && options.mutationKey[1] === boardId),
+    }) > 0
+  );
+}
+
+/**
  * Refetches the board after a list or card add or move, but only once the last one in the board's
  * scope settles: an earlier refetch would bring server data without the later optimistic changes
  * and make them jump back and forth.

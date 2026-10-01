@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
 import {
   activityKeys,
+  boardChangeKey,
   boardKeys,
   boardMutationScope,
   refetchBoardWhenIdle,
@@ -170,6 +171,7 @@ export function useUpdateCard(boardId: string, cardId: string) {
 
   return useMutation({
     scope: cardMutationScope(cardId),
+    mutationKey: boardChangeKey(boardId),
     mutationFn: (input: UpdateCardInput) => cardsApi.update(cardId, input),
     onMutate: async (input) => {
       await Promise.all([

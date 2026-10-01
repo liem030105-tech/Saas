@@ -8,6 +8,7 @@
 ## Conventions
 - Base path `/api/v1`. JSON UTF-8. Timestamps ISO 8601 UTC. IDs are `cuid` strings.
 - Authentication header `Authorization: Bearer <accessToken>` unless an endpoint is marked **Public**.
+- Optional header `X-Socket-Id: <socket id>` (the caller's realtime connection): the realtime events the request causes are not sent back to that socket ([realtime.md](../architecture/realtime.md#fe-synchronization-rules)). An id that is not 1–64 of `[A-Za-z0-9_-]` is ignored.
 - camelCase fields.
 - **Naming:** plural nouns and kebab-case (`/workspaces/:workspaceId/members`). Nest at most one level under the parent that scopes creation or listing (`POST /boards/:boardId/lists`). Operate on an existing resource by its own id (`PATCH /lists/:listId`). Actions that are not plain field updates use a verb sub-resource (`PATCH /cards/:cardId/move`, `POST /invites/accept`).
 - Path parameter names are `:<resource>Id` (`:workspaceId`, `:boardId`, `:listId`, `:cardId`, `:userId`, `:labelId`, `:checklistId`, `:itemId`, `:commentId`, `:inviteId`, `:attachmentId`).

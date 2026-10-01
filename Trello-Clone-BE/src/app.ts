@@ -18,6 +18,7 @@ import { listsRouter } from './modules/lists/lists.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { invitesRouter } from './modules/workspaces/invites.routes';
 import { workspacesRouter } from './modules/workspaces/workspaces.routes';
+import { realtimeOrigin } from './realtime/origin';
 
 export const API_PREFIX = '/api/v1';
 
@@ -38,6 +39,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
+  app.use(realtimeOrigin); // which socket made the request, for realtime emits (REALTIME-001)
 
   const api = Router();
   api.use(healthRouter);
