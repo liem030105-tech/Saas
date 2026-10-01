@@ -8,8 +8,9 @@ import {
 } from './boards.mapper';
 import * as boardsRepository from './boards.repository';
 import { prisma } from '../../config/prisma';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type Board } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { boardCreated, boardDeleted, boardUpdated } from '../../realtime/events/boards.events';
 import { hasPermission, type WorkspaceAction } from '../workspaces/permissions';
 
 import type {
@@ -90,7 +91,9 @@ export async function create(
     });
     return created;
   });
-  return toBoardDto(board);
+  const dto = toBoardDto(board);
+  boardCreated(userId, board, dto); // after the commit (realtime.md → Principles)
+  return dto;
 }
 
 /** The board was deleted between the access check and this query (e.g. a concurrent DELETE). */
@@ -123,28 +126,32 @@ export async function update(
     ...(input.background !== undefined && { background: input.background }),
     ...(input.archived !== undefined && { archived: input.archived }),
   };
+  let board: Board;
   try {
-    const board = await prisma.$transaction(async (tx) => {
+    board = await prisma.$transaction(async (tx) => {
       const updated = await tx.board.update({ where: { id: boardId }, data: changes });
       await logActivity(tx, { boardId, userId, type: 'BOARD_UPDATED', data: changes });
       return updated;
     });
-    return toBoardDto(board);
   } catch (error) {
     if (isNotFound(error)) throw AppError.notFound();
     throw error;
   }
+  const dto = toBoardDto(board);
+  boardUpdated(userId, board, dto); // after the commit, outside the error mapping
+  return dto;
 }
 
 /** DELETE /boards/:boardId (≥ ADMIN): lists, cards and the activity log go with it (cascade). */
 export async function remove(userId: string, boardId: string): Promise<void> {
-  await assertBoardAccess(userId, boardId, 'board.delete');
+  const { board } = await assertBoardAccess(userId, boardId, 'board.delete');
   try {
     await prisma.board.delete({ where: { id: boardId } });
   } catch (error) {
     if (isNotFound(error)) throw AppError.notFound();
     throw error;
   }
+  boardDeleted(userId, boardId, board.workspaceId);
 }
 
 // Labels (CARD-005, docs/api/boards.md → Labels). A label resolves to its stored board; an unknown

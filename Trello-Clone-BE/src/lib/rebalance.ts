@@ -119,6 +119,20 @@ export async function settlePosition<T extends RebalanceTable>(
   containerId: string,
   itemId: string,
 ): Promise<number> {
+  return (await settle(tx, table, containerColumn, containerId, itemId)).position;
+}
+
+/**
+ * settlePosition, also returning every new position of the container when it was rebalanced
+ * (`rebalanced`, null otherwise), for the `*:reordered` realtime event.
+ */
+export async function settle<T extends RebalanceTable>(
+  tx: Tx,
+  table: T,
+  containerColumn: ContainerColumn<T>,
+  containerId: string,
+  itemId: string,
+): Promise<{ position: number; rebalanced: Map<string, number> | null }> {
   const sql = identifiers(table, containerColumn);
   const siblings = await tx.$queryRaw<{ id: string; position: number }[]>`
     SELECT "id", "position" FROM ${sql.table}
@@ -130,7 +144,7 @@ export async function settlePosition<T extends RebalanceTable>(
   const after = siblings[index + 1]?.position;
   const crowded =
     needsRebalance(position, before) || (after !== undefined && needsRebalance(position, after));
-  if (!crowded) return position;
+  if (!crowded) return { position, rebalanced: null };
   const positions = await rebalanceContainer(tx, table, containerColumn, containerId);
-  return positions.get(itemId)!;
+  return { position: positions.get(itemId)!, rebalanced: positions };
 }

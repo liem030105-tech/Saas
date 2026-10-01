@@ -14,6 +14,8 @@ import type { Socket } from 'socket.io';
 /** Room names (server-side only; clients send ids, never room names). */
 export const boardRoom = (boardId: string) => `board:${boardId}`;
 export const workspaceRoom = (workspaceId: string) => `workspace:${workspaceId}`;
+/** Every socket of a user joins this on connect, so the server can reach (and evict) them. */
+export const userRoom = (userId: string) => `user:${userId}`;
 
 const BoardRoomSchema = z.object({ boardId: CuidSchema });
 const WorkspaceRoomSchema = z.object({ workspaceId: CuidSchema });
@@ -62,6 +64,7 @@ const WORKSPACE: Room<z.infer<typeof WorkspaceRoomSchema>> = {
 
 export function registerRooms(socket: Socket) {
   const userId = socket.data.userId as string;
+  void socket.join(userRoom(userId));
   // A socket's room messages run one after another, in the order sent: a join still checking
   // access cannot land after a later leave of the same room (fast navigation, StrictMode).
   let queue: Promise<unknown> = Promise.resolve();
@@ -83,8 +86,13 @@ export function registerRooms(socket: Socket) {
           return ackOf(ack)({ ok: true });
         }
         const result = await authorized(() => room.authorize(userId, parsed.data));
-        if (result.ok) await socket.join(room.name(parsed.data));
-        ackOf(ack)(result);
+        if (!result.ok) return ackOf(ack)(result);
+        await socket.join(room.name(parsed.data));
+        // Access may have been removed while the join was checked (its eviction then ran before
+        // this join): check again now that the socket is in, and leave if it no longer may be.
+        const still = await authorized(() => room.authorize(userId, parsed.data));
+        if (!still.ok) await socket.leave(room.name(parsed.data));
+        ackOf(ack)(still);
       });
 
   socket.on(ROOM_EVENTS.boardJoin, handle(BOARD, true));

@@ -45,7 +45,7 @@ export interface RealtimeEvent<TType extends RealtimeEventType = RealtimeEventTy
   workspaceId: string;
   /** The user who caused the change. */
   actorId: string;
-  /** `updatedAt` (epoch ms) of the changed record; `Date.now()` for deletes. */
+  /** `updatedAt` (epoch ms) of the changed record; `Date.now()` for deletes and `*:reordered`. */
   version: number;
   data: RealtimeEventData[TType];
 }

@@ -13,7 +13,7 @@ Everyone viewing a board sees changes by others within about a second, without r
 # Context
 Full contract: [architecture/realtime.md](../architecture/realtime.md). ADR-009.
 
-May be delivered as sub-PRs, each meeting the DoD: 001a connection and rooms (requirement 1 without emitters, 3) → 001b emits (1–2) → 001c FE (4) → 001d E2E (5).
+May be delivered as sub-PRs, each meeting the DoD: 001a connection and rooms (requirement 1 without emitters, 3) → 001b emits (1–2; b1 boards, lists, members; b2 cards, comments) → 001c FE (4) → 001d E2E (5).
 
 # Requirements
 1. BE `realtime/socket.ts` (handshake authentication), `rooms.ts` (`board:join/leave`, `workspace:join/leave` with ack and authorization), `events/*.events.ts` for every event in the table.
