@@ -150,7 +150,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | Field | Type | N | Key |
 |-------|------|---|-----|
 | cardId | String | | PK(cardId, labelId), FK → Card (Cascade) |
-| labelId | String | | PK, FK → Label (Cascade) |
+| labelId | String | | PK, FK → Label (Cascade), IX (deleting a label detaches it) |
 
 ### Checklist — CARD-005
 | Field | Type | N | Default | Key |
@@ -401,6 +401,7 @@ model CardLabel {
   card    Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
   label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
   @@id([cardId, labelId])
+  @@index([labelId])
 }
 
 model Checklist {
@@ -493,3 +494,4 @@ model Subscription {
 | `20261001004430_add_cards` | CARD-001 | `Card` (FKs → `Board` and `List` with cascade, indexes `(listId, position)` and `(boardId)`); `Activity.cardId` (FK → `Card` set null, index `(cardId, createdAt)`); `ActivityType` += `CARD_CREATED`. `Card` has no member, label, checklist, comment or attachment relations yet (CARD-005, ATTACHMENTS-001) |
 | `20261001010603_add_card_activity_types` | CARD-002 | `ActivityType` += `CARD_UPDATED`, `CARD_ARCHIVED` |
 | `20261001015720_add_card_moved_type` | CARD-003 | `ActivityType` += `CARD_MOVED` |
+| `20261001052152_add_labels` | CARD-005a | `Label` (FK → `Board` cascade, index `(boardId)`); `CardLabel` (PK `(cardId, labelId)`, FKs cascade, index `(labelId)`); backfills the six default labels for every existing board (ids `c0…`, so they sort before labels created later) |

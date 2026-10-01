@@ -72,7 +72,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 25 | [CARD-002](CARD-002-card-crud.md) card detail/update/delete | 3 | C-001 | L-003 | – | Done |
 | 26 | [CARD-003](CARD-003-card-move.md) card move API | 3 | C-002, L-003 | C-005 | – | Done |
 | 27 | [CARD-004](CARD-004-card-drag-drop.md) card drag and drop | 3 | C-003 | C-005 | – | Done |
-| 28 | [CARD-005](CARD-005-card-details.md) card details | 4 | C-002 | C-003, C-004 | – | Todo |
+| 28 | [CARD-005](CARD-005-card-details.md) card details | 4 | C-002 | C-003, C-004 | – | In progress (005a labels API) |
 | 29 | [REALTIME-001](REALTIME-001-realtime.md) realtime | 5 | all MVP tasks | – | – | Todo |
 | 30 | [ATTACHMENTS-001](ATTACHMENTS-001-attachments.md) attachments | 6 | REALTIME-001 | SEARCH, NOTIFICATIONS, BILLING | **D-20** | Todo |
 | 31 | [SEARCH-001](SEARCH-001-search-filters.md) search & filters | 6 | REALTIME-001 | ATTACHMENTS, NOTIFICATIONS, BILLING | – | Todo |

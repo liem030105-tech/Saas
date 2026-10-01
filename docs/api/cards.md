@@ -32,7 +32,7 @@
 | Task | CARD-002 (base fields) · CARD-005 (members, labels, checklists) · ATTACHMENTS-001 (attachments) |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (the card's stored `boardId` → `assertBoardAccess(…, 'card.view')`) |
-| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `members`, `labels`, `checklists` and `attachments` are empty arrays until CARD-005 / ATTACHMENTS-001 |
+| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a; `members`, `checklists` and `attachments` are empty arrays until the rest of CARD-005 / ATTACHMENTS-001 |
 | Errors | `401` · `404` (unknown card, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 ### PATCH /cards/:cardId
@@ -61,7 +61,7 @@ Schemas: `UpdateCardInputSchema`, `CardDetailDtoSchema` (`@trello-clone/shared`)
 1. Load the card and target list with access checks (tenant rule 4), in `cards.service.move` before the transaction: `card.edit` on the card's board; the target list's board must be visible to the caller (`404` otherwise); a different workspace is the `422`.
 2. Lock the card rows of the card's current list and of the target list, together in one id-ordered statement (`lockContainers`, `FOR NO KEY UPDATE`), so moves in opposite directions between two lists wait for each other instead of deadlocking. The card's current list is read again under the locks (it is the `from` of the activity); if a concurrent move took the card elsewhere first, that list is locked too (after three such changes the move answers `409 CONFLICT`).
 3. Set `listId`, `boardId` (from the target list), and `position`.
-4. If the board changed, delete `CardLabel` rows whose label belongs to the old board (I2; added with card labels in CARD-005). Card members stay, because they share the workspace.
+4. If the board changed, delete `CardLabel` rows whose label belongs to another board (I2; CARD-005a). Card members stay, because they share the workspace.
 5. Rebalance the target list if the threshold is hit ([relationships.md](../database/relationships.md#rebalancing)).
 6. Log `CARD_MOVED` on the target board with `data = { fromListId, toListId, fromBoardId, toBoardId }`, in the same transaction.
 
@@ -86,7 +86,7 @@ Moving to an archived list is allowed. Archived cards can be moved.
 | POST | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` (card or label not visible) · `422` rule `LABEL_OTHER_BOARD` (I2) |
 | DELETE | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` |
 
-Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`.
+Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`. Attaching or detaching a label (CARD-005a) logs nothing; the attach re-reads the card's board under a row lock, so it cannot race a cross-board move into breaking I2; a label the card does not have detaches as a no-op, and a label of another board the caller cannot see is a `404` like one that does not exist.
 
 ## Checklists (CARD-005)
 | Method | Path | Authorization | Body → Success |

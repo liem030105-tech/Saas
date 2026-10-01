@@ -1,7 +1,9 @@
 import {
   CreateBoardInputSchema,
+  CreateLabelInputSchema,
   ListBoardsQuerySchema,
   UpdateBoardInputSchema,
+  UpdateLabelInputSchema,
 } from '@trello-clone/shared';
 import { Router } from 'express';
 
@@ -44,3 +46,22 @@ boardsRouter.patch(
   controller.update,
 );
 boardsRouter.delete(BOARD, authenticate, apiRateLimit, controller.remove);
+
+// Labels (CARD-005): authorized in the service, like the board-scoped routes above.
+boardsRouter.get(`${BOARD}/labels`, authenticate, apiRateLimit, controller.listLabels);
+boardsRouter.post(
+  `${BOARD}/labels`,
+  authenticate,
+  apiRateLimit,
+  validate({ body: CreateLabelInputSchema }),
+  controller.createLabel,
+);
+const LABEL = '/labels/:labelId';
+boardsRouter.patch(
+  LABEL,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateLabelInputSchema }),
+  controller.updateLabel,
+);
+boardsRouter.delete(LABEL, authenticate, apiRateLimit, controller.removeLabel);

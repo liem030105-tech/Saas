@@ -4,7 +4,12 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
-import { assertBoardAccess, logActivity, toCardSummaryDto } from '../boards/boards.service';
+import {
+  assertBoardAccess,
+  logActivity,
+  toCardSummaryDto,
+  toLabelDto,
+} from '../boards/boards.service';
 
 import type { WorkspaceAction } from '../workspaces/permissions';
 import type {
@@ -18,13 +23,30 @@ import type {
 
 // docs/api/cards.md. Every endpoint authorizes with assertBoardAccess on the stored board.
 
-/** The list was deleted between the access check and the insert (a concurrent DELETE). */
-const isMissingList = (error: unknown) =>
+/**
+ * A row the insert points to (the list of a new card, the card or label of a card label) was
+ * deleted between the access check and the insert (a concurrent DELETE).
+ */
+const isMissingReference = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
 
 /** The card was deleted between the access check and the write (a concurrent DELETE). */
 const isMissingCard = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+
+/** A card's labels, ordered by id: CardSummaryDto's `labelIds` and CardDetailDto's `labels`. */
+const WITH_LABELS = {
+  labels: { include: { label: true }, orderBy: { labelId: 'asc' } },
+} as const;
+
+type CardWithLabels = Prisma.CardGetPayload<{ include: typeof WITH_LABELS }>;
+
+const toDetail = (card: CardWithLabels) =>
+  toCardDetailDto(
+    card,
+    toCardSummaryDto(card),
+    card.labels.map(({ label }) => toLabelDto(label)),
+  );
 
 /**
  * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
@@ -75,9 +97,9 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto(card); // realtime emit (REALTIME-001) goes here, after the commit
+    return toCardSummaryDto({ ...card, labels: [] }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
-    if (isMissingList(error)) throw AppError.notFound();
+    if (isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
 }
@@ -85,7 +107,12 @@ export async function create(
 /** GET /cards/:cardId (≥ VIEWER). Archived cards are returned (the modal shows a banner). */
 export async function get(userId: string, cardId: string): Promise<CardDetailDto> {
   const card = await assertCardAccess(userId, cardId, 'card.view');
-  return toCardDetailDto(card, toCardSummaryDto(card));
+  const labels = await prisma.cardLabel.findMany({
+    where: { cardId },
+    include: { label: true },
+    orderBy: { labelId: 'asc' },
+  });
+  return toDetail({ ...card, labels });
 }
 
 /**
@@ -112,7 +139,11 @@ export async function update(
   };
   try {
     const card = await prisma.$transaction(async (tx) => {
-      const updated = await tx.card.update({ where: { id: cardId }, data: changes });
+      const updated = await tx.card.update({
+        where: { id: cardId },
+        data: changes,
+        include: WITH_LABELS,
+      });
       await logActivity(tx, {
         boardId,
         userId,
@@ -133,7 +164,7 @@ export async function update(
       });
       return updated;
     });
-    return toCardDetailDto(card, toCardSummaryDto(card));
+    return toDetail(card);
   } catch (error) {
     if (isMissingCard(error)) throw AppError.notFound();
     throw error;
@@ -197,7 +228,48 @@ export async function move(
     }; // realtime emit (REALTIME-001: card:moved) goes here, after the commit
   } catch (error) {
     // The card (P2025) or the target list (P2003) was deleted after the checks.
-    if (isMissingCard(error) || isMissingList(error)) throw AppError.notFound();
+    if (isMissingCard(error) || isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
+}
+
+// Card labels (CARD-005, docs/api/cards.md → Card members & labels). Both are idempotent.
+
+/**
+ * POST /cards/:cardId/labels/:labelId (≥ MEMBER). The label must be one the caller can see (404
+ * otherwise, like a label that does not exist); a visible label of another board is a 422
+ * LABEL_OTHER_BOARD (I2). Attaching a label the card already has changes nothing.
+ */
+export async function attachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
+  const card = await assertCardAccess(userId, cardId, 'card.assign');
+  const label = await prisma.label.findUnique({ where: { id: labelId } });
+  if (!label) throw AppError.notFound();
+  const otherBoard = () =>
+    AppError.businessRule('LABEL_OTHER_BOARD', "A card can only carry its own board's labels");
+  if (label.boardId !== card.boardId) {
+    await assertBoardAccess(userId, label.boardId, 'board.view');
+    throw otherBoard();
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      // A cross-board move of the card (it locks and updates the card row) may be committing:
+      // FOR SHARE waits for it, so the board compared is the one the card ends up on, and a move
+      // that starts later waits for this insert and then drops the label (I2).
+      const [locked] = await tx.$queryRaw<{ boardId: string }[]>`
+        SELECT "boardId" FROM "Card" WHERE "id" = ${cardId} FOR SHARE`;
+      if (!locked) throw AppError.notFound();
+      if (locked.boardId !== label.boardId) throw otherBoard();
+      await tx.cardLabel.createMany({ data: [{ cardId, labelId }], skipDuplicates: true });
+    });
+  } catch (error) {
+    // The label was deleted after the checks.
+    if (isMissingReference(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/** DELETE /cards/:cardId/labels/:labelId (≥ MEMBER): a label the card does not have is a no-op. */
+export async function detachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
+  await assertCardAccess(userId, cardId, 'card.assign');
+  await prisma.cardLabel.deleteMany({ where: { cardId, labelId } });
 }

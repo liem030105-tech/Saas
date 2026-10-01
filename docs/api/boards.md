@@ -5,7 +5,7 @@
 **Shared shapes**
 - `BoardDto = { id, workspaceId, title, background, archived, createdAt, updatedAt }`
 - `BoardDetailDto = BoardDto & { lists: ListDto[], labels: LabelDto[] }` where each `ListDto` contains `cards: CardSummaryDto[]`. Only non-archived lists and cards, sorted by `position ASC, id ASC`.
-- `CardSummaryDto = { id, listId, title, position, dueDate, completed, coverUrl, labelIds: string[], memberIds: string[], checklist: { done, total }, commentCount }`. Fields owned by CARD-005 are empty or zero until that task lands.
+- `CardSummaryDto = { id, listId, title, position, dueDate, completed, coverUrl, labelIds: string[], memberIds: string[], checklist: { done, total }, commentCount }`. `labelIds` (by id) since CARD-005a; the other CARD-005 fields are empty or zero until their sub-PR lands.
 - `LabelDto = { id, boardId, name, color }`
 - `ActivityDto = { id, type, data, createdAt, cardId, user: { id, name, avatarUrl } }`
 
@@ -39,7 +39,7 @@ Schemas: `CreateBoardInputSchema`, `ListBoardsQuerySchema`, `BoardDtoSchema`; ac
 | Task | BOARD-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (`assertBoardAccess(…, 'board.view')`) |
-| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail` after the access check; non-archived lists (LIST-001), each with its non-archived cards (CARD-001); `labels` is empty until CARD-005 |
+| Success | `200 { data: BoardDetailDto }`. Loaded with one query via `boards.repository.findDetail` after the access check; non-archived lists (LIST-001), each with its non-archived cards (CARD-001); each card's `labelIds` (by id), and the board's `labels` in creation order (CARD-005) |
 | Errors | `401` · `404` (unknown board, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 Archived boards remain viewable; the FE shows an "archived" banner.
@@ -75,7 +75,7 @@ Schemas: `UpdateBoardInputSchema`, `BoardDetailDtoSchema`, `ListDtoSchema`, `Car
 
 ## Labels (CARD-005)
 
-From CARD-005 on, creating a board also creates 6 default labels (green, yellow, orange, red, purple, blue; empty names). The CARD-005 migration backfills them for boards created earlier.
+Creating a board also creates 6 default labels (`#61bd4f` `#f2d600` `#ff9f1a` `#eb5a46` `#c377e0` `#0079bf`; empty names). The `add_labels` migration backfilled them for boards created before CARD-005. Labels are listed in creation order (by id). A label resolves to its stored board: an unknown or malformed `:labelId` and a label the caller cannot see are the same `404`. Label changes log nothing. Schemas: `CreateLabelInputSchema`, `UpdateLabelInputSchema`, `LabelDtoSchema` (`@trello-clone/shared`).
 
 | Method | Path | Authorization | Body → Success | Errors |
 |--------|------|---------------|----------------|--------|

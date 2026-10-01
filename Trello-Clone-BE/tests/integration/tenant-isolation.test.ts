@@ -5,6 +5,7 @@ import { prisma } from '../../src/config/prisma';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
+import { labelData } from '../data/labels';
 import { listData } from '../data/lists';
 import { tenantData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
@@ -50,6 +51,7 @@ const ws = (workspaceId: string) => `${paths.workspaces}/${workspaceId}`;
 const board = (boardId: string) => `${paths.boards}/${boardId}`;
 const list = (listId: string) => `${paths.lists}/${listId}`;
 const card = (cardId: string) => `${paths.cards}/${cardId}`;
+const label = (labelId: string) => `${paths.labels}/${labelId}`;
 const expect404 = (res: request.Response) => {
   expect(res.status).toBe(404);
   expect(res.body.error.code).toBe('NOT_FOUND');
@@ -414,6 +416,82 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token))
         .send({ listId: missingId, position: 512 }),
   },
+  {
+    route: 'GET /boards/:boardId/labels',
+    attempt: "list B's labels",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(b.boardId)}/labels`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${board(missingId)}/labels`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /boards/:boardId/labels',
+    attempt: "add a label to B's board",
+    request: (a, b) =>
+      request(app)
+        .post(`${board(b.boardId)}/labels`)
+        .set(bearer(a.owner.token))
+        .send(labelData.create.input),
+    missing: (a) =>
+      request(app)
+        .post(`${board(missingId)}/labels`)
+        .set(bearer(a.owner.token))
+        .send(labelData.create.input),
+  },
+  {
+    route: 'PATCH /labels/:labelId',
+    attempt: "rename B's label",
+    request: (a, b) =>
+      request(app).patch(label(b.labelId)).set(bearer(a.owner.token)).send({ name: 'Mine' }),
+    missing: (a) =>
+      request(app).patch(label(missingId)).set(bearer(a.owner.token)).send({ name: 'Mine' }),
+  },
+  {
+    route: 'DELETE /labels/:labelId',
+    attempt: "delete B's label",
+    request: (a, b) => request(app).delete(label(b.labelId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(label(missingId)).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /cards/:cardId/labels/:labelId',
+    attempt: "put A's label on B's card",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(b.cardId)}/labels/${a.labelId}`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .post(`${card(missingId)}/labels/${a.labelId}`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /cards/:cardId/labels/:labelId',
+    attempt: "put B's label on A's own card (the label is not visible)",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(a.cardId)}/labels/${b.labelId}`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .post(`${card(a.cardId)}/labels/${missingId}`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'DELETE /cards/:cardId/labels/:labelId',
+    attempt: "take a label off B's card",
+    request: (a, b) =>
+      request(app)
+        .delete(`${card(b.cardId)}/labels/${b.labelId}`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .delete(`${card(missingId)}/labels/${a.labelId}`)
+        .set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
@@ -446,10 +524,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/* and /cards/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/* and /labels/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards)(\/|$)/.test(route),
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels)(\/|$)/.test(route),
     );
     const covered = new Set(cases.map((c) => c.route));
 
