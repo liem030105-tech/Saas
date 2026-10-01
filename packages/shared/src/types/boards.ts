@@ -1,11 +1,11 @@
 import type {
   BoardDetailDtoSchema,
   BoardDtoSchema,
-  LabelDtoSchema,
   UpdateBoardInputSchema,
   CreateBoardInputSchema,
   ListBoardsQuerySchema,
 } from '../schemas/boards';
+import type { LabelDtoSchema } from '../schemas/labels';
 import type { z } from 'zod';
 
 /** What the create-board form holds (before trimming). */

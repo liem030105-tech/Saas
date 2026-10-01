@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { initialPosition, positionAfter } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
@@ -7,9 +7,23 @@ import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/
 
 import { cardsApi } from './api';
 
-import type { BoardDetailDto, CardSummaryDto } from '@trello-clone/shared';
+import type {
+  BoardDetailDto,
+  CardDetailDto,
+  CardSummaryDto,
+  UpdateCardInput,
+} from '@trello-clone/shared';
 
 const CREATE_ERROR = "Couldn't add the card. Check your connection and try again.";
+const SAVE_ERROR = "Couldn't save the card. Check your connection and try again.";
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof ApiError && error.code !== NETWORK_ERROR_CODE ? error.message : fallback;
+
+// Query keys: docs/architecture/frontend.md → State management (`['card', cardId]`).
+export const cardKeys = {
+  detail: (cardId: string) => ['card', cardId] as const,
+};
 
 const OPTIMISTIC_ID_PREFIX = 'optimistic-card-';
 let optimisticIds = 0;
@@ -74,6 +88,109 @@ export function useCreateCard(boardId: string, listId: string) {
         error instanceof ApiError && error.code !== NETWORK_ERROR_CODE
           ? error.message
           : CREATE_ERROR,
+      );
+    },
+    onSettled: () => refetchBoardWhenIdle(queryClient, boardId),
+  });
+}
+
+/** The card modal's data (GET /cards/:cardId). */
+export function useCard(cardId: string | undefined) {
+  return useQuery({
+    queryKey: cardKeys.detail(cardId ?? ''),
+    queryFn: () => cardsApi.get(cardId!),
+    enabled: cardId !== undefined,
+  });
+}
+
+/** The board cache with `cardId`'s summary changed (or removed, when archived or deleted). */
+function withCard(
+  board: BoardDetailDto,
+  cardId: string,
+  change: (card: CardSummaryDto) => CardSummaryDto | null,
+): BoardDetailDto {
+  return {
+    ...board,
+    lists: board.lists.map((list) => ({
+      ...list,
+      cards: list.cards.flatMap((card) => {
+        if (card.id !== cardId) return [card];
+        const changed = change(card);
+        return changed ? [changed] : [];
+      }),
+    })),
+  };
+}
+
+/**
+ * PATCH /cards/:cardId with an optimistic update of both the modal and the board tile (an archived
+ * card leaves the board at once). Errors roll both back with a toast; the card and the board are
+ * refetched either way.
+ */
+export function useUpdateCard(boardId: string, cardId: string) {
+  const queryClient = useQueryClient();
+  const cardKey = cardKeys.detail(cardId);
+  const boardKey = boardKeys.detail(boardId);
+
+  return useMutation({
+    mutationFn: (input: UpdateCardInput) => cardsApi.update(cardId, input),
+    onMutate: async (input) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: cardKey }),
+        queryClient.cancelQueries({ queryKey: boardKey }),
+      ]);
+      const previousCard = queryClient.getQueryData<CardDetailDto>(cardKey);
+      const previousBoard = queryClient.getQueryData<BoardDetailDto>(boardKey);
+      const title = input.title?.trim();
+      const fields = {
+        ...(title !== undefined && { title }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+        ...(input.completed !== undefined && { completed: input.completed }),
+        ...(input.archived !== undefined && { archived: input.archived }),
+      };
+      if (previousCard) queryClient.setQueryData(cardKey, { ...previousCard, ...fields });
+      if (previousBoard) {
+        // The tile shows the title, due date and completed state; an archived card leaves it.
+        const summary = {
+          ...(fields.title !== undefined && { title: fields.title }),
+          ...(fields.dueDate !== undefined && { dueDate: fields.dueDate }),
+          ...(fields.completed !== undefined && { completed: fields.completed }),
+        };
+        queryClient.setQueryData(
+          boardKey,
+          withCard(previousBoard, cardId, (card) =>
+            fields.archived ? null : { ...card, ...summary },
+          ),
+        );
+      }
+      return { previousCard, previousBoard };
+    },
+    onError: (error, _input, context) => {
+      if (context?.previousCard) queryClient.setQueryData(cardKey, context.previousCard);
+      if (context?.previousBoard) queryClient.setQueryData(boardKey, context.previousBoard);
+      toast.error(errorMessage(error, SAVE_ERROR));
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: cardKey });
+      await refetchBoardWhenIdle(queryClient, boardId);
+    },
+  });
+}
+
+/**
+ * DELETE /cards/:cardId. Not optimistic: it runs from a confirmation dialog in the card modal,
+ * which must stay open to show an error. The card leaves the board once the server agrees.
+ */
+export function useDeleteCard(boardId: string, cardId: string) {
+  const queryClient = useQueryClient();
+  const boardKey = boardKeys.detail(boardId);
+
+  return useMutation({
+    mutationFn: () => cardsApi.remove(cardId),
+    onSuccess: () => {
+      queryClient.setQueryData<BoardDetailDto>(boardKey, (board) =>
+        board ? withCard(board, cardId, () => null) : board,
       );
     },
     onSettled: () => refetchBoardWhenIdle(queryClient, boardId),

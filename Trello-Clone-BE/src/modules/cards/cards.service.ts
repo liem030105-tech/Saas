@@ -1,16 +1,38 @@
+import { toCardDetailDto } from './cards.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
 import { assertBoardAccess, logActivity, toCardSummaryDto } from '../boards/boards.service';
 
-import type { CardSummaryDto, CreateCardData } from '@trello-clone/shared';
+import type { WorkspaceAction } from '../workspaces/permissions';
+import type {
+  CardDetailDto,
+  CardSummaryDto,
+  CreateCardData,
+  UpdateCardData,
+} from '@trello-clone/shared';
 
 // docs/api/cards.md. Every endpoint authorizes with assertBoardAccess on the stored board.
 
 /** The list was deleted between the access check and the insert (a concurrent DELETE). */
 const isMissingList = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
+
+/** The card was deleted between the access check and the write (a concurrent DELETE). */
+const isMissingCard = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+
+/**
+ * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
+ * ADR-006). An unknown or malformed id and a card the caller cannot see are the same 404.
+ */
+async function assertCardAccess(userId: string, cardId: string, action: WorkspaceAction) {
+  const card = await prisma.card.findUnique({ where: { id: cardId } });
+  if (!card) throw AppError.notFound();
+  await assertBoardAccess(userId, card.boardId, action);
+  return card;
+}
 
 /**
  * POST /lists/:listId/cards (≥ MEMBER). The list resolves to its stored board, and the card's
@@ -53,6 +75,72 @@ export async function create(
     return toCardSummaryDto(card); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingList(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/** GET /cards/:cardId (≥ VIEWER). Archived cards are returned (the modal shows a banner). */
+export async function get(userId: string, cardId: string): Promise<CardDetailDto> {
+  const card = await assertCardAccess(userId, cardId, 'card.view');
+  return toCardDetailDto(card, toCardSummaryDto(card));
+}
+
+/**
+ * PATCH /cards/:cardId (≥ MEMBER): title, description, due date, completed, archived. Archiving
+ * logs CARD_ARCHIVED, anything else CARD_UPDATED, with the changed fields (the description as a
+ * flag only, so the log never copies long text), in the same transaction.
+ */
+export async function update(
+  userId: string,
+  cardId: string,
+  input: UpdateCardData,
+): Promise<CardDetailDto> {
+  const { boardId } = await assertCardAccess(userId, cardId, 'card.edit');
+  const changes = {
+    ...(input.title !== undefined && { title: input.title }),
+    ...(input.description !== undefined && { description: input.description }),
+    ...(input.dueDate !== undefined && {
+      dueDate: input.dueDate === null ? null : new Date(input.dueDate),
+    }),
+    ...(input.completed !== undefined && { completed: input.completed }),
+    ...(input.archived !== undefined && { archived: input.archived }),
+  };
+  try {
+    const card = await prisma.$transaction(async (tx) => {
+      const updated = await tx.card.update({ where: { id: cardId }, data: changes });
+      await logActivity(tx, {
+        boardId,
+        userId,
+        cardId,
+        type: changes.archived === true ? 'CARD_ARCHIVED' : 'CARD_UPDATED',
+        data: {
+          ...(input.title !== undefined && { title: input.title }),
+          ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+          ...(input.completed !== undefined && { completed: input.completed }),
+          ...(input.archived !== undefined && { archived: input.archived }),
+          // The description changed: a flag only, so the log never copies long text.
+          ...(input.description !== undefined && { description: true }),
+        },
+      });
+      return updated;
+    });
+    return toCardDetailDto(card, toCardSummaryDto(card));
+  } catch (error) {
+    if (isMissingCard(error)) throw AppError.notFound();
+    throw error;
+  }
+}
+
+/**
+ * DELETE /cards/:cardId (≥ MEMBER). Its activity stays on the board with `cardId` set to null
+ * (docs/database/relationships.md); nothing else is logged.
+ */
+export async function remove(userId: string, cardId: string): Promise<void> {
+  await assertCardAccess(userId, cardId, 'card.edit');
+  try {
+    await prisma.card.delete({ where: { id: cardId } });
+  } catch (error) {
+    if (isMissingCard(error)) throw AppError.notFound();
     throw error;
   }
 }

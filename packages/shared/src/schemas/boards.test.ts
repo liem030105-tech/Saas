@@ -5,10 +5,10 @@ import {
   BoardDtoSchema,
   BoardTitleSchema,
   CreateBoardInputSchema,
-  HexColorSchema,
   ListBoardsQuerySchema,
   UpdateBoardInputSchema,
 } from './boards';
+import { HexColorSchema } from './common';
 import data from '../../tests/data/boards.json';
 import { ACTIVITY_TYPES } from '../constants/activity';
 
@@ -58,6 +58,8 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'LIST_ARCHIVED',
       'LIST_MOVED',
       'CARD_CREATED',
+      'CARD_UPDATED',
+      'CARD_ARCHIVED',
     ]);
   });
 });

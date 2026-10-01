@@ -1,4 +1,4 @@
-import { CreateCardInputSchema } from '@trello-clone/shared';
+import { CreateCardInputSchema, UpdateCardInputSchema } from '@trello-clone/shared';
 import { Router } from 'express';
 
 import * as controller from './cards.controller';
@@ -17,3 +17,14 @@ cardsRouter.post(
   validate({ body: CreateCardInputSchema }),
   controller.create,
 );
+
+const CARD = '/cards/:cardId';
+cardsRouter.get(CARD, authenticate, apiRateLimit, controller.get);
+cardsRouter.patch(
+  CARD,
+  authenticate,
+  apiRateLimit,
+  validate({ body: UpdateCardInputSchema }),
+  controller.update,
+);
+cardsRouter.delete(CARD, authenticate, apiRateLimit, controller.remove);

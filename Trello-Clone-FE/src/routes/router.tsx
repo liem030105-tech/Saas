@@ -35,6 +35,8 @@ export const routes: RouteObject[] = [
           { path: '/settings/profile', element: <ProfilePage /> },
           { path: '/invite/:token', element: <AcceptInvitePage /> },
           { path: '/b/:boardId', element: <BoardPage /> },
+          // The card modal over its board (CARD-002); the URL can be shared.
+          { path: '/b/:boardId/c/:cardId', element: <BoardPage /> },
           { path: '/w/:slug', element: <WorkspacePage /> },
           { path: '/w/:slug/members', element: <WorkspaceMembersPage /> },
           { path: '/w/:slug/settings', element: <WorkspaceSettingsPage /> },

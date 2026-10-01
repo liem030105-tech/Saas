@@ -7,6 +7,7 @@ export * from './schemas/auth';
 export * from './schemas/boards';
 export * from './schemas/cards';
 export * from './schemas/common';
+export * from './schemas/labels';
 export * from './schemas/lists';
 export * from './schemas/workspaces';
 export * from './types/auth';

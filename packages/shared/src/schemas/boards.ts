@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import { CardSummaryDtoSchema } from './cards';
-import { CuidSchema } from './common';
+import { CuidSchema, HexColorSchema } from './common';
+import { LabelDtoSchema } from './labels';
 import { ListDtoSchema } from './lists';
 
 // Field rules: docs/api/README.md → Validation rules. Messages are shown in the UI (English).
@@ -11,9 +12,6 @@ export const BoardTitleSchema = z
   .trim()
   .min(1, 'Enter a board title')
   .max(100, 'Title must be at most 100 characters');
-
-/** `#rrggbb`: board backgrounds and label colours (the UI offers presets only). */
-export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour like #0079bf');
 
 /** POST /workspaces/:workspaceId/boards body; the background defaults to #0079bf. */
 export const CreateBoardInputSchema = z.object({
@@ -52,14 +50,6 @@ export const UpdateBoardInputSchema = z
       input.title !== undefined || input.background !== undefined || input.archived !== undefined,
     { error: 'Change at least one field' },
   );
-
-/** A board label (docs/api/boards.md → LabelDto); labels arrive with CARD-005. */
-export const LabelDtoSchema = z.object({
-  id: CuidSchema,
-  boardId: CuidSchema,
-  name: z.string(),
-  color: HexColorSchema,
-});
 
 /**
  * GET /boards/:boardId: the board with its non-archived lists (each with its non-archived cards)

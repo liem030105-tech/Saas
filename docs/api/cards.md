@@ -30,18 +30,22 @@
 | | |
 |--|--|
 | Task | CARD-002 (base fields) · CARD-005 (members, labels, checklists) · ATTACHMENTS-001 (attachments) |
-| Authorization | ≥ VIEWER |
-| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner) |
-| Errors | `401` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ VIEWER (the card's stored `boardId` → `assertBoardAccess(…, 'card.view')`) |
+| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `members`, `labels`, `checklists` and `attachments` are empty arrays until CARD-005 / ATTACHMENTS-001 |
+| Errors | `401` · `404` (unknown card, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 ### PATCH /cards/:cardId
 | | |
 |--|--|
 | Task | CARD-002 |
-| Authorization | ≥ MEMBER |
-| Body | `{ title?, description?, dueDate?, completed?, archived? }`. `coverUrl` is added by ATTACHMENTS-001 |
-| Success | `200 { data: CardDetailDto }` · logs `CARD_ARCHIVED` when archiving, otherwise `CARD_UPDATED` |
-| Errors | `400` · `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (`assertBoardAccess(…, 'card.edit')` on the card's stored board) |
+| Body | `{ title?, description?, dueDate?, completed?, archived? }`, at least one. `description` and `dueDate` accept `null` to clear them; `dueDate` is an ISO 8601 datetime with `Z` or an offset. `coverUrl` is added by ATTACHMENTS-001 |
+| Success | `200 { data: CardDetailDto }` · logs `CARD_ARCHIVED` when archiving, otherwise `CARD_UPDATED`, with the changed fields in `data` (a changed description only as `description: true`, so the log never copies long text) |
+| Errors | `400` · `401` · `403` · `404` · `429 RATE_LIMITED` |
+
+Schemas: `UpdateCardInputSchema`, `CardDetailDtoSchema` (`@trello-clone/shared`).
 
 ### PATCH /cards/:cardId/move
 | | |
@@ -66,9 +70,10 @@ Moving to an archived list is allowed. Archived cards can be moved.
 | | |
 |--|--|
 | Task | CARD-002 |
-| Authorization | ≥ MEMBER |
-| Success | `204` (cascade; `Activity.cardId` is set to null) |
-| Errors | `401` · `403` · `404` |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ MEMBER (as PATCH) |
+| Success | `204` (cascade; `Activity.cardId` is set to null). Logs nothing |
+| Errors | `401` · `403` · `404` (also when already deleted) · `429 RATE_LIMITED` |
 
 ## Card members & labels (CARD-005)
 | Method | Path | Authorization | Success | Errors |

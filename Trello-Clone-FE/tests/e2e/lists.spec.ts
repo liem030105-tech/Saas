@@ -95,6 +95,11 @@ async function moveLeft(page: Page, title: string, from: number, steps = 1) {
   await page.getByRole('button', { name: `Move list ${title}` }).focus();
   await page.keyboard.press('Space');
   await expect(announcement).toContainText(`List ${title} is at position ${from} of`);
+  // dnd-kit measures the lists in the frames right after a pickup; an arrow key pressed before
+  // that finds no place to move to. Wait two frames, which no person could beat.
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
   for (let place = from - 1; place >= from - steps; place -= 1) {
     await page.keyboard.press('ArrowLeft');
     await expect(announcement).toContainText(`is at position ${place} of`);

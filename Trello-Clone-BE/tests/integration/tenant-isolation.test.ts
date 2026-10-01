@@ -49,6 +49,7 @@ interface IsolationCase {
 const ws = (workspaceId: string) => `${paths.workspaces}/${workspaceId}`;
 const board = (boardId: string) => `${paths.boards}/${boardId}`;
 const list = (listId: string) => `${paths.lists}/${listId}`;
+const card = (cardId: string) => `${paths.cards}/${cardId}`;
 const expect404 = (res: request.Response) => {
   expect(res.status).toBe(404);
   expect(res.body.error.code).toBe('NOT_FOUND');
@@ -359,6 +360,32 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token))
         .send({ title: cardData.tenantCard.a }),
   },
+  {
+    route: 'GET /cards/:cardId',
+    attempt: "open B's card",
+    request: (a, b) => request(app).get(card(b.cardId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).get(card(missingId)).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'PATCH /cards/:cardId',
+    attempt: "edit or archive B's card",
+    request: (a, b) =>
+      request(app)
+        .patch(card(b.cardId))
+        .set(bearer(a.owner.token))
+        .send({ title: cardData.tenantCard.a, archived: true }),
+    missing: (a) =>
+      request(app)
+        .patch(card(missingId))
+        .set(bearer(a.owner.token))
+        .send({ title: cardData.tenantCard.a, archived: true }),
+  },
+  {
+    route: 'DELETE /cards/:cardId',
+    attempt: "delete B's card",
+    request: (a, b) => request(app).delete(card(b.cardId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(card(missingId)).set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
@@ -391,10 +418,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/* and /lists/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/* and /cards/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists)(\/|$)/.test(route),
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards)(\/|$)/.test(route),
     );
     const covered = new Set(cases.map((c) => c.route));
 

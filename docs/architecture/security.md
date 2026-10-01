@@ -66,7 +66,7 @@
 ## Input / output
 - Every `body`, `params`, and `query` is validated with Zod in the `validate` middleware; unknown fields are stripped ([rules](../api/README.md#validation-rules)).
 - Prisma queries are parameterized. Raw SQL only via `$queryRaw` tagged templates.
-- **Markdown** (card descriptions, comments) is stored raw and rendered by the FE with `react-markdown` + `rehype-sanitize`. Never `dangerouslySetInnerHTML`.
+- **Markdown** (card descriptions, comments) is stored raw and rendered by the FE only through `components/ui/Markdown.tsx` (CARD-002): `react-markdown` with `skipHtml` + `rehype-sanitize`, links with `target="_blank" rel="noopener noreferrer"`. Its test covers script tags, event handlers, `javascript:` links and iframes. Never `dangerouslySetInnerHTML`.
 
 ## File uploads (ATTACHMENTS-001)
 - Multer memory storage → storage provider (**D-20**). Nothing is written to server disk.
