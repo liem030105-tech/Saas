@@ -7,7 +7,7 @@ import { boardWithLists } from './helpers/board';
 // CARD-002: the card modal edits a card, and its shared URL opens the same card after a reload.
 // Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
 // (keyboard-driven, as pointer drags are flaky in CI).
-// CARD-005a/b/c: a label, a member and a checklist put on a card persist.
+// CARD-005a/b/c/d: a label, a member, a checklist and a comment put on a card persist.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -184,4 +184,21 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await expect(checklist.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
   await signup.getByRole('button', { name: 'Close' }).click();
   await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('1/2');
+
+  // CARD-005d: a markdown comment shows rendered after a reload; the tile counts it.
+  await doing.getByRole('link', { name: /Sign-up form/ }).click();
+  const activity = signup.getByRole('region', { name: 'Activity' });
+  const commented = page.waitForResponse(
+    (res) => res.request().method() === 'POST' && res.url().endsWith('/comments') && res.ok(),
+  );
+  await activity.getByRole('textbox', { name: 'Write a comment' }).fill('Needs **review**');
+  await activity.getByRole('button', { name: 'Comment' }).click();
+  await commented;
+  await page.reload();
+  await expect(activity.getByRole('article', { name: /^Comment by / })).toContainText(
+    'Needs review',
+  );
+  await expect(activity.locator('strong', { hasText: 'review' })).toBeVisible();
+  await signup.getByRole('button', { name: 'Close' }).click();
+  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('Comments:1');
 });

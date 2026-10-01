@@ -1,4 +1,4 @@
-import { CheckIcon, ClockIcon, ListChecksIcon } from 'lucide-react';
+import { CheckIcon, ClockIcon, ListChecksIcon, MessageSquareIcon } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -22,7 +22,7 @@ const MAX_AVATARS = 3;
  * member, can be dragged (CARD-004); a card still being created has no id to open or move yet.
  * Label chips (colour only; CARD-005a) sit above the title and member avatars (CARD-005b, at most
  * three, then "+n") below it; the checklist badge (`done/total`, green when all are done;
- * CARD-005c) follows the due date. The comment count arrives with CARD-005d.
+ * CARD-005c) follows the due date, then the comment count (CARD-005d).
  */
 interface CardItemProps {
   boardId: string;
@@ -58,7 +58,7 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
       {labels.length > 0 && (
         <span className="sr-only">Labels: {labels.map(labelText).join(', ')}</span>
       )}
-      {(card.dueDate || card.completed || card.checklist.total > 0) && (
+      {(card.dueDate || card.completed || card.checklist.total > 0 || card.commentCount > 0) && (
         <p className="mt-1 flex flex-wrap items-center gap-1 text-xs">
           {card.dueDate ? (
             <span
@@ -101,6 +101,13 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
               <span aria-hidden="true">
                 {card.checklist.done}/{card.checklist.total}
               </span>
+            </span>
+          )}
+          {card.commentCount > 0 && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-muted-foreground">
+              <MessageSquareIcon aria-hidden="true" className="size-3" />
+              <span className="sr-only">Comments:</span>
+              {card.commentCount}
             </span>
           )}
         </p>
