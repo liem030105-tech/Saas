@@ -3,7 +3,12 @@ import { initialPosition, positionAfter } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
-import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/boards';
+import {
+  activityKeys,
+  boardKeys,
+  boardMutationScope,
+  refetchBoardWhenIdle,
+} from '@/features/boards';
 
 import { cardsApi } from './api';
 
@@ -48,6 +53,8 @@ export async function refetchCardWhenIdle(
     queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id });
   const othersPending = () => pendingIn(cardMutationScope(cardId).id) > 1; // this one still counts
   if (othersPending()) return;
+  // The card's activity (when shown) follows its changes (CARD-005e).
+  void queryClient.invalidateQueries({ queryKey: activityKeys.board(boardId) });
   await queryClient.invalidateQueries({ queryKey: cardKeys.detail(cardId) });
   // A change made while the card was refetching settles later and refetches the board itself.
   if (othersPending() || pendingIn(boardMutationScope(boardId).id) > 0) return;

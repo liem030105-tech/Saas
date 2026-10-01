@@ -8,6 +8,7 @@ import { boardWithLists } from './helpers/board';
 // Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
 // (keyboard-driven, as pointer drags are flaky in CI).
 // CARD-005a/b/c/d: a label, a member, a checklist and a comment put on a card persist.
+// CARD-005e (scenario 5): the card's activity and the board's activity feed show them.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -199,6 +200,17 @@ test('board → list → cards in order; the card modal edits a card at a sharea
     'Needs review',
   );
   await expect(activity.locator('strong', { hasText: 'review' })).toBeVisible();
+  // CARD-005e: the card's activity and the board's activity feed show what happened.
+  await activity.getByRole('button', { name: 'Show details' }).click();
+  await expect(activity.getByRole('list', { name: 'Activity' })).toContainText(
+    'commented on this card',
+  );
   await signup.getByRole('button', { name: 'Close' }).click();
   await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('Comments:1');
+  await page.getByRole('button', { name: 'Activity' }).click();
+  const feed = page
+    .getByRole('dialog', { name: 'Activity' })
+    .getByRole('list', { name: 'Activity' });
+  await expect(feed).toContainText('commented on Sign-up form');
+  await expect(feed.getByRole('listitem').first()).toContainText('commented on Sign-up form');
 });

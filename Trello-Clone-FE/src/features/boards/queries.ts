@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 
 import { boardsApi } from './api';
 
@@ -19,6 +25,25 @@ export const boardKeys = {
     [...boardKeys.workspace(workspaceId), { archived }] as const,
   detail: (boardId: string) => ['board', boardId] as const,
 };
+
+// Activity feeds (CARD-005e): `['activities', boardId]` prefixes the board's feed and its cards'.
+export const activityKeys = {
+  board: (boardId: string) => ['activities', boardId] as const,
+  feed: (boardId: string, cardId?: string) =>
+    [...activityKeys.board(boardId), { cardId: cardId ?? null }] as const,
+};
+
+/** The board's activity (or one card's), newest first, one page at a time. */
+export function useActivities(boardId: string, cardId?: string) {
+  return useInfiniteQuery({
+    queryKey: activityKeys.feed(boardId, cardId),
+    queryFn: ({ pageParam }) => boardsApi.activities(boardId, { cardId, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    // Fetched again whenever a feed opens: most board changes do not invalidate it.
+    refetchOnMount: 'always',
+  });
+}
 
 /** The workspace's open boards (or its archived ones), newest first. */
 export function useBoards(workspaceId: string, archived = false) {

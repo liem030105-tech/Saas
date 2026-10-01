@@ -73,7 +73,7 @@ features/cards/
 **Import direction** (enforced in `eslint.config.js` by `import-x/no-restricted-paths` and `no-restricted-imports`, FOUNDATION-001): `components`, `hooks`, `lib`, `config`, `stores` → never import `features`, `pages`, `routes`, or `app`; features never import `pages`, `routes`, or `app`; a feature imports another feature only through its `index.ts` (`@/features/<name>`); `pages` compose features; `app` imports everything.
 
 ## State management
-- **Server state must use TanStack Query.** Query keys: `['boards', workspaceId, { archived }]` (prefix `['boards', workspaceId]` invalidates both lists), `['board', boardId]`, `['card', cardId]`, `['comments', cardId]` (an infinite query, kept apart from the card so refetching the card does not refetch every page); each feature exposes a key factory in `queries.ts`.
+- **Server state must use TanStack Query.** Query keys: `['boards', workspaceId, { archived }]` (prefix `['boards', workspaceId]` invalidates both lists), `['board', boardId]`, `['card', cardId]`, `['comments', cardId]` (an infinite query, kept apart from the card so refetching the card does not refetch every page), `['activities', boardId, { cardId }]` (infinite; the prefix `['activities', boardId]` invalidates the board's and its cards' feeds); each feature exposes a key factory in `queries.ts`.
 - **Zustand is for UI state only** (open modal, filters, theme). Never copy server data into Zustand.
 - **Forms:** React Hook Form + `zodResolver` with schemas from `@trello-clone/shared`.
 

@@ -26,7 +26,7 @@ Specs: [labels](../api/boards.md#labels-card-005), [card members & labels](../ap
 Attachments and covers (ATTACHMENTS-001), realtime (REALTIME-001), notifications.
 
 # Frontend Changes
-`features/cards/components/{LabelPicker,MemberPicker,ChecklistSection,ActivityFeed}.tsx`, `features/comments/*`, `features/boards/components/ActivityDrawer.tsx`.
+`features/cards/components/{LabelPicker,MemberPicker,ChecklistSection}.tsx`, `features/comments/*`, `features/boards/components/{ActivityFeed,ActivityDrawer}.tsx` (the feed lives in boards, which owns the activity log, so the card modal and the drawer share it without a cards ↔ boards import cycle).
 
 # Backend Changes
 `modules/cards/*` (labels, members, checklists), `modules/comments/*`, `modules/boards/*` (labels, activities), `workspaces.service.removeMember` hook.

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CommentInputSchema, type CommentDto, type UserSummary } from '@trello-clone/shared';
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
@@ -43,22 +43,35 @@ interface CommentSectionProps {
   boardId: string;
   cardId: string;
   access: CommentAccess;
+  /** Next to the "Activity" heading (the card modal's "Show details"). */
+  headerAction?: ReactNode;
+  /** After the comments (the card's activity entries, when shown). */
+  children?: ReactNode;
 }
 
 /**
  * "Activity" in the card modal (docs/design/ui.md → Card modal): the comment composer, then the
  * card's comments, newest first, rendered as sanitized markdown, with "Load more comments". The
- * activity entries join them with CARD-005e.
+ * card modal can add the card's activity entries after them ("Show details", CARD-005e).
  */
-export function CommentSection({ boardId, cardId, access }: CommentSectionProps) {
+export function CommentSection({
+  boardId,
+  cardId,
+  access,
+  headerAction,
+  children,
+}: CommentSectionProps) {
   const comments = useComments(cardId);
   const list = comments.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <section aria-labelledby="card-activity" className="flex flex-col gap-3">
-      <h3 id="card-activity" className="text-xs font-semibold text-muted-foreground uppercase">
-        Activity
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 id="card-activity" className="text-xs font-semibold text-muted-foreground uppercase">
+          Activity
+        </h3>
+        {headerAction}
+      </div>
       {access.canComment && access.user && (
         <CommentComposer boardId={boardId} cardId={cardId} author={access.user} />
       )}
@@ -102,6 +115,7 @@ export function CommentSection({ boardId, cardId, access }: CommentSectionProps)
           )}
         </>
       )}
+      {children}
     </section>
   );
 }
