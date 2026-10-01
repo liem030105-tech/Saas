@@ -21,8 +21,10 @@ import { Markdown } from '@/components/ui/Markdown';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
-import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
+import { AddChecklistButton, ChecklistSection } from './ChecklistSection';
 import { LabelChip, LabelPicker } from './LabelPicker';
+import { useChecklists } from '../hooks/useChecklists';
+import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
 import { MemberPicker, type WorkspaceMembers } from './MemberPicker';
 
 const DELETE_ERROR = "Couldn't delete the card. Check your connection and try again.";
@@ -43,8 +45,8 @@ interface CardDetailModalProps {
 /**
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
- * read-only. Labels since CARD-005a, members since CARD-005b; checklists and activity arrive with
- * the rest of CARD-005.
+ * read-only. Labels since CARD-005a, members since CARD-005b, checklists since CARD-005c; comments
+ * and activity arrive with the rest of CARD-005.
  */
 export function CardDetailModal({
   card,
@@ -57,6 +59,7 @@ export function CardDetailModal({
   const updateCard = useUpdateCard(card.boardId, card.id);
   const deleteCard = useDeleteCard(card.boardId, card.id);
   const forgetCard = useForgetCard();
+  const checklists = useChecklists(card.boardId, card.id);
   const save = (input: UpdateCardInput) => updateCard.mutate(input);
 
   return (
@@ -137,6 +140,14 @@ export function CardDetailModal({
               onSave={save}
             />
             <Description card={card} canEdit={canEdit} onSave={save} />
+            {card.checklists.map((checklist) => (
+              <ChecklistSection
+                key={checklist.id}
+                checklist={checklist}
+                checklists={checklists}
+                canEdit={canEdit}
+              />
+            ))}
           </div>
 
           {canEdit && (
@@ -151,6 +162,7 @@ export function CardDetailModal({
                   workspaceMembers={workspaceMembers}
                   cardMembers={card.members}
                 />
+                <AddChecklistButton checklists={checklists} />
                 <LabelPicker
                   boardId={card.boardId}
                   cardId={card.id}

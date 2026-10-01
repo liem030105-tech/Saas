@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { boardKeys, boardMutationScope } from '@/features/boards';
+import { boardKeys } from '@/features/boards';
 
 import { cardKeys, withCard } from '../queries';
+import { cardMutationScope, refetchCardWhenIdle } from './cardScope';
 
 import type { BoardDetailDto, CardDetailDto, LabelDto, UserSummary } from '@trello-clone/shared';
 
@@ -27,11 +28,9 @@ const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id 
 
 /**
  * Puts an item (a label, a member) on the card or takes it off, optimistic on both the modal and
- * the board tile. All of one card's toggles, of either kind, share a scope: they send their
- * requests in turn (their `onMutate` runs at once, so every click shows immediately), a failed
- * toggle undoes only itself on the caches as they are now, and only the last toggle to settle
- * refetches, so an earlier one never brings back server data without the later ones. The board
- * is not refetched while a list or card move is pending either; that move refetches it.
+ * the board tile. It runs in the card's mutation scope (cardScope.ts): requests go in turn while
+ * every click shows immediately (`onMutate` runs at once), and a failed toggle undoes only itself
+ * on the caches as they are now.
  */
 export function useToggleOnCard<Kind extends keyof OnCard>(
   boardId: string,
@@ -43,7 +42,6 @@ export function useToggleOnCard<Kind extends keyof OnCard>(
   const queryClient = useQueryClient();
   const cardKey = cardKeys.detail(cardId);
   const boardKey = boardKeys.detail(boardId);
-  const scopeId = `card-toggle:${cardId}`;
   const summaryIds = SUMMARY_IDS[kind];
 
   /** Shows `item` on (or off) the card in the modal's and the board's caches. */
@@ -64,11 +62,8 @@ export function useToggleOnCard<Kind extends keyof OnCard>(
         : board,
     );
   };
-  const pendingIn = (id: string) =>
-    queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id });
-
   return useMutation({
-    scope: { id: scopeId },
+    scope: cardMutationScope(cardId),
     mutationFn: ({ item, on }: { item: Item; on: boolean }) =>
       on ? api.attach(cardId, item.id) : api.detach(cardId, item.id),
     onMutate: async ({ item, on }) => {
@@ -82,11 +77,6 @@ export function useToggleOnCard<Kind extends keyof OnCard>(
       show(item, !on);
       toast.error(api.error);
     },
-    onSettled: async () => {
-      if (pendingIn(scopeId) > 1) return; // this toggle still counts as pending while it settles
-      await queryClient.invalidateQueries({ queryKey: cardKey });
-      if (pendingIn(boardMutationScope(boardId).id) > 0) return; // that move refetches the board
-      await queryClient.invalidateQueries({ queryKey: boardKey });
-    },
+    onSettled: () => refetchCardWhenIdle(queryClient, boardId, cardId),
   });
 }

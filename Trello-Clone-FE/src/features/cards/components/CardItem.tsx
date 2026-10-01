@@ -1,4 +1,4 @@
-import { CheckIcon, ClockIcon } from 'lucide-react';
+import { CheckIcon, ClockIcon, ListChecksIcon } from 'lucide-react';
 import { Link } from 'react-router';
 
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -21,7 +21,8 @@ const MAX_AVATARS = 3;
  * due-date badge (red when overdue, green when completed). It opens the card modal and, for a
  * member, can be dragged (CARD-004); a card still being created has no id to open or move yet.
  * Label chips (colour only; CARD-005a) sit above the title and member avatars (CARD-005b, at most
- * three, then "+n") below it; the checklist and comment badges arrive with the rest of CARD-005.
+ * three, then "+n") below it; the checklist badge (`done/total`, green when all are done;
+ * CARD-005c) follows the due date. The comment count arrives with CARD-005d.
  */
 interface CardItemProps {
   boardId: string;
@@ -57,7 +58,7 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
       {labels.length > 0 && (
         <span className="sr-only">Labels: {labels.map(labelText).join(', ')}</span>
       )}
-      {(card.dueDate || card.completed) && (
+      {(card.dueDate || card.completed || card.checklist.total > 0) && (
         <p className="mt-1 flex flex-wrap items-center gap-1 text-xs">
           {card.dueDate ? (
             <span
@@ -78,10 +79,24 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
               </span>
               {formatDueDate(card.dueDate)}
             </span>
-          ) : (
+          ) : card.completed ? (
             <span className="inline-flex items-center gap-1 rounded bg-green-700 px-1.5 py-0.5 text-white">
               <CheckIcon aria-hidden="true" className="size-3" />
               Completed
+            </span>
+          ) : null}
+          {card.checklist.total > 0 && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded px-1.5 py-0.5',
+                card.checklist.done === card.checklist.total
+                  ? 'bg-green-700 text-white'
+                  : 'bg-muted text-muted-foreground',
+              )}
+            >
+              <ListChecksIcon aria-hidden="true" className="size-3" />
+              <span className="sr-only">Checklist items done:</span>
+              {card.checklist.done}/{card.checklist.total}
             </span>
           )}
         </p>

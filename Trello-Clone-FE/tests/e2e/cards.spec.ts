@@ -7,7 +7,7 @@ import { boardWithLists } from './helpers/board';
 // CARD-002: the card modal edits a card, and its shared URL opens the same card after a reload.
 // Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
 // (keyboard-driven, as pointer drags are flaky in CI).
-// CARD-005a/b: a label and a member put on a card persist.
+// CARD-005a/b/c: a label, a member and a checklist put on a card persist.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -157,4 +157,31 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText(
     `Members: ${ownerName}`,
   );
+
+  // CARD-005c: a checklist with two items, one ticked; the tile shows 1/2 after a reload.
+  await doing.getByRole('link', { name: /Sign-up form/ }).click();
+  await signup.getByRole('button', { name: 'Checklist' }).click();
+  await page
+    .getByRole('dialog', { name: 'Add checklist' })
+    .getByRole('button', { name: 'Add' })
+    .click();
+  const checklist = signup.getByRole('region', { name: 'Checklist' });
+  await checklist.getByRole('button', { name: 'Add an item' }).click();
+  for (const content of ['Design the form', 'Validate the email']) {
+    const added = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.url().endsWith('/items') && res.ok(),
+    );
+    await checklist.getByRole('textbox', { name: 'Item' }).fill(content);
+    await checklist.getByRole('textbox', { name: 'Item' }).press('Enter');
+    await added;
+  }
+  const ticked = page.waitForResponse(
+    (res) => res.request().method() === 'PATCH' && res.url().includes('/items/') && res.ok(),
+  );
+  await checklist.getByRole('checkbox', { name: 'Design the form' }).check();
+  await ticked;
+  await page.reload();
+  await expect(checklist.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+  await signup.getByRole('button', { name: 'Close' }).click();
+  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('1/2');
 });
