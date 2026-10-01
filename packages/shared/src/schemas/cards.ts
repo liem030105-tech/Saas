@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CuidSchema, PositionSchema } from './common';
+import { LabelDtoSchema } from './labels';
 
 // Field rules: docs/api/README.md → Validation rules. Messages are shown in the UI (English).
 
@@ -32,4 +33,72 @@ export const CardSummaryDtoSchema = z.object({
   memberIds: z.array(CuidSchema),
   checklist: z.object({ done: z.number().int(), total: z.number().int() }),
   commentCount: z.number().int(),
+});
+
+/** Card description: raw markdown, at most 10 000 chars; `null` clears it. */
+export const CardDescriptionSchema = z
+  .string({ error: 'Enter a description' })
+  .max(10_000, 'Description must be at most 10 000 characters')
+  .nullable();
+
+/** `dueDate`: an ISO 8601 datetime (UTC offset allowed) or `null` to clear it. */
+export const DueDateSchema = z.iso
+  .datetime({ offset: true, error: 'Use an ISO 8601 date and time' })
+  .nullable();
+
+/** PATCH /cards/:cardId body (at least one field). */
+export const UpdateCardInputSchema = z
+  .object({
+    title: CardTitleSchema.optional(),
+    description: CardDescriptionSchema.optional(),
+    dueDate: DueDateSchema.optional(),
+    completed: z.boolean().optional(),
+    archived: z.boolean().optional(),
+  })
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    error: 'Change at least one field',
+  });
+
+/** A user as cards show them (docs/api/cards.md → UserSummary). */
+export const UserSummarySchema = z.object({
+  id: CuidSchema,
+  name: z.string(),
+  avatarUrl: z.url().nullable(),
+});
+
+/** docs/api/cards.md → ChecklistDto (CARD-005). */
+export const ChecklistDtoSchema = z.object({
+  id: CuidSchema,
+  title: z.string(),
+  position: z.number(),
+  items: z.array(
+    z.object({ id: CuidSchema, content: z.string(), done: z.boolean(), position: z.number() }),
+  ),
+});
+
+/** docs/api/cards.md → AttachmentDto (ATTACHMENTS-001). */
+export const AttachmentDtoSchema = z.object({
+  id: CuidSchema,
+  fileName: z.string(),
+  mimeType: z.string(),
+  size: z.number().int(),
+  url: z.url(),
+  createdAt: z.iso.datetime(),
+  uploader: UserSummarySchema,
+});
+
+/**
+ * GET /cards/:cardId (docs/api/cards.md → CardDetailDto). Members, labels and checklists arrive
+ * with CARD-005 and attachments with ATTACHMENTS-001; until then those arrays are empty.
+ */
+export const CardDetailDtoSchema = CardSummaryDtoSchema.extend({
+  boardId: CuidSchema,
+  description: z.string().nullable(),
+  archived: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  members: z.array(UserSummarySchema),
+  labels: z.array(LabelDtoSchema),
+  checklists: z.array(ChecklistDtoSchema),
+  attachments: z.array(AttachmentDtoSchema),
 });

@@ -1,5 +1,6 @@
 import {
   BoardDetailDtoSchema,
+  CardDetailDtoSchema,
   CardSummaryDtoSchema,
   ErrorResponseSchema,
 } from '@trello-clone/shared';
@@ -7,7 +8,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
-import { cardData, invalidCardBodies } from '../data/cards';
+import { cardData, invalidCardBodies, invalidCardUpdates } from '../data/cards';
 import { paths } from '../data/http';
 import { resetDb, testPrisma } from '../helpers/db';
 import { createTestApp } from '../helpers/test-app';
@@ -16,7 +17,7 @@ import { bearer, createUserWithToken } from '../helpers/users';
 import type { Role } from '@trello-clone/shared';
 import type { Express } from 'express';
 
-// CARD-001: docs/api/cards.md. The full role matrix and tenant isolation run in their own suites
+// CARD-001, CARD-002: docs/api/cards.md. The full role matrix and tenant isolation run in their own suites
 // (role-matrix.test.ts, tenant-isolation.test.ts).
 
 type User = Awaited<ReturnType<typeof createUserWithToken>>;
@@ -223,5 +224,186 @@ describe('deleting a list or board with cards', () => {
     await request(app).delete(`${paths.boards}/${boardId}`).set(bearer(owner.token)).expect(204);
 
     expect(await testPrisma.card.count()).toBe(0);
+  });
+});
+
+/** A card in a list on a fresh board (see listWith), created by the board's owner. */
+async function cardWith(role?: Role) {
+  const ctx = await listWith(role);
+  const res = await createCard(ctx.listId, ctx.owner, cardData.create.input).expect(201);
+  return { ...ctx, cardId: res.body.data.id as string };
+}
+
+const cardPath = (cardId: string) => `${paths.cards}/${cardId}`;
+const getCard = (cardId: string, user: User) =>
+  request(app).get(cardPath(cardId)).set(bearer(user.token));
+const patchCard = (cardId: string, user: User, body: object) =>
+  request(app).patch(cardPath(cardId)).set(bearer(user.token)).send(body);
+const deleteCard = (cardId: string, user: User) =>
+  request(app).delete(cardPath(cardId)).set(bearer(user.token));
+
+describe('GET /api/v1/cards/:cardId', () => {
+  it('200: a VIEWER gets the card detail', async () => {
+    const { member, boardId, listId, cardId } = await cardWith('VIEWER');
+
+    const res = await getCard(cardId, member);
+
+    expect(res.status).toBe(200);
+    expect(CardDetailDtoSchema.parse(res.body.data)).toMatchObject({
+      id: cardId,
+      boardId,
+      listId,
+      title: cardData.create.stored,
+      description: null,
+      dueDate: null,
+      completed: false,
+      archived: false,
+      members: [],
+      labels: [],
+      checklists: [],
+      attachments: [],
+    });
+  });
+
+  it('an archived card is still returned', async () => {
+    const { owner, cardId } = await cardWith();
+    await testPrisma.card.update({ where: { id: cardId }, data: { archived: true } });
+
+    const res = await getCard(cardId, owner).expect(200);
+
+    expect(res.body.data.archived).toBe(true);
+  });
+
+  it('401 without a token', async () => {
+    const { cardId } = await cardWith();
+
+    expect((await request(app).get(cardPath(cardId))).status).toBe(401);
+  });
+
+  it('404 for a non-member, an unknown card and a malformed id', async () => {
+    const { cardId } = await cardWith();
+    const outsider = await createUserWithToken();
+
+    for (const id of [cardId, cardData.unknownCardId, cardData.malformedCardId]) {
+      expect((await getCard(id, outsider)).status).toBe(404);
+    }
+  });
+});
+
+describe('PATCH /api/v1/cards/:cardId', () => {
+  it('200: a MEMBER edits the fields; CARD_UPDATED is logged without the description text', async () => {
+    const { member, boardId, cardId } = await cardWith('MEMBER');
+
+    const res = await patchCard(cardId, member, cardData.update.input);
+
+    expect(res.status).toBe(200);
+    expect(CardDetailDtoSchema.parse(res.body.data)).toMatchObject(cardData.update.stored);
+    const activity = await testPrisma.activity.findFirstOrThrow({
+      where: { type: 'CARD_UPDATED' },
+    });
+    expect(activity).toMatchObject({ boardId, cardId, userId: member.user.id });
+    expect(activity.data).toEqual({
+      title: cardData.update.stored.title,
+      dueDate: cardData.update.stored.dueDate,
+      completed: true,
+      description: true,
+    });
+  });
+
+  it('null clears the description and the due date', async () => {
+    const { owner, cardId } = await cardWith();
+    await patchCard(cardId, owner, cardData.update.input).expect(200);
+
+    const res = await patchCard(cardId, owner, { description: null, dueDate: null }).expect(200);
+
+    expect(res.body.data).toMatchObject({ description: null, dueDate: null });
+  });
+
+  it('archiving logs CARD_ARCHIVED and hides the card from the board', async () => {
+    const { owner, boardId, cardId } = await cardWith();
+
+    await patchCard(cardId, owner, { archived: true }).expect(200);
+
+    const archived = await testPrisma.activity.findFirstOrThrow({
+      where: { type: 'CARD_ARCHIVED' },
+    });
+    expect(archived).toMatchObject({ cardId, data: { archived: true } });
+    // Archiving an archived card again is an update, not a second CARD_ARCHIVED.
+    await patchCard(cardId, owner, { archived: true }).expect(200);
+    expect(await testPrisma.activity.count({ where: { type: 'CARD_ARCHIVED' } })).toBe(1);
+    const [list] = (await detailOf(boardId, owner)).lists;
+    expect(list!.cards).toEqual([]);
+  });
+
+  it.each(invalidCardUpdates)('400: $case', async ({ body }) => {
+    const { owner, cardId } = await cardWith();
+
+    const res = await patchCard(cardId, owner, body);
+
+    expect(res.status).toBe(400);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('401 without a token', async () => {
+    const { cardId } = await cardWith();
+
+    expect((await request(app).patch(cardPath(cardId)).send({ completed: true })).status).toBe(401);
+  });
+
+  it('404 for a non-member, an unknown card and a malformed id; nothing changes', async () => {
+    const { cardId } = await cardWith();
+    const outsider = await createUserWithToken();
+
+    for (const id of [cardId, cardData.unknownCardId, cardData.malformedCardId]) {
+      expect((await patchCard(id, outsider, { completed: true })).status).toBe(404);
+    }
+    expect(await testPrisma.card.findUnique({ where: { id: cardId } })).toMatchObject({
+      completed: false,
+    });
+  });
+
+  it('403 for a VIEWER, and nothing changes', async () => {
+    const { member, cardId } = await cardWith('VIEWER');
+
+    expect((await patchCard(cardId, member, { completed: true })).status).toBe(403);
+    expect(await testPrisma.card.findUnique({ where: { id: cardId } })).toMatchObject({
+      completed: false,
+    });
+  });
+});
+
+describe('DELETE /api/v1/cards/:cardId', () => {
+  it('204: a MEMBER deletes a card; its activity stays without the card', async () => {
+    const { member, cardId } = await cardWith('MEMBER');
+
+    expect((await deleteCard(cardId, member)).status).toBe(204);
+
+    expect(await testPrisma.card.count()).toBe(0);
+    const created = await testPrisma.activity.findFirstOrThrow({ where: { type: 'CARD_CREATED' } });
+    expect(created.cardId).toBeNull();
+    expect((await deleteCard(cardId, member)).status).toBe(404);
+  });
+
+  it('401 without a token', async () => {
+    const { cardId } = await cardWith();
+
+    expect((await request(app).delete(cardPath(cardId))).status).toBe(401);
+  });
+
+  it('404 for a non-member, an unknown card and a malformed id; nothing is deleted', async () => {
+    const { cardId } = await cardWith();
+    const outsider = await createUserWithToken();
+
+    for (const id of [cardId, cardData.unknownCardId, cardData.malformedCardId]) {
+      expect((await deleteCard(id, outsider)).status).toBe(404);
+    }
+    expect(await testPrisma.card.count()).toBe(1);
+  });
+
+  it('403 for a VIEWER, and nothing is deleted', async () => {
+    const { member, cardId } = await cardWith('VIEWER');
+
+    expect((await deleteCard(cardId, member)).status).toBe(403);
+    expect(await testPrisma.card.count()).toBe(1);
   });
 });

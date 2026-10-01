@@ -6,6 +6,9 @@ import { PAGINATION } from '../constants/pagination';
 /** Every `…Id` param and body field (docs/api/README.md → Validation rules). */
 export const CuidSchema = z.cuid();
 
+/** `#rrggbb`: board backgrounds and label colours (the UI offers presets only). */
+export const HexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Use a colour like #0079bf');
+
 /** A client-supplied ordering position (docs/api/README.md → Validation rules): finite and > 0. */
 export const PositionSchema = z
   .number({ error: 'Position must be a number' })

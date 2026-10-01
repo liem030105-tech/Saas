@@ -74,7 +74,7 @@ A `/w/:slug` page keeps following its workspace when the slug changes (here or i
 - Board colour fills the page background; lists are light surfaces; the board scrolls horizontally, each list vertically.
 - Lists (LIST-001): 272px columns in `position` order, then "Add a list" (empty board) or "Add another list". The new list shows at once (optimistic) and the composer stays in view for the next title. A board without lists shows "No lists yet." to a VIEWER.
 - List header (LIST-002): the title renames in place (as the board title), and the ⋯ menu ("List actions for {title}") has "Archive list" (the list leaves the board at once; toast "{title} was archived.") and "Delete list" (confirmed in an `AlertDialog`: "The list and all its cards are deleted for everyone."). A VIEWER sees the title only. There is no view of archived lists yet.
-- Cards (CARD-001): each list shows its cards as tiles (title, at most three lines) and ends with "Add a card" ("Add a card to {list}" for screen readers), a textarea composer: Enter adds the card and keeps the composer open, Escape or ✕ closes it. The card shows at once; on failure it disappears with a toast. A VIEWER, an archived board and a list still being created have no composer.
+- Cards (CARD-001): each list shows its cards as tiles (title, at most three lines; since CARD-002 a link to the card modal, with the due-date badge: grey, red when overdue, green when completed, and a "Completed" badge without a due date) and ends with "Add a card" ("Add a card to {list}" for screen readers), a textarea composer: Enter adds the card and keeps the composer open, Escape or ✕ closes it. The card shows at once; on failure it disappears with a toast. A VIEWER, an archived board and a list still being created have no composer.
 - List order (LIST-003): each list has a grip handle ("Move list {title}") left of its title. Drag it with the pointer, or focus it and use Space, ←/→ and Space (Escape cancels); moves are announced ("List Doing is at position 2 of 3."). The list moves at once; on failure it goes back with the toast "Couldn't move the list. Try again." A VIEWER, an archived board and a list still being created have no handle.
 - **Card tile:** label chips (colour only, 40×8px), title (max 3 lines), then badges: due date (red when overdue, green when completed), checklist `done/total`, comment count, member avatars (max 3 + "+n").
 - **Add a card / Add another list:** an inline composer (textarea + "Add" + ✕). Enter submits and keeps the composer open for the next item; Escape closes. Never a dialog.
@@ -97,6 +97,10 @@ A dialog over the board (URL-addressable, so reload and share work). Two columns
 ```
 Delete asks for confirmation (AlertDialog). Markdown renders only through the sanitized `Markdown` component.
 
+CARD-002 implements the title (renames in place), "in list {list}", an "archived" banner, the due date and "Complete" checkbox, the description ("Add a more detailed description…" or the rendered markdown with "Edit"; Save and Cancel; a blank description clears it), and the Actions "Archive"/"Unarchive" and "Delete" (confirmed, then back to the board). A VIEWER and an archived board see the card read-only. A card that is not visible, or is on another board than the URL's, shows "Page not found". Members, labels, checklists and activity arrive with CARD-005.
+
+**Due dates are whole days in UTC:** the picker (a native date input) stores the end of that day in UTC, the day is shown in UTC (so it reads the same in every time zone), and a card is overdue once that day has ended.
+
 ### Auth pages `/login`, `/register`
 A centered 400px card on a neutral background: title, fields, primary button, link to the other page. Field errors under each field (from Zod); a server error (`INVALID_CREDENTIALS`) as one message above the button.
 
@@ -113,7 +117,7 @@ A centered 400px card on a neutral background: title, fields, primary button, li
 | Confirm destructive action | `AlertDialog` |
 | Menus (list ⋯, board ⋯, avatar) | `DropdownMenu` |
 | Pickers (labels, members, colour) | `Popover` + `Command` |
-| Due date | `Popover` + `Calendar` |
+| Due date | Native `<input type="date">` (CARD-002; no calendar dependency) |
 | Toasts | `Sonner` |
 | Forms | `Form` pattern with React Hook Form, `Input`, `Textarea`, `Button` |
 | Loading | `Skeleton` |

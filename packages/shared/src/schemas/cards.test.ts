@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { CardSummaryDtoSchema, CardTitleSchema, CreateCardInputSchema } from './cards';
+import {
+  CardDetailDtoSchema,
+  CardSummaryDtoSchema,
+  CardTitleSchema,
+  CreateCardInputSchema,
+  UpdateCardInputSchema,
+} from './cards';
 import data from '../../tests/data/cards.json';
 
 describe('CardTitleSchema', () => {
@@ -32,5 +38,21 @@ describe('CreateCardInputSchema', () => {
 describe('CardSummaryDtoSchema', () => {
   it('accepts a card as the board returns it', () => {
     expect(CardSummaryDtoSchema.parse(data.cardSummary)).toEqual(data.cardSummary);
+  });
+});
+
+describe('UpdateCardInputSchema', () => {
+  it.each(data.validUpdates)('accepts %j', (input) => {
+    expect(UpdateCardInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it.each(data.invalidUpdates)('rejects %j', (input) => {
+    expect(UpdateCardInputSchema.safeParse(input).success).toBe(false);
+  });
+});
+
+describe('CardDetailDtoSchema', () => {
+  it('accepts a card as GET /cards/:cardId returns it', () => {
+    expect(CardDetailDtoSchema.parse(data.cardDetail)).toEqual(data.cardDetail);
   });
 });

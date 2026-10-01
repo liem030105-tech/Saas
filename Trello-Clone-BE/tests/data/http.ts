@@ -11,6 +11,7 @@ export const paths = {
   invitesAccept: '/api/v1/invites/accept',
   boards: '/api/v1/boards',
   lists: '/api/v1/lists',
+  cards: '/api/v1/cards',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',

@@ -44,7 +44,7 @@ export function ListColumn({ list, canEdit, dragHandle }: ListColumnProps) {
         <ol aria-label={`Cards in ${list.title}`} className="flex flex-col gap-2">
           {list.cards.map((card) => (
             <li key={card.id}>
-              <CardItem card={card} />
+              <CardItem boardId={list.boardId} card={card} />
             </li>
           ))}
         </ol>

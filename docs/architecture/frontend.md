@@ -18,7 +18,7 @@ Trello-Clone-FE/
 │   ├── api/                 # axios instance, refresh-token interceptor, apiClient
 │   ├── config/              # env.ts: import.meta.env validated with Zod (VITE_* only)
 │   ├── components/
-│   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input)
+│   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input, Markdown)
 │   │   ├── layout/          # AppLayout, Sidebar, Header
 │   │   ├── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster, ConfirmDialog
 │   │   └── forms/           # EditableTitle (rename in place, boards and lists)
