@@ -8,6 +8,7 @@ import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 
 
 import { env } from '@/config/env';
 
+import { getSocketId } from './socket-id';
 import { getAccessToken, setAccessToken } from './token-store';
 
 /**
@@ -106,6 +107,8 @@ const bearer = (token: string) => `Bearer ${token}`;
 http.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) config.headers.Authorization = bearer(token);
+  const socketId = getSocketId();
+  if (socketId) config.headers['X-Socket-Id'] = socketId;
   return config;
 });
 

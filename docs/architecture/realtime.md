@@ -70,7 +70,7 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 | Concern | Rule |
 |---------|------|
 | Subscription | `useBoardSocket(boardId)` joins on mount and leaves on unmount; the workspace sidebar joins `workspace:{id}` |
-| Own actions | Already applied optimistically; ignore events with `actorId === currentUserId` |
+| Own actions | Already applied optimistically, so the server never sends a change back to the tab that made it: the FE sends its socket id as the `X-Socket-Id` header on every REST request, and `emitEvent` sends to the rooms `.except(thatSocket)` (BE `realtime/origin.ts`). The same user's other tabs still get the event, so `actorId` is not a reason to ignore one |
 | Duplicates | Keep the last ~200 `eventId`s in an LRU; ignore repeats |
 | Stale events | Ignore an event whose `version` ≤ the cached record's `updatedAt`. Delete events always apply |
 | Moves across boards | `card:moved` names ids only; a card that arrives from another board (not in the cache) → `invalidateQueries(['board', toBoardId])` |
@@ -78,6 +78,8 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 | Optimistic conflicts | If a foreign event touches an item with a pending own mutation, apply the event after the mutation settles (the `onSettled` invalidate reconciles) |
 | Reconnect | On every reconnect after the first: re-join rooms, then `invalidateQueries(['board', id])` and `['boards', workspaceId]` to recover missed events |
 | Removed from workspace | On `member:removed` for self: leave rooms, clear workspace caches, redirect to `/` |
+
+Code: `Trello-Clone-FE/src/lib/socket.ts` (one connection for the app: `joinRoom`, `onEvent`, `onReconnect`, `createEventDedupe`; a refused handshake refreshes the token and reconnects), `features/boards/realtime.ts` (`applyBoardEvent`, the pure cache patch), and the hooks `useBoardSocket`, `useCardSocket` (open card modal) and `useCommentsSocket`. Sign-out closes the connection. Tests replace the Socket.IO client with `FakeRealtime` ([testing.md](../development/testing.md)).
 
 ## Scaling / Redis adapter path
 - Initially one API instance with the in-memory adapter. **No Redis.**

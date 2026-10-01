@@ -2,6 +2,7 @@
 export { BoardsGrid } from './components/BoardsGrid';
 export { BoardView } from './components/BoardView';
 export { ActivityFeed } from './components/ActivityFeed';
+export { useBoardSocket } from './hooks/useBoardSocket';
 export { namesOf, type ActivityNames } from './activity';
 export { readableTextColor } from './colors';
 export { boardPath } from './paths';

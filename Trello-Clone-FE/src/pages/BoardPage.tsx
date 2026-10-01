@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { useCurrentUser } from '@/features/auth';
-import { BoardView, boardPath, namesOf, useBoard } from '@/features/boards';
+import { BoardView, boardPath, namesOf, useBoard, useBoardSocket } from '@/features/boards';
 import {
   CardDetailModal,
   CardModalStatus,
@@ -27,6 +27,8 @@ export function BoardPage() {
   const { data: workspaces, isPending: workspacesPending } = useWorkspaces();
   const card = useCard(cardId);
   const currentUser = useCurrentUser(); // the author of their own comments (CARD-005d)
+  // Everyone else's changes to this board arrive as they happen (REALTIME-001).
+  useBoardSocket(boardId, currentUser.data?.id);
   // Who can be assigned to cards, and whose avatars the tiles show (CARD-005b).
   const members = useMembers(board?.workspaceId ?? '');
   const workspaceMembers = useMemo(

@@ -240,6 +240,34 @@ describe('who hears what', () => {
   });
 });
 
+describe('own changes', () => {
+  it("the socket that made the request (X-Socket-Id) is left out; the user's other tabs hear it", async () => {
+    const { owner, workspaceId, boardId } = await watchedBoard();
+    const tabA = await watch(owner, workspaceId, boardId);
+    const tabB = await watch(owner, workspaceId, boardId);
+    const heardByA = recordEvents(tabA);
+
+    const inB = nextEvent(tabB, 'list:created');
+    await addList(owner, boardId, { title: 'From A' }).set('X-Socket-Id', tabA.id!).expect(201);
+    await inB;
+    // A later change without the header reaches A, so A was listening all along.
+    const inA = nextEvent(tabA, 'list:created');
+    await addList(owner, boardId, { title: 'From elsewhere' }).expect(201);
+    await inA;
+
+    expect(heardByA.map((e) => (e.data as { title: string }).title)).toEqual(['From elsewhere']);
+  });
+
+  it('a malformed X-Socket-Id is ignored (everyone hears the change)', async () => {
+    const { owner, boardId, socket } = await watchedBoard();
+
+    const heard = nextEvent(socket, 'list:created');
+    await addList(owner, boardId, { title: 'X' }).set('X-Socket-Id', 'not valid!').expect(201);
+
+    await heard;
+  });
+});
+
 describe('member:removed', () => {
   it("tells the workspace and the person, then evicts the person's sockets from its rooms", async () => {
     const { owner, member, workspaceId, boardId, socket } = await watchedBoard();

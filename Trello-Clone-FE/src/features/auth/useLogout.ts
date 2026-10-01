@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
 import { setAccessToken } from '@/api/token-store';
+import { closeRealtime } from '@/lib/socket';
 
 import { authApi } from './api';
 import { LOGIN_PATH, setSignedOutByUser } from './session';
@@ -27,6 +28,7 @@ export function useLogout() {
       // redirects to a plain /login, never to /login?redirectTo=<this user's page>.
       setSignedOutByUser(true);
       setAccessToken(null);
+      closeRealtime(); // its rooms belong to the user who left
       queryClient.clear();
       await navigate(LOGIN_PATH, { replace: true });
     },

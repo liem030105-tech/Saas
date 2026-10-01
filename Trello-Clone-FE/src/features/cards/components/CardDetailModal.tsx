@@ -25,6 +25,7 @@ import { CommentSection, type CommentAccess } from '@/features/comments';
 import { dueDateFromInput, dueDateInputValue } from '../dates';
 import { AddChecklistButton, ChecklistSection } from './ChecklistSection';
 import { LabelChip, LabelPicker } from './LabelPicker';
+import { useCardSocket } from '../hooks/useCardSocket';
 import { useChecklists } from '../hooks/useChecklists';
 import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
 import { MemberPicker, type WorkspaceMembers } from './MemberPicker';
@@ -65,6 +66,7 @@ export function CardDetailModal({
   onClose,
 }: CardDetailModalProps) {
   const [showDetails, setShowDetails] = useState(false);
+  useCardSocket(card.id, commentAccess.user?.id); // others' changes to this card (REALTIME-001)
   const updateCard = useUpdateCard(card.boardId, card.id);
   const deleteCard = useDeleteCard(card.boardId, card.id);
   const forgetCard = useForgetCard();
