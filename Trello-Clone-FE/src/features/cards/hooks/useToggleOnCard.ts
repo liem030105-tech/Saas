@@ -3,8 +3,7 @@ import { toast } from 'sonner';
 
 import { boardKeys } from '@/features/boards';
 
-import { cardKeys, withCard } from '../queries';
-import { cardMutationScope, refetchCardWhenIdle } from './cardScope';
+import { cardKeys, cardMutationScope, refetchCardWhenIdle, withCard } from '../queries';
 
 import type { BoardDetailDto, CardDetailDto, LabelDto, UserSummary } from '@trello-clone/shared';
 
@@ -28,7 +27,7 @@ const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id 
 
 /**
  * Puts an item (a label, a member) on the card or takes it off, optimistic on both the modal and
- * the board tile. It runs in the card's mutation scope (cardScope.ts): requests go in turn while
+ * the board tile. It runs in the card's mutation scope (queries.ts): requests go in turn while
  * every click shows immediately (`onMutate` runs at once), and a failed toggle undoes only itself
  * on the caches as they are now.
  */

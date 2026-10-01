@@ -7,7 +7,7 @@ import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import { boardPathFor, roadmapBoard } from '@/testing/data/boards';
 import { loginCard, loginCardDetail, roadmapWithCards } from '@/testing/data/cards';
-import { labelToggleError } from '@/testing/data/labels';
+import { greenLabel, labelToggleError } from '@/testing/data/labels';
 import { acmeAs } from '@/testing/data/workspaces';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
@@ -25,15 +25,29 @@ const launch: ChecklistDto = {
 };
 
 /** Signed in with `role`; "Fix login" has the Launch checklist (1 of 2 done). */
-function signedInAs(role: Role, options: { failToggle?: boolean } = {}) {
+type Failing = 'addItem' | 'removeItem' | 'rename' | 'addChecklist' | 'removeChecklist';
+
+function signedInAs(
+  role: Role,
+  options: {
+    failToggle?: boolean;
+    /** These requests fail with a 500. */
+    fail?: Failing[];
+    /** Adding an item waits this long (ms) before the server answers. */
+    slowAdd?: number;
+  } = {},
+) {
+  const fails = (what: Failing) => options.fail?.includes(what) ?? false;
+  const failure = () => HttpResponse.json(labelToggleError, { status: 500 });
   const state = {
-    board: structuredClone(roadmapWithCards) as BoardDetailDto,
+    board: { ...structuredClone(roadmapWithCards), labels: [greenLabel] } as BoardDetailDto,
     card: {
       ...structuredClone(loginCardDetail),
       checklists: [structuredClone(launch)],
     } as CardDetailDto,
     calls: [] as string[],
     created: 0,
+    cardGets: 0,
   };
   const progress = () => {
     const items = state.card.checklists.flatMap((checklist) => checklist.items);
@@ -53,16 +67,34 @@ function signedInAs(role: Role, options: { failToggle?: boolean } = {}) {
     mswHttp.get(apiUrl(`/boards/${roadmapBoard.id}`), () =>
       HttpResponse.json({ data: state.board }),
     ),
-    mswHttp.get(apiUrl('/cards/:cardId'), () => HttpResponse.json({ data: state.card })),
+    mswHttp.get(apiUrl('/cards/:cardId'), () => {
+      state.cardGets += 1;
+      return HttpResponse.json({ data: state.card });
+    }),
+    mswHttp.post(apiUrl('/cards/:cardId/labels/:labelId'), async () => {
+      state.calls.push('POST label');
+      await delay(20);
+      return new HttpResponse(null, { status: 204 });
+    }),
+    mswHttp.patch(apiUrl('/checklists/:checklistId'), async ({ params, request }) => {
+      const { title } = (await request.json()) as { title: string };
+      state.calls.push(`PATCH checklist ${title}`);
+      if (fails('rename')) return failure();
+      const checklist = checklistOf(params.checklistId);
+      checklist.title = title;
+      return HttpResponse.json({ data: checklist });
+    }),
     mswHttp.post(apiUrl('/cards/:cardId/checklists'), async ({ request }) => {
       const { title } = (await request.json()) as { title: string };
       state.calls.push(`POST checklist ${title}`);
+      if (fails('addChecklist')) return failure();
       const checklist = { id: 'clx0000000000000000000084', title, position: 2048, items: [] };
       state.card.checklists.push(checklist);
       return HttpResponse.json({ data: checklist }, { status: 201 });
     }),
     mswHttp.delete(apiUrl('/checklists/:checklistId'), ({ params }) => {
       state.calls.push(`DELETE checklist`);
+      if (fails('removeChecklist')) return failure();
       state.card.checklists = state.card.checklists.filter((c) => c.id !== params.checklistId);
       progress();
       return new HttpResponse(null, { status: 204 });
@@ -70,6 +102,8 @@ function signedInAs(role: Role, options: { failToggle?: boolean } = {}) {
     mswHttp.post(apiUrl('/checklists/:checklistId/items'), async ({ params, request }) => {
       const { content } = (await request.json()) as { content: string };
       state.calls.push(`POST item ${content}`);
+      await delay(options.slowAdd ?? 0);
+      if (fails('addItem')) return failure();
       state.created += 1;
       const item = {
         id: `clx000000000000000000009${state.created}`,
@@ -91,8 +125,10 @@ function signedInAs(role: Role, options: { failToggle?: boolean } = {}) {
       progress();
       return HttpResponse.json({ data: item });
     }),
-    mswHttp.delete(apiUrl('/checklists/:checklistId/items/:itemId'), ({ params }) => {
+    mswHttp.delete(apiUrl('/checklists/:checklistId/items/:itemId'), async ({ params }) => {
       state.calls.push('DELETE item');
+      await delay(20);
+      if (fails('removeItem')) return failure();
       const checklist = checklistOf(params.checklistId);
       checklist.items = checklist.items.filter((x) => x.id !== params.itemId);
       progress();
@@ -167,9 +203,12 @@ describe('card checklists (CARD-005c)', () => {
         expect(within(section).getByRole('textbox', { name: 'Item' })).toHaveValue(''),
       );
     }
-    expect(await within(section).findByRole('checkbox', { name: 'Celebrate' })).toBeInTheDocument();
     await waitFor(() =>
       expect(state.calls).toEqual(['POST item Tell users', 'POST item Celebrate']),
+    );
+    // The stand-in row is replaced by the server's item once it answers.
+    await waitFor(() =>
+      expect(within(section).getByRole('checkbox', { name: 'Celebrate' })).toBeEnabled(),
     );
 
     fireEvent.click(within(section).getByRole('button', { name: 'Delete item Write docs' }));
@@ -197,5 +236,143 @@ describe('card checklists (CARD-005c)', () => {
       expect(within(dialog).queryByRole('region', { name: 'Launch' })).toBeNull(),
     );
     expect(state.calls).toEqual(['POST checklist QA', 'DELETE checklist']);
+  });
+
+  it('Escape in "Add an item" closes the composer, not the card', async () => {
+    const { dialog, section } = await openCard('MEMBER');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Add an item' }));
+    fireEvent.keyDown(within(section).getByRole('textbox', { name: 'Item' }), { key: 'Escape' });
+
+    await waitFor(() =>
+      expect(within(section).getByRole('button', { name: 'Add an item' })).toHaveFocus(),
+    );
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: loginCard.title })).toBeVisible();
+  });
+
+  it('Escape while renaming a checklist cancels the rename, not the card', async () => {
+    const { section } = await openCard('MEMBER');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Launch' }));
+    const input = within(section).getByRole('textbox', { name: 'Checklist title' });
+    fireEvent.change(input, { target: { value: 'Renamed' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(await within(section).findByRole('button', { name: 'Launch' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: loginCard.title })).toBeVisible();
+  });
+
+  it('a new item shows at once, read-only until the server has it', async () => {
+    const { section } = await openCard('MEMBER', { slowAdd: 200 });
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Add an item' }));
+    fireEvent.change(within(section).getByRole('textbox', { name: 'Item' }), {
+      target: { value: 'Tell users' },
+    });
+    fireEvent.submit(within(section).getByRole('form', { name: 'Add an item' }));
+
+    expect(await within(section).findByRole('checkbox', { name: 'Tell users' })).toBeDisabled();
+    expect(within(section).queryByRole('button', { name: 'Delete item Tell users' })).toBeNull();
+    await waitFor(() =>
+      expect(within(section).getByRole('checkbox', { name: 'Tell users' })).toBeEnabled(),
+    );
+    expect(within(section).getByRole('button', { name: 'Delete item Tell users' })).toBeVisible();
+  });
+
+  it.each([
+    {
+      case: 'adding an item',
+      fail: 'addItem' as const,
+      act: (section: HTMLElement) => {
+        fireEvent.click(within(section).getByRole('button', { name: 'Add an item' }));
+        fireEvent.change(within(section).getByRole('textbox', { name: 'Item' }), {
+          target: { value: 'Tell users' },
+        });
+        fireEvent.submit(within(section).getByRole('form', { name: 'Add an item' }));
+      },
+      items: ['Write docs', 'Ship it'],
+      tile: '1/2',
+    },
+    {
+      case: 'deleting an item',
+      fail: 'removeItem' as const,
+      act: (section: HTMLElement) =>
+        fireEvent.click(within(section).getByRole('button', { name: 'Delete item Write docs' })),
+      items: ['Write docs', 'Ship it'],
+      tile: '1/2',
+    },
+  ])('a failed change when $case goes back with a toast', async ({ fail, act, items, tile }) => {
+    const { section } = await openCard('MEMBER', { fail: [fail] });
+
+    act(section);
+
+    expect(await screen.findByText("Couldn't update the checklist. Try again.")).toBeVisible();
+    await waitFor(() =>
+      expect(
+        within(section)
+          .getAllByRole('checkbox')
+          .map((box) => box.getAttribute('aria-label') ?? box.closest('label')?.textContent),
+      ).toEqual(items),
+    );
+    await waitFor(() => expect(tileOf()).toHaveTextContent(tile));
+  });
+
+  it('a failed rename puts the title back', async () => {
+    const { dialog, section } = await openCard('MEMBER', { fail: ['rename'] });
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Launch' }));
+    const input = within(section).getByRole('textbox', { name: 'Checklist title' });
+    fireEvent.change(input, { target: { value: 'Liftoff' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(await screen.findByText("Couldn't update the checklist. Try again.")).toBeVisible();
+    expect(await within(dialog).findByRole('region', { name: 'Launch' })).toBeInTheDocument();
+  });
+
+  it('a failed new checklist keeps the popover open with the reason', async () => {
+    const { dialog } = await openCard('MEMBER', { fail: ['addChecklist'] });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Checklist' }));
+    const popover = await screen.findByRole('dialog', { name: 'Add checklist' });
+    fireEvent.click(within(popover).getByRole('button', { name: 'Add' }));
+
+    expect(await within(popover).findByRole('alert')).toHaveTextContent('Something went wrong');
+    expect(within(dialog).queryByRole('region', { name: 'Checklist' })).toBeNull();
+  });
+
+  it('a failed checklist delete shows the reason in the confirmation', async () => {
+    const { section } = await openCard('MEMBER', { fail: ['removeChecklist'] });
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Delete' }));
+    const confirm = await screen.findByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete checklist' }));
+
+    expect(await within(confirm).findByText('Something went wrong')).toBeInTheDocument();
+  });
+
+  it('after deleting an item the focus moves to the next one', async () => {
+    const { section } = await openCard('MEMBER');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Delete item Write docs' }));
+
+    await waitFor(() =>
+      expect(within(section).getByRole('checkbox', { name: 'Ship it' })).toHaveFocus(),
+    );
+  });
+
+  it('a label and a tick on one card run in turn and refetch the card once', async () => {
+    const { state, dialog, section } = await openCard('MEMBER');
+    const gets = state.cardGets;
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Labels' }));
+    const picker = await screen.findByRole('dialog', { name: 'Labels' });
+    fireEvent.click(within(picker).getAllByRole('checkbox')[0]!);
+    fireEvent.click(within(section).getByRole('checkbox', { name: 'Ship it' }));
+
+    await waitFor(() => expect(state.calls).toEqual(['POST label', 'PATCH item true']));
+    await waitFor(() => expect(state.cardGets).toBe(gets + 1));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(state.cardGets).toBe(gets + 1);
   });
 });

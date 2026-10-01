@@ -7,6 +7,7 @@ import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/
 
 import { cardsApi } from './api';
 
+import type { QueryClient } from '@tanstack/react-query';
 import type {
   BoardDetailDto,
   CardDetailDto,
@@ -26,6 +27,32 @@ export const cardKeys = {
   all: ['card'] as const,
   detail: (cardId: string) => ['card', cardId] as const,
 };
+
+/**
+ * One card's changes made from its modal (fields, labels, members, checklists) share this mutation
+ * scope: they send their requests in turn, in the order they were made.
+ */
+export const cardMutationScope = (cardId: string) => ({ id: `card-detail:${cardId}` });
+
+/**
+ * After one of those changes settles: only the last pending one refetches the card, so an earlier
+ * one never brings back server data without the later ones; and the board is refetched only when
+ * no list or card move is pending (that move refetches it when it settles).
+ */
+export async function refetchCardWhenIdle(
+  queryClient: QueryClient,
+  boardId: string,
+  cardId: string,
+) {
+  const pendingIn = (id: string) =>
+    queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id });
+  const othersPending = () => pendingIn(cardMutationScope(cardId).id) > 1; // this one still counts
+  if (othersPending()) return;
+  await queryClient.invalidateQueries({ queryKey: cardKeys.detail(cardId) });
+  // A change made while the card was refetching settles later and refetches the board itself.
+  if (othersPending() || pendingIn(boardMutationScope(boardId).id) > 0) return;
+  await queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });
+}
 
 const OPTIMISTIC_ID_PREFIX = 'optimistic-card-';
 let optimisticIds = 0;
@@ -126,8 +153,8 @@ export function withCard(
 
 /**
  * PATCH /cards/:cardId with an optimistic update of both the modal and the board tile (an archived
- * card leaves the board at once). Errors roll both back with a toast; the card and the board are
- * refetched either way.
+ * card leaves the board at once). It runs in the card's mutation scope with the modal's other
+ * changes; an error puts back only the fields it changed, with a toast.
  */
 export function useUpdateCard(boardId: string, cardId: string) {
   const queryClient = useQueryClient();
@@ -135,6 +162,7 @@ export function useUpdateCard(boardId: string, cardId: string) {
   const boardKey = boardKeys.detail(boardId);
 
   return useMutation({
+    scope: cardMutationScope(cardId),
     mutationFn: (input: UpdateCardInput) => cardsApi.update(cardId, input),
     onMutate: async (input) => {
       await Promise.all([
@@ -166,17 +194,33 @@ export function useUpdateCard(boardId: string, cardId: string) {
           ),
         );
       }
-      return { previousCard, previousBoard };
+      // What a failure puts back: only the fields this change touched (later changes stay).
+      const before = <K extends keyof CardDetailDto>(keys: K[]) =>
+        previousCard
+          ? Object.fromEntries(keys.filter((key) => key in fields).map((k) => [k, previousCard[k]]))
+          : {};
+      return {
+        card: before(['title', 'description', 'dueDate', 'completed', 'archived']),
+        tile: before(['title', 'dueDate', 'completed']),
+        // An archive removed the tile; only the board as it was can put it back.
+        previousBoard: input.archived !== undefined ? previousBoard : undefined,
+      };
     },
     onError: (error, _input, context) => {
-      if (context?.previousCard) queryClient.setQueryData(cardKey, context.previousCard);
-      if (context?.previousBoard) queryClient.setQueryData(boardKey, context.previousBoard);
+      if (context) {
+        queryClient.setQueryData<CardDetailDto>(cardKey, (card) =>
+          card ? { ...card, ...context.card } : card,
+        );
+        if (context.previousBoard) queryClient.setQueryData(boardKey, context.previousBoard);
+        else {
+          queryClient.setQueryData<BoardDetailDto>(boardKey, (board) =>
+            board ? withCard(board, cardId, (card) => ({ ...card, ...context.tile })) : board,
+          );
+        }
+      }
       toast.error(errorMessage(error, SAVE_ERROR));
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: cardKey });
-      await refetchBoardWhenIdle(queryClient, boardId);
-    },
+    onSettled: () => refetchCardWhenIdle(queryClient, boardId, cardId),
   });
 }
 

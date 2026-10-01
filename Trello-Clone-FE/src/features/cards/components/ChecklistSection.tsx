@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChecklistItemContentSchema, ChecklistTitleSchema } from '@trello-clone/shared';
 import { ListChecksIcon, PlusIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -16,6 +16,9 @@ import { errorMessage } from '../queries';
 
 import type { useChecklists } from '../hooks/useChecklists';
 import type { ChecklistDto } from '@trello-clone/shared';
+
+/** `data-focus-id` of "Add an item"; an item's checkbox carries the item's id. */
+const ADD_ITEM_FOCUS = 'add-item';
 
 const ADD_ERROR = "Couldn't add the checklist. Check your connection and try again.";
 const DELETE_ERROR = "Couldn't delete the checklist. Check your connection and try again.";
@@ -38,9 +41,28 @@ export function ChecklistSection({ checklist, checklists, canEdit }: ChecklistSe
   const total = checklist.items.length;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   const headingId = `checklist-${checklist.id}`;
+  const sectionRef = useRef<HTMLElement>(null);
+  // After an item is deleted, the focus goes to the next item (or the previous, or "Add an
+  // item"), so keyboard users stay in the checklist instead of falling to the top of the dialog.
+  const [focusAfterDelete, setFocusAfterDelete] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusAfterDelete === null) return;
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-focus-id="${focusAfterDelete}"]`,
+    );
+    if (!target) return; // the deleted row is still on screen; try again on the next change
+    target.focus();
+    setFocusAfterDelete(null);
+  }, [focusAfterDelete, checklist.items]);
+  const deleteItem = (item: ChecklistDto['items'][number]) => {
+    const index = checklist.items.findIndex((x) => x.id === item.id);
+    const neighbour = checklist.items[index + 1] ?? checklist.items[index - 1];
+    setFocusAfterDelete(neighbour ? neighbour.id : ADD_ITEM_FOCUS);
+    checklists.removeItem.mutate({ checklistId: checklist.id, item });
+  };
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+    <section ref={sectionRef} aria-labelledby={headingId} className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <ListChecksIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
         <div id={headingId} className="min-w-0 flex-1">
@@ -88,13 +110,16 @@ export function ChecklistSection({ checklist, checklists, canEdit }: ChecklistSe
         )}
       </div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="w-9 text-right">{percent}%</span>
+        <span aria-hidden="true" className="w-9 text-right">
+          {percent}%
+        </span>
         <div
           role="progressbar"
           aria-label={`${checklist.title} progress`}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={percent}
+          aria-valuetext={`${done} of ${total} items done`}
           className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
         >
           <div
@@ -112,6 +137,7 @@ export function ChecklistSection({ checklist, checklists, canEdit }: ChecklistSe
               item={item}
               checklists={checklists}
               canEdit={canEdit}
+              onDelete={() => deleteItem(item)}
             />
           ))}
         </ul>
@@ -131,21 +157,24 @@ function ChecklistItemRow({
   item,
   checklists,
   canEdit,
+  onDelete,
 }: {
   checklistId: string;
   item: ChecklistDto['items'][number];
   checklists: Checklists;
   canEdit: boolean;
+  onDelete: () => void;
 }) {
   const [checked, setChecked] = useState({ stored: item.done, value: item.done });
   if (checked.stored !== item.done) setChecked({ stored: item.done, value: item.done });
   const pending = isOptimisticItem(item);
 
   return (
-    <li className="group flex items-start gap-2 rounded px-1 py-0.5 hover:bg-muted/60">
+    <li className="flex items-start gap-2 rounded px-1 py-0.5 hover:bg-muted/60">
       <label className="flex min-w-0 flex-1 items-start gap-2 text-sm">
         <input
           type="checkbox"
+          data-focus-id={item.id}
           className="mt-0.5 size-4 shrink-0"
           disabled={!canEdit || pending}
           checked={checked.value}
@@ -169,7 +198,7 @@ function ChecklistItemRow({
           size="icon"
           className="size-6 shrink-0"
           aria-label={`Delete item ${item.content}`}
-          onClick={() => checklists.removeItem.mutate({ checklistId, item })}
+          onClick={onDelete}
         >
           <XIcon aria-hidden="true" />
         </Button>
@@ -191,16 +220,36 @@ function AddItemComposer({
   checklists: Checklists;
 }) {
   const [open, setOpen] = useState(false);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const closedByUser = useRef(false);
   const form = useForm<ItemFormInput, unknown, ItemFormData>({
     resolver: zodResolver(ItemFormSchema),
     defaultValues: { content: '' },
   });
   const error = form.formState.errors.content?.message;
   const errorId = `checklist-item-error-${checklistId}`;
+  // Closing the composer puts the focus back on "Add an item" (the field it had is gone).
+  const close = () => {
+    closedByUser.current = true;
+    setOpen(false);
+  };
+  useEffect(() => {
+    if (!open && closedByUser.current) {
+      closedByUser.current = false;
+      addButton.current?.focus();
+    }
+  }, [open]);
 
   if (!open) {
     return (
-      <Button variant="secondary" size="sm" className="self-start" onClick={() => setOpen(true)}>
+      <Button
+        ref={addButton}
+        variant="secondary"
+        size="sm"
+        className="self-start"
+        data-focus-id={ADD_ITEM_FOCUS}
+        onClick={() => setOpen(true)}
+      >
         Add an item
       </Button>
     );
@@ -210,11 +259,10 @@ function AddItemComposer({
       noValidate
       aria-label="Add an item"
       className="flex flex-col gap-2"
+      // Escape closes the composer, not the card (CardDetailModal leaves it to this form).
+      data-inline-edit=""
       onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.stopPropagation(); // closes the composer, not the card modal
-          setOpen(false);
-        }
+        if (event.key === 'Escape') close();
       }}
       onSubmit={(event) =>
         void form.handleSubmit((values) => {
@@ -241,7 +289,7 @@ function AddItemComposer({
           <PlusIcon aria-hidden="true" />
           Add
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" size="sm" onClick={close}>
           Cancel
         </Button>
       </div>

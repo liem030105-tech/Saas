@@ -5,8 +5,7 @@ import { toast } from 'sonner';
 import { boardKeys } from '@/features/boards';
 
 import { checklistsApi } from '../api';
-import { cardKeys, withCard } from '../queries';
-import { cardMutationScope, refetchCardWhenIdle } from './cardScope';
+import { cardKeys, cardMutationScope, refetchCardWhenIdle, withCard } from '../queries';
 
 import type { BoardDetailDto, CardDetailDto, ChecklistDto } from '@trello-clone/shared';
 
@@ -22,7 +21,7 @@ export const isOptimisticItem = (item: { id: string }) => item.id.startsWith(OPT
  * A card's checklists, changed from its modal (docs/api/cards.md → Checklists). Ticking, adding
  * and deleting items and renaming a checklist show at once and are undone with a toast on error;
  * adding or deleting a checklist waits for the server (they run from a form that shows the
- * error). All run in the card's mutation scope (cardScope.ts) and keep the board tile's
+ * error). All run in the card's mutation scope (queries.ts) and keep the board tile's
  * `checklist` progress in step.
  */
 export function useChecklists(boardId: string, cardId: string) {
@@ -130,8 +129,15 @@ export function useChecklists(boardId: string, cardId: string) {
       });
       editProgress(0, 1);
     },
+    // A refetch may already have replaced the stand-in (with or without the new item).
     onSuccess: (item, { checklistId, tempId }) =>
-      editItems(checklistId, (items) => items.map((x) => (x.id === tempId ? item : x))),
+      editItems(checklistId, (items) =>
+        items.some((x) => x.id === tempId)
+          ? items.map((x) => (x.id === tempId ? item : x))
+          : items.some((x) => x.id === item.id)
+            ? items
+            : [...items, item],
+      ),
     onError: (_error, { checklistId, tempId }) => {
       editItems(checklistId, (items) => items.filter((x) => x.id !== tempId));
       editProgress(0, -1);
@@ -183,10 +189,17 @@ export function useChecklists(boardId: string, cardId: string) {
       editProgress(item.done ? -1 : 0, -1);
     },
     onError: (_error, { checklistId, item }) => {
-      editItems(checklistId, (items) =>
-        [...items, item].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1)),
-      );
-      editProgress(item.done ? 1 : 0, 1);
+      // A refetch since may already show it again (the delete failed on the server).
+      const card = queryClient.getQueryData<CardDetailDto>(cardKey);
+      const shown = card?.checklists
+        .find((checklist) => checklist.id === checklistId)
+        ?.items.some((x) => x.id === item.id);
+      if (!shown) {
+        editItems(checklistId, (items) =>
+          [...items, item].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : 1)),
+        );
+        editProgress(item.done ? 1 : 0, 1);
+      }
       fail();
     },
     onSettled: settle,

@@ -64,7 +64,16 @@ export function CardDetailModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl"
+        // Escape in a field edited in place (a title, the "Add an item" composer) leaves the field;
+        // Radix sees the key first (on the document), so the card must not close for it.
+        onEscapeKeyDown={(event) => {
+          if (event.target instanceof Element && event.target.closest('[data-inline-edit]')) {
+            event.preventDefault();
+          }
+        }}
+      >
         <div className="flex flex-col gap-1 pr-6">
           <DialogTitle asChild>
             <div>

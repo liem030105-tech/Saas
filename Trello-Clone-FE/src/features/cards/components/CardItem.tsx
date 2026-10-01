@@ -95,8 +95,12 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
               )}
             >
               <ListChecksIcon aria-hidden="true" className="size-3" />
-              <span className="sr-only">Checklist items done:</span>
-              {card.checklist.done}/{card.checklist.total}
+              <span className="sr-only">
+                Checklist: {card.checklist.done} of {card.checklist.total} items done
+              </span>
+              <span aria-hidden="true">
+                {card.checklist.done}/{card.checklist.total}
+              </span>
             </span>
           )}
         </p>
