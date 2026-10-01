@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/client';
 
 import type {
+  ActivityDto,
   BoardDetailDto,
   BoardDto,
   CreateBoardInput,
@@ -21,4 +22,12 @@ export const boardsApi = {
     apiClient.patch<BoardDto>(`/boards/${boardId}`, input),
   /** DELETE /boards/:boardId (≥ ADMIN): everything on the board goes with it. */
   remove: (boardId: string) => apiClient.delete<void>(`/boards/${boardId}`),
+  /** GET /boards/:boardId/activities (≥ VIEWER): newest first; `cardId` keeps one card's entries. */
+  activities: (boardId: string, options: { cardId?: string; cursor?: string }) =>
+    apiClient.getPage<ActivityDto>(`/boards/${boardId}/activities`, {
+      params: {
+        ...(options.cardId && { cardId: options.cardId }),
+        ...(options.cursor && { cursor: options.cursor }),
+      },
+    }),
 };

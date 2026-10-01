@@ -18,6 +18,10 @@ export const handlers: RequestHandler[] = [
   http.get(apiUrl('/workspaces/:workspaceId/members'), () =>
     HttpResponse.json({ data: membersWith('MEMBER') }),
   ),
+  // A board has no activity until a test says otherwise (the activity feed, CARD-005e).
+  http.get(apiUrl('/boards/:boardId/activities'), () =>
+    HttpResponse.json({ data: [], nextCursor: null }),
+  ),
   // A card has no comments until a test says otherwise (the card modal lists them, CARD-005d).
   http.get(apiUrl('/cards/:cardId/comments'), () =>
     HttpResponse.json({ data: [], nextCursor: null }),

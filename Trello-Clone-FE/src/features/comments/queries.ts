@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { boardKeys, boardMutationScope } from '@/features/boards';
+import { activityKeys, boardKeys, boardMutationScope } from '@/features/boards';
 
 import { commentsApi } from './api';
 
@@ -69,8 +69,12 @@ function bumpCommentCount(queryClient: QueryClient, boardId: string, cardId: str
   );
 }
 
-/** The board's comment counts come from the server again, unless a list or card move is pending. */
+/**
+ * The board's activity and comment counts come from the server again (the counts unless a list or
+ * card move is pending).
+ */
 function refetchBoardUnlessMoving(queryClient: QueryClient, boardId: string) {
+  void queryClient.invalidateQueries({ queryKey: activityKeys.board(boardId) }); // "commented on"
   const { id } = boardMutationScope(boardId);
   if (queryClient.isMutating({ predicate: (m) => m.options.scope?.id === id }) > 0) return;
   return queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) });

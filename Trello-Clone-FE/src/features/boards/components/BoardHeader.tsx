@@ -1,4 +1,9 @@
-import { BoardTitleSchema, type BoardDetailDto, type UpdateBoardInput } from '@trello-clone/shared';
+import {
+  BoardTitleSchema,
+  type BoardDetailDto,
+  type UpdateBoardInput,
+  type UserSummary,
+} from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, PaletteIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { ActivityDrawer } from './ActivityDrawer';
 import { BOARD_BACKGROUNDS, readableTextColor } from '../colors';
 import { useDeleteBoard, useUpdateBoard } from '../queries';
 
@@ -31,13 +37,16 @@ interface BoardHeaderProps {
   canDelete: boolean;
   /** After a delete, e.g. open the workspace. */
   onDeleted: () => void;
+  /** The workspace's members, to name people in the activity feed. */
+  members: readonly UserSummary[];
 }
 
 /**
  * The board header (docs/design/ui.md → Board): the title (click to rename), colour, archive or
- * unarchive, and delete. A caller who may not edit sees the title only.
+ * unarchive, and delete. A caller who may not edit sees the title only. "Activity" (CARD-005e) opens
+ * the board's activity feed for everyone.
  */
-export function BoardHeader({ board, canEdit, canDelete, onDeleted }: BoardHeaderProps) {
+export function BoardHeader({ board, canEdit, canDelete, onDeleted, members }: BoardHeaderProps) {
   const updateBoard = useUpdateBoard(board.id);
   const deleteBoard = useDeleteBoard(board.id, board.workspaceId);
   const color = readableTextColor(board.background);
@@ -63,79 +72,82 @@ export function BoardHeader({ board, canEdit, canDelete, onDeleted }: BoardHeade
       ) : (
         <h1 className="px-2 text-xl font-semibold">{board.title}</h1>
       )}
-      {canEdit && (
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="sm">
-                <PaletteIcon aria-hidden="true" />
-                Colour
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuRadioGroup
-                value={board.background}
-                onValueChange={(background) => {
-                  if (background !== board.background) save({ background });
-                }}
-              >
-                {BOARD_BACKGROUNDS.map(({ name, value }) => (
-                  <DropdownMenuRadioItem key={value} value={value}>
-                    <span
-                      aria-hidden="true"
-                      className="size-4 rounded-sm"
-                      style={{ backgroundColor: value }}
-                    />
-                    {name}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={updateBoard.isPending}
-            onClick={() => save({ archived: !board.archived })}
-          >
-            {board.archived ? (
-              <>
-                <ArchiveRestoreIcon aria-hidden="true" />
-                Unarchive
-              </>
-            ) : (
-              <>
-                <ArchiveIcon aria-hidden="true" />
-                Archive
-              </>
-            )}
-          </Button>
-          {canDelete && (
-            <ConfirmDialog
-              trigger={
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <ActivityDrawer board={board} members={members} />
+        {canEdit && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm">
-                  <Trash2Icon aria-hidden="true" />
-                  Delete
+                  <PaletteIcon aria-hidden="true" />
+                  Colour
                 </Button>
-              }
-              title={`Delete ${board.title}?`}
-              description="All its lists and cards are deleted for everyone. This can't be undone."
-              confirmLabel="Delete board"
-              pendingLabel="Deleting…"
-              onConfirm={async () => {
-                try {
-                  await deleteBoard.mutateAsync();
-                } catch (error) {
-                  return errorMessage(error, DELETE_ERROR);
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup
+                  value={board.background}
+                  onValueChange={(background) => {
+                    if (background !== board.background) save({ background });
+                  }}
+                >
+                  {BOARD_BACKGROUNDS.map(({ name, value }) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      <span
+                        aria-hidden="true"
+                        className="size-4 rounded-sm"
+                        style={{ backgroundColor: value }}
+                      />
+                      {name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={updateBoard.isPending}
+              onClick={() => save({ archived: !board.archived })}
+            >
+              {board.archived ? (
+                <>
+                  <ArchiveRestoreIcon aria-hidden="true" />
+                  Unarchive
+                </>
+              ) : (
+                <>
+                  <ArchiveIcon aria-hidden="true" />
+                  Archive
+                </>
+              )}
+            </Button>
+            {canDelete && (
+              <ConfirmDialog
+                trigger={
+                  <Button variant="secondary" size="sm">
+                    <Trash2Icon aria-hidden="true" />
+                    Delete
+                  </Button>
                 }
-                toast.success(`${board.title} was deleted.`);
-                onDeleted();
-                return null;
-              }}
-            />
-          )}
-        </div>
-      )}
+                title={`Delete ${board.title}?`}
+                description="All its lists and cards are deleted for everyone. This can't be undone."
+                confirmLabel="Delete board"
+                pendingLabel="Deleting…"
+                onConfirm={async () => {
+                  try {
+                    await deleteBoard.mutateAsync();
+                  } catch (error) {
+                    return errorMessage(error, DELETE_ERROR);
+                  }
+                  toast.success(`${board.title} was deleted.`);
+                  onDeleted();
+                  return null;
+                }}
+              />
+            )}
+          </>
+        )}
+      </div>
     </header>
   );
 }

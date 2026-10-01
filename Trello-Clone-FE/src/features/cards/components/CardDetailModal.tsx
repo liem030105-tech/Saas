@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Markdown } from '@/components/ui/Markdown';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { ActivityFeed, type ActivityNames } from '@/features/boards';
 import { CommentSection, type CommentAccess } from '@/features/comments';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
@@ -40,6 +41,8 @@ interface CardDetailModalProps {
   workspaceMembers: WorkspaceMembers;
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
+  /** Names of the board's lists and cards and the workspace's members, for the activity entries. */
+  activityNames: ActivityNames;
   /** Who is looking and what they may do with comments. */
   commentAccess: CommentAccess;
   onClose: () => void;
@@ -49,7 +52,7 @@ interface CardDetailModalProps {
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
  * read-only. Labels since CARD-005a, members since CARD-005b, checklists since CARD-005c, comments
- * since CARD-005d; the activity entries arrive with CARD-005e.
+ * since CARD-005d, and the card's activity ("Show details") since CARD-005e.
  */
 export function CardDetailModal({
   card,
@@ -57,9 +60,11 @@ export function CardDetailModal({
   boardLabels,
   workspaceMembers,
   canEdit,
+  activityNames,
   commentAccess,
   onClose,
 }: CardDetailModalProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const updateCard = useUpdateCard(card.boardId, card.id);
   const deleteCard = useDeleteCard(card.boardId, card.id);
   const forgetCard = useForgetCard();
@@ -161,7 +166,25 @@ export function CardDetailModal({
                 canEdit={canEdit}
               />
             ))}
-            <CommentSection boardId={card.boardId} cardId={card.id} access={commentAccess} />
+            <CommentSection
+              boardId={card.boardId}
+              cardId={card.id}
+              access={commentAccess}
+              headerAction={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={showDetails}
+                  onClick={() => setShowDetails((shown) => !shown)}
+                >
+                  {showDetails ? 'Hide details' : 'Show details'}
+                </Button>
+              }
+            >
+              {showDetails && (
+                <ActivityFeed boardId={card.boardId} cardId={card.id} names={activityNames} />
+              )}
+            </CommentSection>
           </div>
 
           {canEdit && (

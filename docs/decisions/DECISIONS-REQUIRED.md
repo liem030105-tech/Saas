@@ -153,3 +153,11 @@
 - **Proposed default:** the palettes, font, radius, and spacing in [design/ui.md → Visual tokens](../design/ui.md#visual-tokens-proposed-d-24): Trello-like board and label colour presets, system font, 0.5rem radius.
 - **Options:** keep the proposal · supply a brand palette/typography (e.g. from a Figma file) before FOUNDATION-003.
 - **Affects:** FOUNDATION-003, every FE task. **Blocking:** no (tokens live in one CSS file and can change later).
+
+## Activity
+
+### D-25 Activity for label and checklist changes
+- **Context:** CARD-005's acceptance line says "activity shows each action", but attaching labels and changing checklists log nothing (005a, 005c), so the feed shows assignments, comments, card edits and moves only.
+- **Proposed default:** log them: new `ActivityType` values for label attach/detach and checklist add/remove and item ticks, with a migration, feed texts and tests.
+- **Options:** log them (the line holds as written) · reword the acceptance line to the actions that are logged today (no code change).
+- **Affects:** CARD-005 (Done), `database/schema.md` (ActivityType), `api/cards.md`, `design/ui.md` (Activity). **Blocking:** yes (CARD-005 Done).

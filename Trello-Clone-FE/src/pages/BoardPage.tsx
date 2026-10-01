@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { useCurrentUser } from '@/features/auth';
-import { BoardView, boardPath, useBoard } from '@/features/boards';
+import { BoardView, boardPath, namesOf, useBoard } from '@/features/boards';
 import { CardDetailModal, CardModalStatus, CardTileProvider, useCard } from '@/features/cards';
 import { BoardLists } from '@/features/lists';
 import { can, useMembers, useWorkspaces, workspacePath } from '@/features/workspaces';
@@ -75,6 +75,7 @@ export function BoardPage() {
       canEdit={role ? can(role, 'board.edit') : false}
       canDelete={role ? can(role, 'board.delete') : false}
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
+      members={tileData.members}
     >
       {/* An archived board is read-only (docs/design/ui.md → Board). */}
       <CardTileProvider value={tileData}>
@@ -94,6 +95,7 @@ export function BoardPage() {
             retry: () => void members.refetch(),
           }}
           canEdit={canEditContent}
+          activityNames={namesOf(board, tileData.members)}
           commentAccess={{
             user: currentUser.data && {
               id: currentUser.data.id,
