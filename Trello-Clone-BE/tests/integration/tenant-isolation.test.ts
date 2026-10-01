@@ -54,6 +54,7 @@ const card = (cardId: string) => `${paths.cards}/${cardId}`;
 const label = (labelId: string) => `${paths.labels}/${labelId}`;
 const checklist = (checklistId: string) => `${paths.checklists}/${checklistId}`;
 const item = (checklistId: string, itemId: string) => `${checklist(checklistId)}/items/${itemId}`;
+const comment = (commentId: string) => `${paths.comments}/${commentId}`;
 const expect404 = (res: request.Response) => {
   expect(res.status).toBe(404);
   expect(res.body.error.code).toBe('NOT_FOUND');
@@ -612,6 +613,65 @@ const cases: IsolationCase[] = [
       request(app).delete(item(a.checklistId, b.itemId)).set(bearer(a.owner.token)),
     missing: (a) => request(app).delete(item(a.checklistId, missingId)).set(bearer(a.owner.token)),
   },
+  {
+    route: 'GET /cards/:cardId/comments',
+    attempt: "read B's comments",
+    request: (a, b) =>
+      request(app)
+        .get(`${card(b.cardId)}/comments`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${card(missingId)}/comments`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /cards/:cardId/comments',
+    attempt: "page A's comments from B's comment as the cursor",
+    request: (a, b) =>
+      request(app)
+        .get(`${card(a.cardId)}/comments`)
+        .query({ cursor: b.commentId })
+        .set(bearer(a.owner.token)),
+    // A foreign cursor is refused exactly like an unknown one (`missing`), revealing nothing.
+    expectResponse: (res) => {
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    },
+    missing: (a) =>
+      request(app)
+        .get(`${card(a.cardId)}/comments`)
+        .query({ cursor: missingId })
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /cards/:cardId/comments',
+    attempt: "comment on B's card",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(b.cardId)}/comments`)
+        .set(bearer(a.owner.token))
+        .send({ content: 'A' }),
+    missing: (a) =>
+      request(app)
+        .post(`${card(missingId)}/comments`)
+        .set(bearer(a.owner.token))
+        .send({ content: 'A' }),
+  },
+  {
+    route: 'PATCH /comments/:commentId',
+    attempt: "edit B's comment",
+    request: (a, b) =>
+      request(app).patch(comment(b.commentId)).set(bearer(a.owner.token)).send({ content: 'A' }),
+    missing: (a) =>
+      request(app).patch(comment(missingId)).set(bearer(a.owner.token)).send({ content: 'A' }),
+  },
+  {
+    route: 'DELETE /comments/:commentId',
+    attempt: "delete B's comment",
+    request: (a, b) => request(app).delete(comment(b.commentId)).set(bearer(a.owner.token)),
+    missing: (a) => request(app).delete(comment(missingId)).set(bearer(a.owner.token)),
+  },
 ];
 
 describe('tenant isolation: A against B', () => {
@@ -644,10 +704,12 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/* and /checklists/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/* and /comments/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists)(\/|$)/.test(route),
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments)(\/|$)/.test(
+        route,
+      ),
     );
     const covered = new Set(cases.map((c) => c.route));
 

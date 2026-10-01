@@ -443,3 +443,54 @@ describeRoleMatrix(getApp, {
   request: (ctx) => request(ctx.app).delete(itemPath(ctx)).set(as(ctx)),
   expected: CHECKLIST_DELETE,
 });
+
+// Comments (CARD-005d). The comment belongs to the workspace OWNER, so these rows check another
+// member's comment: only its author edits it, an ADMIN or OWNER deletes it. A member editing or
+// deleting their own comment is in comments.test.ts.
+
+async function addComment(ctx: Omit<MatrixContext, 'caller' | 'fixture'>) {
+  const fixture = await addCard(ctx);
+  const comment = await request(ctx.app)
+    .post(`${paths.cards}/${fixture.cardId}/comments`)
+    .set(bearer(ctx.owner.token))
+    .send({ content: 'First' })
+    .expect(201);
+  return { ...fixture, commentId: comment.body.data.id as string };
+}
+
+const commentPath = (ctx: MatrixContext) => `${paths.comments}/${ctx.fixture.commentId}`;
+
+describeRoleMatrix(getApp, {
+  name: 'GET /cards/:cardId/comments',
+  setup: addComment,
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${cardPath(ctx)}/comments`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 200, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /cards/:cardId/comments',
+  setup: addCard,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${cardPath(ctx)}/comments`)
+      .set(as(ctx))
+      .send({ content: 'Hi' }),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: "PATCH /comments/:commentId (the OWNER's comment)",
+  setup: addComment,
+  request: (ctx) => request(ctx.app).patch(commentPath(ctx)).set(as(ctx)).send({ content: 'Hi' }),
+  expected: { OWNER: 200, ADMIN: 403, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: "DELETE /comments/:commentId (the OWNER's comment)",
+  setup: addComment,
+  request: (ctx) => request(ctx.app).delete(commentPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});

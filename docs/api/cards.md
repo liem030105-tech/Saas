@@ -112,6 +112,8 @@ Since CARD-005c. All six need `card.assign` (≥ MEMBER) on the card's stored bo
 
 Errors: `400` · `401` · `403` (not the author / insufficient role) · `404`. Markdown is stored raw and sanitized by the FE when rendered.
 
+Since CARD-005d. `content` is trimmed, 1–5000 characters (`CommentContentSchema`). The list follows the [pagination convention](README.md#pagination) (`limit` per D-14): newest first by `createdAt, id`, `cursor` is the id of the last comment of the previous page, and `nextCursor` is `null` on the last page; a cursor that is not a comment of this card → `400 VALIDATION_ERROR` (`path: "cursor"`), the same for a foreign id and one nothing has. Edit and delete check the caller's role on the comment's board **now**: an author demoted to VIEWER can no longer change their comments (403), and an unknown or malformed `commentId` and one the caller cannot see are the same `404`. Only a new comment is logged (`COMMENT_ADDED`, `data: { commentId }`); edits and deletes log nothing. Schemas: `CommentInputSchema`, `ListCommentsQuerySchema`, `CommentDtoSchema`, `CommentsPageSchema` (`@trello-clone/shared`).
+
 ## Attachments (Post-MVP, ATTACHMENTS-001)
 | Method | Path | Authorization | Body → Success | Errors |
 |--------|------|---------------|----------------|--------|

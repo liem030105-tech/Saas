@@ -11,6 +11,7 @@ import type {
 export type CardSummaryRow = Card & {
   labels: { labelId: string }[];
   members: { userId: string }[];
+  _count: { comments: number };
   /** Done and total checklist items over all the card's checklists (CARD-005c). */
   checklist: ChecklistProgress;
 };
@@ -62,8 +63,7 @@ export function toLabelDto(label: Label): LabelDto {
 
 /**
  * docs/api/boards.md → CardSummaryDto: a card as the board shows it. The boards module owns this
- * shape (the cards module reaches it through boards.service). The comment count arrives with
- * CARD-005d and is zero until then.
+ * shape (the cards module reaches it through boards.service).
  */
 export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
   return {
@@ -77,7 +77,7 @@ export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
     labelIds: card.labels.map((label) => label.labelId),
     memberIds: card.members.map((member) => member.userId),
     checklist: card.checklist,
-    commentCount: 0,
+    commentCount: card._count.comments,
   };
 }
 

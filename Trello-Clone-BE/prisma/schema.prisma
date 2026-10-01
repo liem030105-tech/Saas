@@ -27,6 +27,7 @@ model User {
   invitesSent   WorkspaceInvite[]
   activities    Activity[]
   cards         CardMember[]
+  comments      Comment[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -128,6 +129,7 @@ enum ActivityType {
   CARD_MOVED
   MEMBER_ADDED
   MEMBER_REMOVED
+  COMMENT_ADDED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.
@@ -188,6 +190,7 @@ model Card {
   labels      CardLabel[]
   members     CardMember[]
   checklists  Checklist[]
+  comments    Comment[]
 
   @@index([listId, position])
   @@index([boardId])
@@ -254,6 +257,23 @@ model ChecklistItem {
   checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
   @@index([checklistId, position])
+}
+
+/// A comment on a card (CARD-005d): raw markdown, rendered sanitized by the FE.
+model Comment {
+  id        String   @id @default(cuid())
+  cardId    String
+  /// Restrict: users with comments are anonymized, not deleted.
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  /// Later than createdAt once the comment was edited.
+  updatedAt DateTime @updatedAt
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([cardId, createdAt])
+  @@index([authorId])
 }
 
 /// Append-only board activity feed. BOARD-001; `cardId` since CARD-001.

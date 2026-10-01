@@ -174,7 +174,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 |-------|------|---|---------|-----|-------|
 | id | String | | cuid | PK | |
 | cardId | String | | | FK → Card (Cascade), IX(cardId, createdAt) | IX serves pagination |
-| authorId | String | | | FK → User (**Restrict**) | Users with comments are anonymized, not deleted |
+| authorId | String | | | FK → User (**Restrict**), IX | Users with comments are anonymized, not deleted; IX serves the FK |
 | content | String | | | | Raw markdown |
 | createdAt / updatedAt | DateTime | | | | `updatedAt` shows "edited" and is the realtime version |
 
@@ -434,6 +434,7 @@ model Comment {
   card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
   @@index([cardId, createdAt])
+  @@index([authorId])
 }
 
 model Attachment {
@@ -497,3 +498,4 @@ model Subscription {
 | `20261001052152_add_labels` | CARD-005a | `Label` (FK → `Board` cascade, index `(boardId)`); `CardLabel` (PK `(cardId, labelId)`, FKs cascade, index `(labelId)`); backfills the six default labels for every existing board (ids `c0…`, so they sort before labels created later) |
 | `20261001061114_add_card_members` | CARD-005b | `ActivityType` += `MEMBER_ADDED`, `MEMBER_REMOVED`; `CardMember` (PK `(cardId, userId)`, FKs → `Card` and `User` cascade, index `(userId)`) |
 | `20261001065625_add_checklists` | CARD-005c | `Checklist` (FK → `Card` cascade, index `(cardId, position)`); `ChecklistItem` (FK → `Checklist` cascade, index `(checklistId, position)`) |
+| `20261001103116_add_comments` | CARD-005d | `ActivityType` += `COMMENT_ADDED`; `Comment` (FKs → `Card` cascade and `User` restrict, indexes `(cardId, createdAt)` and `(authorId)`) |

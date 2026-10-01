@@ -51,6 +51,7 @@ const DETAIL = {
     orderBy: [{ position: 'asc' }, { id: 'asc' }],
     include: { items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } },
   },
+  _count: { select: { comments: true } },
 } satisfies Prisma.CardInclude;
 
 type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
@@ -115,7 +116,13 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto({ ...card, labels: [], members: [], checklist: NO_CHECKLIST }); // realtime emit (REALTIME-001) goes here, after the commit
+    return toCardSummaryDto({
+      ...card,
+      labels: [],
+      members: [],
+      checklist: NO_CHECKLIST,
+      _count: { comments: 0 },
+    }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;

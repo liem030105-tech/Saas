@@ -14,6 +14,7 @@ export const paths = {
   cards: '/api/v1/cards',
   labels: '/api/v1/labels',
   checklists: '/api/v1/checklists',
+  comments: '/api/v1/comments',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',
