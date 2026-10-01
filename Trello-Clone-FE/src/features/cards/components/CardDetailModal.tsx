@@ -3,6 +3,7 @@ import {
   CardDescriptionSchema,
   CardTitleSchema,
   type CardDetailDto,
+  type LabelDto,
   type UpdateCardInput,
 } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, Trash2Icon } from 'lucide-react';
@@ -20,6 +21,7 @@ import { Markdown } from '@/components/ui/Markdown';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
 import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
+import { LabelChip, LabelPicker } from './LabelPicker';
 
 const DELETE_ERROR = "Couldn't delete the card. Check your connection and try again.";
 
@@ -27,6 +29,8 @@ interface CardDetailModalProps {
   card: CardDetailDto;
   /** The title of the card's list, for "in list …". */
   listTitle: string | undefined;
+  /** The board's labels, for the label picker. */
+  boardLabels: LabelDto[];
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
   onClose: () => void;
@@ -35,9 +39,16 @@ interface CardDetailModalProps {
 /**
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
- * read-only. Members, labels, checklists and activity arrive with CARD-005.
+ * read-only. Labels since CARD-005a; members, checklists and activity arrive with the rest of
+ * CARD-005.
  */
-export function CardDetailModal({ card, listTitle, canEdit, onClose }: CardDetailModalProps) {
+export function CardDetailModal({
+  card,
+  listTitle,
+  boardLabels,
+  canEdit,
+  onClose,
+}: CardDetailModalProps) {
   const updateCard = useUpdateCard(card.boardId, card.id);
   const deleteCard = useDeleteCard(card.boardId, card.id);
   const forgetCard = useForgetCard();
@@ -78,6 +89,23 @@ export function CardDetailModal({ card, listTitle, canEdit, onClose }: CardDetai
 
         <div className="grid gap-6 sm:grid-cols-[1fr_auto]">
           <div className="flex min-w-0 flex-col gap-6">
+            {card.labels.length > 0 && (
+              <section aria-labelledby="card-labels" className="flex flex-col gap-1">
+                <h3
+                  id="card-labels"
+                  className="text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  Labels
+                </h3>
+                <ul aria-labelledby="card-labels" className="flex flex-wrap gap-1">
+                  {card.labels.map((label) => (
+                    <li key={label.id}>
+                      <LabelChip label={label} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {/* Remounted when the stored values change, so a refetch resets the local state. */}
             <DueAndCompleted
               key={`${card.dueDate}|${card.completed}`}
@@ -89,57 +117,70 @@ export function CardDetailModal({ card, listTitle, canEdit, onClose }: CardDetai
           </div>
 
           {canEdit && (
-            <section aria-labelledby="card-actions" className="flex flex-col gap-2 sm:w-40">
-              <h3
-                id="card-actions"
-                className="text-xs font-semibold text-muted-foreground uppercase"
-              >
-                Actions
-              </h3>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="justify-start"
-                onClick={() => save({ archived: !card.archived })}
-              >
-                {card.archived ? (
-                  <>
-                    <ArchiveRestoreIcon aria-hidden="true" />
-                    Unarchive
-                  </>
-                ) : (
-                  <>
-                    <ArchiveIcon aria-hidden="true" />
-                    Archive
-                  </>
-                )}
-              </Button>
-              <ConfirmDialog
-                trigger={
-                  <Button variant="secondary" size="sm" className="justify-start">
-                    <Trash2Icon aria-hidden="true" />
-                    Delete
-                  </Button>
-                }
-                title={`Delete ${card.title}?`}
-                description="The card is deleted for everyone. This can't be undone."
-                confirmLabel="Delete card"
-                pendingLabel="Deleting…"
-                onConfirm={async () => {
-                  try {
-                    await deleteCard.mutateAsync();
-                  } catch (error) {
-                    return error instanceof ApiError && error.code !== NETWORK_ERROR_CODE
-                      ? error.message
-                      : DELETE_ERROR;
+            <div className="flex flex-col gap-6 sm:w-40">
+              <section aria-labelledby="card-add" className="flex flex-col gap-2">
+                <h3 id="card-add" className="text-xs font-semibold text-muted-foreground uppercase">
+                  Add to card
+                </h3>
+                <LabelPicker
+                  boardId={card.boardId}
+                  cardId={card.id}
+                  boardLabels={boardLabels}
+                  cardLabels={card.labels}
+                />
+              </section>
+              <section aria-labelledby="card-actions" className="flex flex-col gap-2">
+                <h3
+                  id="card-actions"
+                  className="text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  Actions
+                </h3>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="justify-start"
+                  onClick={() => save({ archived: !card.archived })}
+                >
+                  {card.archived ? (
+                    <>
+                      <ArchiveRestoreIcon aria-hidden="true" />
+                      Unarchive
+                    </>
+                  ) : (
+                    <>
+                      <ArchiveIcon aria-hidden="true" />
+                      Archive
+                    </>
+                  )}
+                </Button>
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="secondary" size="sm" className="justify-start">
+                      <Trash2Icon aria-hidden="true" />
+                      Delete
+                    </Button>
                   }
-                  toast.success(`${card.title} was deleted.`);
-                  onClose();
-                  forgetCard(card.id); // after leaving the card's URL, see useForgetCard
-                  return null;
-                }}
-              />
-            </section>
+                  title={`Delete ${card.title}?`}
+                  description="The card is deleted for everyone. This can't be undone."
+                  confirmLabel="Delete card"
+                  pendingLabel="Deleting…"
+                  onConfirm={async () => {
+                    try {
+                      await deleteCard.mutateAsync();
+                    } catch (error) {
+                      return error instanceof ApiError && error.code !== NETWORK_ERROR_CODE
+                        ? error.message
+                        : DELETE_ERROR;
+                    }
+                    toast.success(`${card.title} was deleted.`);
+                    onClose();
+                    forgetCard(card.id); // after leaving the card's URL, see useForgetCard
+                    return null;
+                  }}
+                />
+              </section>
+            </div>
           )}
         </div>
       </DialogContent>

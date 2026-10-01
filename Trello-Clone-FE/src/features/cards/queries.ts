@@ -104,7 +104,7 @@ export function useCard(cardId: string | undefined) {
 }
 
 /** The board cache with `cardId`'s summary changed (or removed, when archived or deleted). */
-function withCard(
+export function withCard(
   board: BoardDetailDto,
   cardId: string,
   change: (card: CardSummaryDto) => CardSummaryDto | null,

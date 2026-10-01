@@ -72,6 +72,7 @@ export function BoardPage() {
         <CardDetailModal
           card={card.data}
           listTitle={board.lists.find((list) => list.id === card.data.listId)?.title}
+          boardLabels={board.labels}
           canEdit={canEditContent}
           onClose={closeCard}
         />

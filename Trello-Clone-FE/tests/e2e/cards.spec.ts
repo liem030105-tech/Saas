@@ -6,7 +6,7 @@ import { boardWithLists } from './helpers/board';
 // cards appear in creation order and persist after reload.
 // CARD-002: the card modal edits a card, and its shared URL opens the same card after a reload.
 // Scenario 4, CARD-004 acceptance: dragging a card within and between lists persists after reload
-// (keyboard-driven, as pointer drags are flaky in CI).
+// (keyboard-driven, as pointer drags are flaky in CI). CARD-005a: a label on a card persists.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -117,5 +117,20 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await expect(cards).toHaveText(['Write tests', 'Fix login'].map(exact));
   await expect(doing.getByRole('article')).toHaveText(['Sign-up form']);
   await doing.getByRole('link', { name: 'Sign-up form' }).press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Sign-up form' })).toContainText('in list Doing');
+  const signup = page.getByRole('dialog', { name: 'Sign-up form' });
+  await expect(signup).toContainText('in list Doing');
+
+  // CARD-005a: put a default label on the card; it stays after a reload, on the card and its tile.
+  await signup.getByRole('button', { name: 'Labels' }).click();
+  const labelled = page.waitForResponse(
+    (res) => res.request().method() === 'POST' && res.url().includes('/labels/') && res.ok(),
+  );
+  await page.getByRole('dialog', { name: 'Labels' }).getByRole('checkbox').first().check();
+  await labelled;
+  await page.reload();
+  await expect(signup.getByRole('list', { name: 'Labels' }).getByRole('listitem')).toHaveCount(1);
+  await signup.getByRole('button', { name: 'Close' }).click();
+  await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText(
+    'Labels: Green label',
+  );
 });

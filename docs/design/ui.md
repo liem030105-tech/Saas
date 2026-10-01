@@ -100,6 +100,8 @@ Delete asks for confirmation (AlertDialog). Markdown renders only through the sa
 
 CARD-002 implements the title (renames in place), "in list {list}", an "archived" banner, the due date and "Complete" checkbox, the description ("Add a more detailed description…" or the rendered markdown with "Edit"; Save and Cancel; a blank description clears it), and the Actions "Archive"/"Unarchive" and "Delete" (confirmed, then back to the board). A VIEWER and an archived board see the card read-only. A card that is not visible, or is on another board than the URL's, shows "Page not found". Members, labels, checklists and activity arrive with CARD-005.
 
+CARD-005a adds labels: the card's labels show as chips (name, or colour only) under "Labels", and a member gets "Labels" under "Add to card", a popover listing the board's labels as checkboxes (checked = on this card; the change shows at once and goes back with the toast "Couldn't update the card's labels. Try again." on failure). Each label has "Edit label {name}" (name, the ten colour presets, Save, and Delete, which asks first: "The label is removed from every card."); "Create a new label" opens the same form. A colour-only label reads as "{Colour} label". Card tiles show the label chips (colour only) above the title, named for screen readers ("Labels: Urgent, Green label").
+
 **Due dates are whole days in UTC:** the picker (a native date input) stores the end of that day in UTC, the day is shown in UTC (so it reads the same in every time zone), and a card is overdue once that day has ended.
 
 ### Auth pages `/login`, `/register`
@@ -117,7 +119,7 @@ A centered 400px card on a neutral background: title, fields, primary button, li
 | Dialogs (create board, card modal) | `Dialog` |
 | Confirm destructive action | `AlertDialog` |
 | Menus (list ⋯, board ⋯, avatar) | `DropdownMenu` |
-| Pickers (labels, members, colour) | `Popover` + `Command` |
+| Pickers (labels, members, colour) | `Popover` (+ `Command` once a list needs search; the label picker is a checkbox list) |
 | Due date | Native `<input type="date">` (CARD-002; no calendar dependency) |
 | Toasts | `Sonner` |
 | Forms | `Form` pattern with React Hook Form, `Input`, `Textarea`, `Button` |
