@@ -489,3 +489,4 @@ model Subscription {
 | `20260930144700_add_boards_activity` | BOARD-001 | Enum `ActivityType` (`BOARD_CREATED`, `BOARD_UPDATED`; later tasks add theirs); `Board` (FK → `Workspace` cascade, index `(workspaceId, archived)`); `Activity` without `cardId` (FK → `Board` cascade, FK → `User` restrict, index `(boardId, createdAt)`) |
 | `20260930153801_add_lists` | LIST-001 | `ActivityType` += `LIST_CREATED`; `List` (FK → `Board` cascade, index `(boardId, position)`) |
 | `20260930182143_add_list_activity_types` | LIST-002 | `ActivityType` += `LIST_UPDATED`, `LIST_ARCHIVED` |
+| `20261001000501_add_list_moved_type` | LIST-003 | `ActivityType` += `LIST_MOVED` |

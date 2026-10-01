@@ -6,6 +6,7 @@ export const ACTIVITY_TYPES = [
   'LIST_CREATED',
   'LIST_UPDATED',
   'LIST_ARCHIVED',
+  'LIST_MOVED',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];

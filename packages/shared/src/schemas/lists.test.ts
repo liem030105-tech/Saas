@@ -59,7 +59,6 @@ describe('UpdateListInputSchema', () => {
     expect(UpdateListInputSchema.safeParse(input).success).toBe(true);
   });
 
-  // `position` alone is not a change yet (LIST-003): it is stripped, leaving no field.
   it.each(data.invalidUpdates)('rejects %j', (input) => {
     expect(UpdateListInputSchema.safeParse(input).success).toBe(false);
   });

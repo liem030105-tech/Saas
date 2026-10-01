@@ -1,9 +1,10 @@
-import { initialPosition, positionAfter } from '@trello-clone/shared';
+import { initialPosition, needsRebalance, positionAfter } from '@trello-clone/shared';
 
 import { toListDto } from './lists.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { lockContainer, rebalanceContainer } from '../../lib/rebalance';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
 
 import type { CreateListData, ListDto, UpdateListData } from '@trello-clone/shared';
@@ -29,11 +30,36 @@ async function assertListAccess(userId: string, listId: string) {
   return list;
 }
 
+type Tx = Prisma.TransactionClient;
+
+/**
+ * After a list was written at a position (inside a transaction that already holds the board's
+ * list locks): rebalances the board's lists when the list sits too close to a neighbour or to 0
+ * (docs/database/relationships.md → Rebalancing). Returns the list's final position.
+ */
+async function settlePosition(tx: Tx, boardId: string, listId: string): Promise<number> {
+  const siblings = await tx.list.findMany({
+    where: { boardId },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    select: { id: true, position: true },
+  });
+  const index = siblings.findIndex((list) => list.id === listId);
+  const { position } = siblings[index]!;
+  const before = siblings[index - 1]?.position;
+  const after = siblings[index + 1]?.position;
+  const crowded =
+    needsRebalance(position, before) || (after !== undefined && needsRebalance(position, after));
+  if (!crowded) return position;
+  const positions = await rebalanceContainer(tx, 'List', 'boardId', boardId);
+  return positions.get(listId)!;
+}
+
 /**
  * POST /boards/:boardId/lists (≥ MEMBER). Without `position` the list goes after the board's last
  * list (archived ones included, so it never lands between them and a later unarchive). A client
- * `position` is stored as validated; the rebalance check arrives with LIST-003. Two concurrent
- * appends may get the same position: the `id` tie-break keeps the order deterministic.
+ * `position` goes through the rebalance check. The board's lists are locked first, so once the
+ * board has a list, concurrent creates and moves on it run one at a time (two first lists created
+ * at the same moment may share a position; the `id` tie-break orders them).
  */
 export async function create(
   userId: string,
@@ -43,8 +69,12 @@ export async function create(
   await assertBoardAccess(userId, boardId, 'list.manage');
   try {
     const list = await prisma.$transaction(async (tx) => {
+      await lockContainer(tx, 'List', 'boardId', boardId);
       const position = input.position ?? (await nextPosition(tx, boardId));
-      const created = await tx.list.create({ data: { boardId, title: input.title, position } });
+      let created = await tx.list.create({ data: { boardId, title: input.title, position } });
+      if (input.position !== undefined) {
+        created = { ...created, position: await settlePosition(tx, boardId, created.id) };
+      }
       await logActivity(tx, {
         boardId,
         userId,
@@ -60,14 +90,16 @@ export async function create(
   }
 }
 
-async function nextPosition(tx: Prisma.TransactionClient, boardId: string) {
+async function nextPosition(tx: Tx, boardId: string) {
   const { _max } = await tx.list.aggregate({ where: { boardId }, _max: { position: true } });
   return _max.position === null ? initialPosition() : positionAfter(_max.position);
 }
 
 /**
- * PATCH /lists/:listId (≥ MEMBER): rename, archive or unarchive. Archiving logs LIST_ARCHIVED;
- * any other change logs LIST_UPDATED; either way with the changed fields, in the same transaction.
+ * PATCH /lists/:listId (≥ MEMBER): rename, archive or unarchive, move. Archiving logs
+ * LIST_ARCHIVED, otherwise a move logs LIST_MOVED, and anything else LIST_UPDATED; each with the
+ * changed fields (a move with the final position), in the same transaction. A move locks the
+ * board's lists first and may rebalance them; the response carries the final stored position.
  * An archived list keeps its position, so unarchiving puts it back where it was.
  */
 export async function update(
@@ -79,15 +111,19 @@ export async function update(
   const changes = {
     ...(input.title !== undefined && { title: input.title }),
     ...(input.archived !== undefined && { archived: input.archived }),
+    ...(input.position !== undefined && { position: input.position }),
   };
+  const moved = input.position !== undefined;
   try {
     const list = await prisma.$transaction(async (tx) => {
-      const updated = await tx.list.update({ where: { id: listId }, data: changes });
+      if (moved) await lockContainer(tx, 'List', 'boardId', boardId);
+      let updated = await tx.list.update({ where: { id: listId }, data: changes });
+      if (moved) updated = { ...updated, position: await settlePosition(tx, boardId, listId) };
       await logActivity(tx, {
         boardId,
         userId,
-        type: changes.archived === true ? 'LIST_ARCHIVED' : 'LIST_UPDATED',
-        data: { listId, ...changes },
+        type: changes.archived === true ? 'LIST_ARCHIVED' : moved ? 'LIST_MOVED' : 'LIST_UPDATED',
+        data: { listId, ...changes, ...(moved && { position: updated.position }) },
       });
       return updated;
     });

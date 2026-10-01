@@ -1,8 +1,16 @@
-import { BoardDetailDtoSchema, ErrorResponseSchema, ListDtoSchema } from '@trello-clone/shared';
+import {
+  BoardDetailDtoSchema,
+  ErrorResponseSchema,
+  ListDtoSchema,
+  POSITION_STEP,
+  positionBetween,
+  REBALANCE_THRESHOLD,
+} from '@trello-clone/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { rebalanceContainer } from '../../src/lib/rebalance';
 import { boardData } from '../data/boards';
 import { paths } from '../data/http';
 import { invalidListBodies, invalidListUpdates, listData } from '../data/lists';
@@ -13,7 +21,7 @@ import { bearer, createUserWithToken } from '../helpers/users';
 import type { Role } from '@trello-clone/shared';
 import type { Express } from 'express';
 
-// LIST-001, LIST-002: docs/api/lists.md. The full role matrix and tenant isolation run in their own suites
+// LIST-001, LIST-002, LIST-003: docs/api/lists.md. The full role matrix and tenant isolation run in their own suites
 // (role-matrix.test.ts, tenant-isolation.test.ts).
 
 type User = Awaited<ReturnType<typeof createUserWithToken>>;
@@ -134,8 +142,10 @@ describe('POST /api/v1/boards/:boardId/lists', () => {
   it('breaks position ties by id, so the order is stable', async () => {
     const { owner, boardId } = await boardWith();
     for (const title of listData.titles) {
-      await createList(boardId, owner, { title, position: 1024 }).expect(201);
+      await createList(boardId, owner, { title }).expect(201);
     }
+    // Equal positions only arise from writes the API would rebalance, so set them directly.
+    await testPrisma.list.updateMany({ where: { boardId }, data: { position: 1024 } });
 
     const ids = (await testPrisma.list.findMany({ where: { boardId } })).map((list) => list.id);
     const detail = await detailOf(boardId, owner);
@@ -329,5 +339,149 @@ describe('DELETE /api/v1/lists/:listId', () => {
     await deleteList(listId, owner).expect(204);
 
     expect((await deleteList(listId, owner)).status).toBe(404);
+  });
+});
+
+/** A board with the lists A, B, C (positions 1024, 2048, 3072), created by its owner. */
+async function orderedBoard() {
+  const ctx = await boardWith();
+  const ids: Record<string, string> = {};
+  for (const title of listData.ordered) {
+    ids[title] = (await createList(ctx.boardId, ctx.owner, { title }).expect(201)).body.data.id;
+  }
+  const titles = async () => (await detailOf(ctx.boardId, ctx.owner)).lists.map((l) => l.title);
+  return { ...ctx, ids, titles };
+}
+
+/** Every gap between neighbours on the board, and the smallest position. */
+async function spacingOf(boardId: string) {
+  const lists = await testPrisma.list.findMany({
+    where: { boardId },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+  });
+  const gaps = lists.slice(1).map((list, i) => list.position - lists[i]!.position);
+  return { min: lists[0]!.position, minGap: Math.min(...gaps) };
+}
+
+describe('PATCH /api/v1/lists/:listId (position)', () => {
+  it('moves a list to the start, between two lists and to the end, logging LIST_MOVED', async () => {
+    const { owner, boardId, ids, titles } = await orderedBoard();
+
+    const toStart = await patchList(ids.C!, owner, { position: 512 }).expect(200);
+    expect(toStart.body.data.position).toBe(512);
+    expect(await titles()).toEqual(['C', 'A', 'B']);
+
+    await patchList(ids.B!, owner, { position: positionBetween(512, 1024) }).expect(200);
+    expect(await titles()).toEqual(['C', 'B', 'A']);
+
+    await patchList(ids.C!, owner, { position: 4096 }).expect(200);
+    expect(await titles()).toEqual(['B', 'A', 'C']);
+
+    const moves = await testPrisma.activity.findMany({
+      where: { boardId, type: 'LIST_MOVED' },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(moves.map((m) => m.data)).toEqual([
+      { listId: ids.C, position: 512 },
+      { listId: ids.B, position: 768 },
+      { listId: ids.C, position: 4096 },
+    ]);
+  });
+
+  it('60 inserts into the same gap rebalance the board and keep the order', async () => {
+    const { owner, boardId, ids } = await orderedBoard();
+    // Each new list goes between A and the previous insert, halving the gap every time.
+    let right = 2048; // B
+    const inserted: string[] = [];
+    const returned: number[] = [];
+    for (let i = 0; i < listData.gapInserts; i += 1) {
+      const title = `n${i}`;
+      const res = await createList(boardId, owner, {
+        title,
+        position: positionBetween(1024, right),
+      }).expect(201);
+      // A rebalance moves A too; read the current neighbours back from the server.
+      const a = await testPrisma.list.findUniqueOrThrow({ where: { id: ids.A! } });
+      returned.push(res.body.data.position);
+      right = res.body.data.position;
+      expect(right).toBeGreaterThan(a.position);
+      inserted.unshift(title);
+    }
+
+    // The order is A, the inserts newest first, then B and C.
+    const detail = await detailOf(boardId, owner);
+    expect(detail.lists.map((list) => list.title)).toEqual(['A', ...inserted, 'B', 'C']);
+    // At least one insert came back renumbered to a multiple of the step.
+    expect(returned.some((position, i) => i > 0 && position % POSITION_STEP === 0)).toBe(true);
+    const { min, minGap } = await spacingOf(boardId);
+    expect(min).toBeGreaterThanOrEqual(REBALANCE_THRESHOLD);
+    expect(minGap).toBeGreaterThanOrEqual(REBALANCE_THRESHOLD);
+  });
+
+  it('moves into a crowded gap rebalance too; the response has the final position', async () => {
+    const { owner, boardId, ids, titles } = await orderedBoard();
+    // Squeeze B right after A, then move C between them.
+    await testPrisma.list.update({ where: { id: ids.B! }, data: { position: 1024.0000001 } });
+
+    const res = await patchList(ids.C!, owner, {
+      position: positionBetween(1024, 1024.0000001),
+    }).expect(200);
+
+    expect(await titles()).toEqual(['A', 'C', 'B']);
+    expect(res.body.data.position).toBe(2048);
+    const stored = await testPrisma.list.findMany({
+      where: { boardId },
+      orderBy: { position: 'asc' },
+    });
+    expect(stored.map((list) => list.position)).toEqual([1024, 2048, 3072]);
+  });
+
+  it('a move to a position near 0 rebalances', async () => {
+    const { owner, ids, titles } = await orderedBoard();
+
+    const res = await patchList(ids.C!, owner, { position: 1e-7 }).expect(200);
+
+    expect(res.body.data.position).toBe(1024);
+    expect(await titles()).toEqual(['C', 'A', 'B']);
+  });
+
+  it('403 for a VIEWER, and nothing moves', async () => {
+    const { member, listId } = await listWith('VIEWER');
+
+    expect((await patchList(listId, member, { position: 4096 })).status).toBe(403);
+    expect(await testPrisma.list.findUnique({ where: { id: listId } })).toMatchObject({
+      position: 1024,
+    });
+  });
+});
+
+describe('rebalanceContainer', () => {
+  it('renumbers archived and open lists by position, id and touches only that board', async () => {
+    const { boardId, ids } = await orderedBoard();
+    const other = await listWith();
+    await testPrisma.list.update({ where: { id: ids.A! }, data: { position: 3, archived: true } });
+    await testPrisma.list.update({ where: { id: ids.B! }, data: { position: 2 } });
+    await testPrisma.list.update({ where: { id: ids.C! }, data: { position: 1 } });
+
+    const positions = await testPrisma.$transaction((tx) =>
+      rebalanceContainer(tx, 'List', 'boardId', boardId),
+    );
+
+    expect(Object.fromEntries(positions)).toEqual({
+      [ids.C!]: 1024,
+      [ids.B!]: 2048,
+      [ids.A!]: 3072,
+    });
+    expect(await testPrisma.list.findUnique({ where: { id: other.listId } })).toMatchObject({
+      position: 1024,
+    });
+  });
+
+  it('refuses a column that does not group that table', async () => {
+    await expect(
+      testPrisma.$transaction((tx) =>
+        rebalanceContainer(tx, 'List', 'listId' as 'boardId', 'clx0000000000000000000001'),
+      ),
+    ).rejects.toThrow('Unknown container List.listId');
   });
 });
