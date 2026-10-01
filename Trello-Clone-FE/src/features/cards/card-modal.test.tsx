@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { http as mswHttp, HttpResponse } from 'msw';
+import { delay, http as mswHttp, HttpResponse } from 'msw';
 
 import { setAccessToken } from '@/api/token-store';
 import { apiUrl, buildErrorBody } from '@/testing/data/api';
@@ -29,13 +29,22 @@ const cardUrlPath = (cardId: string) => `${boardPathFor(roadmapBoard)}/c/${cardI
 /** Signed in with `role`; the card endpoints are recorded and answer from `cards`. */
 function signedInAs(
   role: Role,
-  options: { board?: BoardDetailDto; cards?: CardDetailDto[]; failDelete?: boolean } = {},
+  options: {
+    board?: BoardDetailDto;
+    cards?: CardDetailDto[];
+    failDelete?: boolean;
+    /** GET /cards/:cardId fails this many times with a 500 before it answers. */
+    failGets?: number;
+    /** GET /cards/:cardId waits this long (ms) before it answers. */
+    slowGet?: number;
+  } = {},
 ) {
   const state = {
     board: structuredClone(options.board ?? roadmapWithCards),
     cards: new Map((options.cards ?? [loginCardDetail]).map((card) => [card.id, { ...card }])),
     patches: [] as unknown[],
     deletes: [] as string[],
+    failedGets: 0,
   };
   server.use(
     mswHttp.post(apiUrl('/auth/refresh'), () =>
@@ -44,7 +53,15 @@ function signedInAs(
     mswHttp.get(apiUrl('/auth/me'), () => HttpResponse.json({ data: currentUser })),
     mswHttp.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: [acmeAs(role)] })),
     mswHttp.get(BOARD_URL, () => HttpResponse.json({ data: state.board })),
-    mswHttp.get(CARD_URL, ({ params }) => {
+    mswHttp.get(CARD_URL, async ({ params }) => {
+      if (options.slowGet) await delay(options.slowGet);
+      if ((options.failGets ?? 0) > state.failedGets) {
+        state.failedGets += 1;
+        return HttpResponse.json(
+          buildErrorBody({ code: 'INTERNAL_ERROR', message: 'Something went wrong', details: [] }),
+          { status: 500 },
+        );
+      }
       const card = state.cards.get(params.cardId as string);
       return card
         ? HttpResponse.json({ data: card })
@@ -202,6 +219,44 @@ describe('card modal (/b/:boardId/c/:cardId)', () => {
     signedInAs('MEMBER', { cards: [loginCardDetail, otherBoardCardDetail] });
 
     renderApp(cardUrlPath(cardId));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: notFoundCase.heading }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('card modal states', () => {
+  afterEach(() => setAccessToken(null));
+
+  it('shows a loading dialog while the card loads', async () => {
+    signedInAs('MEMBER', { slowGet: 300 });
+
+    renderApp(cardUrlPath(loginCard.id));
+
+    expect(await screen.findByRole('dialog', { name: 'Loading card' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: loginCard.title })).toBeInTheDocument();
+  });
+
+  it('a failed load says so, and "Try again" loads the card', async () => {
+    signedInAs('MEMBER', { failGets: 1 });
+
+    renderApp(cardUrlPath(loginCard.id));
+
+    const failed = await screen.findByRole('dialog', { name: "Couldn't load this card." });
+    fireEvent.click(within(failed).getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('dialog', { name: loginCard.title })).toBeInTheDocument();
+  });
+
+  it('after a delete, going back to the card shows "Page not found"', async () => {
+    const { dialog, router } = await openCard('MEMBER');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const confirm = await screen.findByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete card' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(boardPathFor(roadmapBoard)));
+
+    void router.navigate(-1);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: notFoundCase.heading }),

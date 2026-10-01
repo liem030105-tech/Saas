@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { BoardView, boardPath, useBoard } from '@/features/boards';
-import { CardDetailModal, useCard } from '@/features/cards';
+import { CardDetailModal, CardModalStatus, useCard } from '@/features/cards';
 import { BoardLists } from '@/features/lists';
 import { can, useWorkspaces, workspacePath } from '@/features/workspaces';
 
@@ -68,13 +68,21 @@ export function BoardPage() {
         board={board}
         canEdit={!board.archived && (role ? can(role, 'list.manage') : false)}
       />
-      {card.data && (
+      {card.data ? (
         <CardDetailModal
           card={card.data}
           listTitle={board.lists.find((list) => list.id === card.data.listId)?.title}
           canEdit={canEditContent}
           onClose={closeCard}
         />
+      ) : (
+        cardId && (
+          <CardModalStatus
+            status={card.error ? 'error' : 'loading'}
+            onRetry={() => void card.refetch()}
+            onClose={closeCard}
+          />
+        )
       )}
     </BoardView>
   );

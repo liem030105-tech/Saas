@@ -86,16 +86,18 @@ export async function get(userId: string, cardId: string): Promise<CardDetailDto
 }
 
 /**
- * PATCH /cards/:cardId (≥ MEMBER): title, description, due date, completed, archived. Archiving
- * logs CARD_ARCHIVED, anything else CARD_UPDATED, with the changed fields (the description as a
- * flag only, so the log never copies long text), in the same transaction.
+ * PATCH /cards/:cardId (≥ MEMBER): title, description, due date, completed, archived. Archiving an
+ * open card logs CARD_ARCHIVED, anything else CARD_UPDATED, with the changed fields (the due date
+ * as stored, in UTC; the description as a flag only, so the log never copies long text), in the
+ * same transaction.
  */
 export async function update(
   userId: string,
   cardId: string,
   input: UpdateCardData,
 ): Promise<CardDetailDto> {
-  const { boardId } = await assertCardAccess(userId, cardId, 'card.edit');
+  const current = await assertCardAccess(userId, cardId, 'card.edit');
+  const { boardId } = current;
   const changes = {
     ...(input.title !== undefined && { title: input.title }),
     ...(input.description !== undefined && { description: input.description }),
@@ -112,10 +114,14 @@ export async function update(
         boardId,
         userId,
         cardId,
-        type: changes.archived === true ? 'CARD_ARCHIVED' : 'CARD_UPDATED',
+        // CARD_ARCHIVED only when the card goes from open to archived, so the feed has no repeats.
+        type: changes.archived === true && !current.archived ? 'CARD_ARCHIVED' : 'CARD_UPDATED',
         data: {
           ...(input.title !== undefined && { title: input.title }),
-          ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+          // Logged as stored (UTC), whatever offset the client sent.
+          ...(changes.dueDate !== undefined && {
+            dueDate: changes.dueDate === null ? null : changes.dueDate.toISOString(),
+          }),
           ...(input.completed !== undefined && { completed: input.completed }),
           ...(input.archived !== undefined && { archived: input.archived }),
           // The description changed: a flag only, so the log never copies long text.

@@ -2,5 +2,6 @@
 export { AddCardComposer } from './components/AddCardComposer';
 export { CardDetailModal } from './components/CardDetailModal';
 export { CardItem } from './components/CardItem';
+export { CardModalStatus } from './components/CardModalStatus';
 export { cardPath } from './paths';
 export { useCard } from './queries';

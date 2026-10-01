@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   CardDescriptionSchema,
   CardTitleSchema,
@@ -6,7 +7,9 @@ import {
 } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
@@ -16,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Markdown } from '@/components/ui/Markdown';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
-import { useDeleteCard, useUpdateCard } from '../queries';
+import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
 
 const DELETE_ERROR = "Couldn't delete the card. Check your connection and try again.";
 
@@ -37,6 +40,7 @@ interface CardDetailModalProps {
 export function CardDetailModal({ card, listTitle, canEdit, onClose }: CardDetailModalProps) {
   const updateCard = useUpdateCard(card.boardId, card.id);
   const deleteCard = useDeleteCard(card.boardId, card.id);
+  const forgetCard = useForgetCard();
   const save = (input: UpdateCardInput) => updateCard.mutate(input);
 
   return (
@@ -131,6 +135,7 @@ export function CardDetailModal({ card, listTitle, canEdit, onClose }: CardDetai
                   }
                   toast.success(`${card.title} was deleted.`);
                   onClose();
+                  forgetCard(card.id); // after leaving the card's URL, see useForgetCard
                   return null;
                 }}
               />
@@ -192,22 +197,19 @@ function DueAndCompleted({ card, canEdit, onSave }: SectionProps) {
   );
 }
 
-/** The description as rendered markdown; "Edit" swaps in a textarea with Save and Cancel. */
-function Description({ card, canEdit, onSave }: SectionProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** The description form: a blank text clears the description (`null`). */
+const DescriptionFormSchema = z.object({
+  description: z
+    .string()
+    .transform((text) => (text.trim() === '' ? null : text))
+    .pipe(CardDescriptionSchema),
+});
+type DescriptionFormInput = z.input<typeof DescriptionFormSchema>;
+type DescriptionFormData = z.output<typeof DescriptionFormSchema>;
 
-  const saveDraft = () => {
-    if (draft === null) return;
-    const parsed = CardDescriptionSchema.safeParse(draft.trim() === '' ? null : draft);
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid description');
-      return;
-    }
-    if (parsed.data !== card.description) onSave({ description: parsed.data });
-    setDraft(null);
-    setError(null);
-  };
+/** The description as rendered markdown; "Edit" swaps in a form with Save and Cancel. */
+function Description({ card, canEdit, onSave }: SectionProps) {
+  const [editing, setEditing] = useState(false);
 
   return (
     <section aria-labelledby="card-description" className="flex flex-col gap-2">
@@ -215,56 +217,28 @@ function Description({ card, canEdit, onSave }: SectionProps) {
         <h3 id="card-description" className="text-xs font-semibold text-muted-foreground uppercase">
           Description
         </h3>
-        {canEdit && draft === null && card.description && (
-          <Button variant="ghost" size="sm" onClick={() => setDraft(card.description ?? '')}>
+        {canEdit && !editing && card.description && (
+          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
             Edit
           </Button>
         )}
       </div>
-      {draft !== null ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            aria-label="Description"
-            autoFocus
-            rows={8}
-            value={draft}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'card-description-error' : 'card-description-hint'}
-            onChange={(event) => setDraft(event.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
-          />
-          {error ? (
-            <p id="card-description-error" role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : (
-            <p id="card-description-hint" className="text-xs text-muted-foreground">
-              Markdown is supported.
-            </p>
-          )}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={saveDraft}>
-              Save
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setDraft(null);
-                setError(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
+      {editing ? (
+        <DescriptionForm
+          description={card.description}
+          onSave={(description) => {
+            if (description !== card.description) onSave({ description });
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
       ) : card.description ? (
         <Markdown>{card.description}</Markdown>
       ) : canEdit ? (
         <button
           type="button"
           className="rounded-md bg-muted px-3 py-6 text-left text-sm text-muted-foreground hover:bg-muted/70"
-          onClick={() => setDraft('')}
+          onClick={() => setEditing(true)}
         >
           Add a more detailed description…
         </button>
@@ -272,5 +246,57 @@ function Description({ card, canEdit, onSave }: SectionProps) {
         <p className="text-sm text-muted-foreground">No description.</p>
       )}
     </section>
+  );
+}
+
+function DescriptionForm({
+  description,
+  onSave,
+  onCancel,
+}: {
+  description: string | null;
+  onSave: (description: string | null) => void;
+  onCancel: () => void;
+}) {
+  const form = useForm<DescriptionFormInput, unknown, DescriptionFormData>({
+    resolver: zodResolver(DescriptionFormSchema),
+    defaultValues: { description: description ?? '' },
+  });
+  const error = form.formState.errors.description?.message;
+
+  return (
+    <form
+      noValidate
+      aria-label="Edit description"
+      className="flex flex-col gap-2"
+      onSubmit={(event) => void form.handleSubmit((values) => onSave(values.description))(event)}
+    >
+      <textarea
+        aria-label="Description"
+        autoFocus
+        rows={8}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? 'card-description-error' : 'card-description-hint'}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
+        {...form.register('description')}
+      />
+      {error ? (
+        <p id="card-description-error" role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : (
+        <p id="card-description-hint" className="text-xs text-muted-foreground">
+          Markdown is supported.
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">
+          Save
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -304,7 +304,7 @@ describe('PATCH /api/v1/cards/:cardId', () => {
     expect(activity).toMatchObject({ boardId, cardId, userId: member.user.id });
     expect(activity.data).toEqual({
       title: cardData.update.stored.title,
-      dueDate: cardData.update.input.dueDate,
+      dueDate: cardData.update.stored.dueDate,
       completed: true,
       description: true,
     });
@@ -328,6 +328,9 @@ describe('PATCH /api/v1/cards/:cardId', () => {
       where: { type: 'CARD_ARCHIVED' },
     });
     expect(archived).toMatchObject({ cardId, data: { archived: true } });
+    // Archiving an archived card again is an update, not a second CARD_ARCHIVED.
+    await patchCard(cardId, owner, { archived: true }).expect(200);
+    expect(await testPrisma.activity.count({ where: { type: 'CARD_ARCHIVED' } })).toBe(1);
     const [list] = (await detailOf(boardId, owner)).lists;
     expect(list!.cards).toEqual([]);
   });

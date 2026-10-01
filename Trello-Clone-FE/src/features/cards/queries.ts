@@ -180,7 +180,9 @@ export function useUpdateCard(boardId: string, cardId: string) {
 
 /**
  * DELETE /cards/:cardId. Not optimistic: it runs from a confirmation dialog in the card modal,
- * which must stay open to show an error. The card leaves the board once the server agrees.
+ * which must stay open to show an error. The card leaves the board once the server agrees; the
+ * caller drops the card's own query with `useForgetCard` once the modal has closed (dropping it
+ * while the modal watches it would refetch and flash "Page not found").
  */
 export function useDeleteCard(boardId: string, cardId: string) {
   const queryClient = useQueryClient();
@@ -195,4 +197,13 @@ export function useDeleteCard(boardId: string, cardId: string) {
     },
     onSettled: () => refetchBoardWhenIdle(queryClient, boardId),
   });
+}
+
+/**
+ * Drops a deleted card's query, so going back to its URL asks the server again (and gets the
+ * 404) instead of showing the cached card.
+ */
+export function useForgetCard() {
+  const queryClient = useQueryClient();
+  return (cardId: string) => queryClient.removeQueries({ queryKey: cardKeys.detail(cardId) });
 }
