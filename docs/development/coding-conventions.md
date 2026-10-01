@@ -3,39 +3,34 @@
 > **Domain:** code style, naming, Git. Per-layer architecture rules live in `docs/architecture/`.
 
 ## TypeScript
-
 - `strict: true`, `noUncheckedIndexedAccess: true`. No `any`; use `unknown` and narrow.
 - Types for data crossing the API come from `z.infer<typeof Schema>` in `@trello-clone/shared`; never declare them a second time by hand.
 - Named exports only; default exports only where a tool requires them (vite, playwright configs).
 - Prefer `async/await`; no floating promises (ESLint `no-floating-promises`).
 
 ## Naming
-
-| Kind             | Convention                                                                                                  | Example                      |
-| ---------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| BE files         | `<module>.<layer>.ts`                                                                                       | `cards.service.ts`           |
-| React components | PascalCase                                                                                                  | `CardDetailModal.tsx`        |
-| Hooks            | camelCase starting with `use`                                                                               | `useMoveCard.ts`             |
-| Zod schemas      | PascalCase + suffix                                                                                         | `CreateCardInput`, `CardDto` |
-| Constants        | UPPER_SNAKE                                                                                                 | `PLAN_LIMITS`                |
-| Realtime events  | `domain:past-tense-verb`                                                                                    | `card:moved`                 |
-| Routes           | kebab-case, plural nouns                                                                                    | `/workspaces/:id/members`    |
-| Branches         | `feat/…`, `fix/…`, `docs/…`, `chore/…`; Claude Code cloud sessions use the `claude/…` branch they are given | `feat/card-move`             |
+| Kind | Convention | Example |
+|------|------------|---------|
+| BE files | `<module>.<layer>.ts` | `cards.service.ts` |
+| React components | PascalCase | `CardDetailModal.tsx` |
+| Hooks | camelCase starting with `use` | `useMoveCard.ts` |
+| Zod schemas | PascalCase + suffix | `CreateCardInput`, `CardDto` |
+| Constants | UPPER_SNAKE | `PLAN_LIMITS` |
+| Realtime events | `domain:past-tense-verb` | `card:moved` |
+| Routes | kebab-case, plural nouns | `/workspaces/:id/members` |
+| Branches | `feat/…`, `fix/…`, `docs/…`, `chore/…`; Claude Code cloud sessions use the `claude/…` branch they are given | `feat/card-move` |
 
 ## Formatting and linting
-
 - Prettier: 2 spaces, single quotes, semicolons, `printWidth` 100.
 - ESLint: one root flat config (`eslint.config.js`) with `typescript-eslint` (type-aware), `react-hooks` (added with the FE), `import-x/order`, `import-x/no-restricted-paths` (FE layer direction), and `no-restricted-imports` (FE ↔ BE, cross-feature and cross-module internals, shared internals).
 - Markdown and `docker-compose.yml` are not formatted by Prettier (`.prettierignore`): docs are hand-formatted.
 - No `console.log` in committed code; the BE uses the logger.
 
 ## Comments
-
 - Explain **why**, not what.
 - `TODO(<name>): …` must reference an issue or a reason.
 
 ## Git
-
 - **Conventional Commits:** `feat(cards): move card between boards`, `fix(auth): …`, `docs: …`, `test: …`, `chore: …`.
 - One concern per PR, ideally under ~400 changed lines (excluding generated files). PR description covers what, why, and how it was tested.
 - Never commit `.env`, build output, or `node_modules`.

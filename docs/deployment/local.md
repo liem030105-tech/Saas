@@ -10,15 +10,15 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: trello
-      POSTGRES_PASSWORD: trello # local only
+      POSTGRES_PASSWORD: trello        # local only
       POSTGRES_DB: trello
-    ports: ['5432:5432']
+    ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
   postgres-test:
     image: postgres:16-alpine
     environment: { POSTGRES_USER: trello, POSTGRES_PASSWORD: trello, POSTGRES_DB: trello_test }
-    ports: ['5433:5432']
-    tmpfs: [/var/lib/postgresql/data] # throwaway test DB
+    ports: ["5433:5432"]
+    tmpfs: [/var/lib/postgresql/data]  # throwaway test DB
 volumes:
   pgdata:
 ```
