@@ -73,7 +73,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 26 | [CARD-003](CARD-003-card-move.md) card move API | 3 | C-002, L-003 | C-005 | – | Done |
 | 27 | [CARD-004](CARD-004-card-drag-drop.md) card drag and drop | 3 | C-003 | C-005 | – | Done |
 | 28 | [CARD-005](CARD-005-card-details.md) card details | 4 | C-002 | C-003, C-004 | – | Done |
-| 29 | [REALTIME-001](REALTIME-001-realtime.md) realtime | 5 | all MVP tasks | – | – | In progress (001a connection and rooms, 001b board/list/member/card/comment events, 001c1 board and card sync on the FE done) |
+| 29 | [REALTIME-001](REALTIME-001-realtime.md) realtime | 5 | all MVP tasks | – | – | In progress (001a connection and rooms, 001b board/list/member/card/comment events, 001c FE sync done) |
 | 30 | [ATTACHMENTS-001](ATTACHMENTS-001-attachments.md) attachments | 6 | REALTIME-001 | SEARCH, NOTIFICATIONS, BILLING | **D-20** | Todo |
 | 31 | [SEARCH-001](SEARCH-001-search-filters.md) search & filters | 6 | REALTIME-001 | ATTACHMENTS, NOTIFICATIONS, BILLING | – | Todo |
 | 32 | [NOTIFICATIONS-001](NOTIFICATIONS-001-notifications.md) notifications | 6 | REALTIME-001 | ATTACHMENTS, SEARCH, BILLING | **D-09** | Todo |

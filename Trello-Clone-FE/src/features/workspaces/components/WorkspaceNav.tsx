@@ -3,11 +3,13 @@ import { NavLink } from 'react-router';
 import { cn } from '@/lib/utils';
 
 import { CreateWorkspaceDialog } from './CreateWorkspaceDialog';
+import { useWorkspacesSocket } from '../hooks/useWorkspacesSocket';
 import { workspacePath } from '../paths';
 import { useWorkspaces } from '../queries';
 
 /** Sidebar content: the caller's workspaces and "Create workspace" (docs/design/ui.md → App shell). */
 export function WorkspaceNav() {
+  useWorkspacesSocket(); // removals and member changes in real time (REALTIME-001)
   const { data: workspaces, isPending, isError, refetch } = useWorkspaces();
 
   return (

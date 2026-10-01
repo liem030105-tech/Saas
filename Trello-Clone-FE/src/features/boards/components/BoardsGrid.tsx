@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 
 import { CreateBoardDialog } from './CreateBoardDialog';
 import { readableTextColor } from '../colors';
+import { useWorkspaceBoardsSocket } from '../hooks/useWorkspaceBoardsSocket';
 import { boardPath } from '../paths';
 import { useBoards } from '../queries';
 
@@ -27,6 +28,7 @@ export function BoardsGrid({
   canCreate: mayCreate,
   archived = false,
 }: BoardsGridProps) {
+  useWorkspaceBoardsSocket(workspaceId); // boards changed elsewhere show up (REALTIME-001)
   const { data: boards, isPending, isError, refetch } = useBoards(workspaceId, archived);
   const canCreate = mayCreate && !archived;
 
