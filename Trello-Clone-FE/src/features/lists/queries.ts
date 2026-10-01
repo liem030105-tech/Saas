@@ -3,7 +3,12 @@ import { initialPosition, positionAfter } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
-import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/boards';
+import {
+  boardChangeKey,
+  boardKeys,
+  boardMutationScope,
+  refetchBoardWhenIdle,
+} from '@/features/boards';
 
 import { listsApi } from './api';
 
@@ -94,6 +99,7 @@ export function useUpdateList(boardId: string) {
   const key = boardKeys.detail(boardId);
 
   return useMutation({
+    mutationKey: boardChangeKey(boardId),
     mutationFn: ({ list, input }: { list: ListRef; input: UpdateListInput }) =>
       listsApi.update(list.id, input),
     onMutate: async ({ list, input }) => {
@@ -131,6 +137,7 @@ export function useDeleteList(boardId: string) {
   const key = boardKeys.detail(boardId);
 
   return useMutation({
+    mutationKey: boardChangeKey(boardId),
     mutationFn: (listId: string) => listsApi.remove(listId),
     onSuccess: (_result, listId) => {
       queryClient.setQueryData<BoardDetailDto>(key, (board) =>

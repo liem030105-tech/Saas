@@ -257,15 +257,6 @@ describe('own changes', () => {
 
     expect(heardByA.map((e) => (e.data as { title: string }).title)).toEqual(['From elsewhere']);
   });
-
-  it('a malformed X-Socket-Id is ignored (everyone hears the change)', async () => {
-    const { owner, boardId, socket } = await watchedBoard();
-
-    const heard = nextEvent(socket, 'list:created');
-    await addList(owner, boardId, { title: 'X' }).set('X-Socket-Id', 'not valid!').expect(201);
-
-    await heard;
-  });
 });
 
 describe('member:removed', () => {

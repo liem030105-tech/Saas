@@ -8,6 +8,7 @@ export { readableTextColor } from './colors';
 export { boardPath } from './paths';
 export {
   activityKeys,
+  boardChangeKey,
   boardKeys,
   boardMutationScope,
   refetchBoardWhenIdle,

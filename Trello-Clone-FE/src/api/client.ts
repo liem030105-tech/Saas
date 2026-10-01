@@ -102,6 +102,17 @@ export function refreshAccessToken(): Promise<string> {
   return refreshing;
 }
 
+/**
+ * Ends the session (the app redirects to /login) if `refreshError` says it is over (a 401 from
+ * /auth/refresh); returns whether it did. An outage or a dropped connection ends nothing.
+ */
+export function endSessionIfOver(refreshError: unknown): boolean {
+  if (!isSessionOver(refreshError)) return false;
+  const reused = refreshError instanceof ApiError && refreshError.code === 'TOKEN_REUSED';
+  sessionEndedHandler(reused ? 'reused' : 'expired');
+  return true;
+}
+
 const bearer = (token: string) => `Bearer ${token}`;
 
 http.interceptors.request.use((config) => {
@@ -135,9 +146,7 @@ http.interceptors.response.use(undefined, async (error: unknown) => {
     await refreshAccessToken();
   } catch (refreshError) {
     // Only a 401 ends the session; an outage or a dropped connection surfaces as that error.
-    if (!isSessionOver(refreshError)) throw refreshError;
-    const reused = refreshError instanceof ApiError && refreshError.code === 'TOKEN_REUSED';
-    sessionEndedHandler(reused ? 'reused' : 'expired');
+    if (!endSessionIfOver(refreshError)) throw refreshError;
     throw error;
   }
   return http(original); // retried once, with the new token

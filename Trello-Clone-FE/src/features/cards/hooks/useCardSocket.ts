@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 import { createEventDedupe, onEvent } from '@/lib/socket';
 
-import { cardKeys } from '../queries';
+import { cardKeys, cardMutationScope } from '../queries';
 
 import type { RealtimeEventType } from '@trello-clone/shared';
 
@@ -30,6 +30,9 @@ export function useCardSocket(cardId: string, userId: string | undefined) {
       onEvent(type, (event) => {
         const id = 'cardId' in event.data ? event.data.cardId : event.data.id;
         if (id !== cardId || !isNew(event.eventId)) return;
+        // A change made in this modal is pending: it refetches the card when it settles.
+        const { id: scope } = cardMutationScope(cardId);
+        if (queryClient.isMutating({ predicate: (m) => m.options.scope?.id === scope }) > 0) return;
         void queryClient.invalidateQueries({ queryKey: cardKeys.detail(cardId) });
       }),
     );

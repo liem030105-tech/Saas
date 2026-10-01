@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { positionAfter, initialPosition } from '@trello-clone/shared';
 import { toast } from 'sonner';
 
-import { boardKeys } from '@/features/boards';
+import { boardChangeKey, boardKeys } from '@/features/boards';
 
 import { checklistsApi } from '../api';
 import { cardKeys, cardMutationScope, refetchCardWhenIdle, withCard } from '../queries';
@@ -29,6 +29,7 @@ export function useChecklists(boardId: string, cardId: string) {
   const cardKey = cardKeys.detail(cardId);
   const boardKey = boardKeys.detail(boardId);
   const scope = cardMutationScope(cardId);
+  const mutationKey = boardChangeKey(boardId); // the tile's progress
   const settle = () => refetchCardWhenIdle(queryClient, boardId, cardId);
 
   const cancel = () =>
@@ -68,6 +69,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const addChecklist = useMutation({
     scope,
+    mutationKey,
     mutationFn: (title: string) => checklistsApi.create(cardId, { title }),
     onSuccess: (checklist) => editChecklists((checklists) => [...checklists, checklist]),
     onSettled: settle,
@@ -75,6 +77,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const removeChecklist = useMutation({
     scope,
+    mutationKey,
     mutationFn: (checklistId: string) => checklistsApi.remove(checklistId),
     onSuccess: (_result, checklistId) => {
       const card = queryClient.getQueryData<CardDetailDto>(cardKey);
@@ -89,6 +92,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const renameChecklist = useMutation({
     scope,
+    mutationKey,
     mutationFn: ({ checklistId, title }: { checklistId: string; title: string; from: string }) =>
       checklistsApi.update(checklistId, { title }),
     onMutate: async ({ checklistId, title }) => {
@@ -112,6 +116,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const addItem = useMutation({
     scope,
+    mutationKey,
     mutationFn: ({
       checklistId,
       content,
@@ -148,6 +153,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const toggleItem = useMutation({
     scope,
+    mutationKey,
     mutationFn: ({
       checklistId,
       itemId,
@@ -176,6 +182,7 @@ export function useChecklists(boardId: string, cardId: string) {
 
   const removeItem = useMutation({
     scope,
+    mutationKey,
     mutationFn: ({
       checklistId,
       item,

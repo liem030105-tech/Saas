@@ -12,7 +12,7 @@
 ## Connection and authorization
 - **Transport:** Socket.IO on the API origin (`VITE_SOCKET_URL`), path `/socket.io`.
 - **Authentication:** the client passes the access token in the handshake, `io(url, { auth: { token } })`. The `io.use()` middleware verifies the JWT and sets `socket.data.userId`. Invalid or expired → connection refused with `Error('UNAUTHORIZED')`.
-- **Token expiry:** the server does not re-check tokens on an open socket. When the FE refreshes its access token, it reconnects with the new token.
+- **Token expiry:** the server does not re-check tokens on an open socket. Every handshake (the first and each reconnect) sends the FE's current access token; a handshake refused as `UNAUTHORIZED` makes the FE refresh the token and connect again (at most 3 times in a row), and a refresh refused with 401 ends the session like a REST request would.
 - **Rooms:**
 
   | Room | Joined via | Authorization |
@@ -75,7 +75,7 @@ Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)
 | Stale events | Ignore an event whose `version` ≤ the cached record's `updatedAt`. Delete events always apply |
 | Moves across boards | `card:moved` names ids only; a card that arrives from another board (not in the cache) → `invalidateQueries(['board', toBoardId])` |
 | Applying | Small changes (`*:updated`, `*:moved`, `*:created`) patch the cache with `queryClient.setQueryData(['board', id], …)`; `*:reordered` replaces positions; anything unexpected → `invalidateQueries(['board', id])` |
-| Optimistic conflicts | If a foreign event touches an item with a pending own mutation, apply the event after the mutation settles (the `onSettled` invalidate reconciles) |
+| Optimistic conflicts | While one of this tab's own optimistic changes to the board is pending (the board's add/move scope, or a mutation keyed `boardChangeKey(boardId)`: renames, toggles on a card, checklists, comment counts), board events are not patched in; the change refetches the board when it settles, which brings them. The open card likewise skips its refetch while a change in its modal is pending. Comments are patched from the event (never refetched), so a refetch cannot drop or bring back a comment this tab is still adding or deleting |
 | Reconnect | On every reconnect after the first: re-join rooms, then `invalidateQueries(['board', id])` and `['boards', workspaceId]` to recover missed events |
 | Removed from workspace | On `member:removed` for self: leave rooms, clear workspace caches, redirect to `/` |
 

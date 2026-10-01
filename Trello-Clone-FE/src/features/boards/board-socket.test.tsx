@@ -6,7 +6,7 @@ import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import { boardPathFor, roadmapBoard } from '@/testing/data/boards';
 import { loginCard, loginCardDetail, roadmapWithCards } from '@/testing/data/cards';
-import { myComment } from '@/testing/data/comments';
+import { adaComment, myComment } from '@/testing/data/comments';
 import { doingList, todoList } from '@/testing/data/lists';
 import { acmeAs, ownerMember } from '@/testing/data/workspaces';
 import { server } from '@/testing/mocks/server';
@@ -167,6 +167,37 @@ describe('board realtime sync (REALTIME-001c)', () => {
     await waitFor(() => expect(header).toBe(realtime().id));
   });
 
+  it('an event during its own pending change waits for it: the change refetches the board after', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const state = await openBoard();
+    server.use(
+      mswHttp.patch(apiUrl(`/lists/${todoList.id}`), async () => {
+        await gate;
+        return HttpResponse.json({ data: { ...todoList, title: 'Mine' } });
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: todoList.title }));
+    const input = screen.getByRole('textbox', { name: 'List title' });
+    fireEvent.change(input, { target: { value: 'Mine' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(listTitles()).toEqual(['Mine', 'Doing']));
+
+    // Someone renames the other list meanwhile: not patched over the pending rename …
+    state.board.lists[0]!.title = 'Mine';
+    state.board.lists[1]!.title = 'Theirs';
+    realtime().serverSends('list:updated', {
+      ...envelope(),
+      data: { ...doingList, title: 'Theirs' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(listTitles()).toEqual(['Mine', 'Doing']);
+
+    // … the rename's own refetch brings it.
+    release();
+    await waitFor(() => expect(listTitles()).toEqual(['Mine', 'Theirs']));
+  });
+
   it('refetches the board after a reconnect, and when the event cannot be applied', async () => {
     const state = await openBoard();
     const before = state.boardGets;
@@ -189,7 +220,7 @@ describe('board realtime sync (REALTIME-001c)', () => {
     await waitFor(() => expect(state.boardGets).toBe(before + 2));
   });
 
-  it('the open card refetches on a change made elsewhere; its comments on a comment', async () => {
+  it('the open card refetches on a change made elsewhere; a comment is added to its list', async () => {
     const state = signedIn();
     renderApp(`${boardPathFor(roadmapBoard)}/c/${loginCard.id}`);
     await screen.findByRole('dialog', { name: loginCard.title });
@@ -202,10 +233,43 @@ describe('board realtime sync (REALTIME-001c)', () => {
     });
     await waitFor(() => expect(state.cardGets).toBe(cardGets + 1));
 
-    realtime().serverSends('comment:created', {
-      ...envelope(),
-      data: { ...myComment, author: { id: someoneElse, name: 'Ada', avatarUrl: null } },
+    realtime().serverSends('comment:created', { ...envelope(), data: adaComment });
+    expect(
+      await screen.findByRole('article', { name: `Comment by ${adaComment.author.name}` }),
+    ).toBeVisible();
+    expect(state.commentGets).toBe(1); // patched in, not refetched
+  });
+
+  it('a comment arriving while its own comment is being sent keeps both', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const state = signedIn();
+    server.use(
+      mswHttp.post(apiUrl(`/cards/${loginCard.id}/comments`), async ({ request }) => {
+        await gate;
+        const { content } = (await request.json()) as { content: string };
+        return HttpResponse.json({ data: { ...myComment, content } }, { status: 201 });
+      }),
+    );
+    renderApp(`${boardPathFor(roadmapBoard)}/c/${loginCard.id}`);
+    await screen.findByRole('dialog', { name: loginCard.title });
+    await waitFor(() => expect(state.commentGets).toBe(1));
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Write a comment' }), {
+      target: { value: 'Mine' },
     });
-    await waitFor(() => expect(state.commentGets).toBe(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Comment' }));
+    const mine = `Comment by ${currentUser.name}`;
+    await screen.findByRole('article', { name: mine });
+
+    realtime().serverSends('comment:created', { ...envelope(), data: adaComment });
+    await screen.findByRole('article', { name: `Comment by ${adaComment.author.name}` });
+    release();
+
+    await waitFor(() =>
+      expect(screen.getByRole('article', { name: mine })).not.toHaveAttribute('aria-busy'),
+    );
+    expect(screen.getByRole('article', { name: mine })).toHaveTextContent('Mine');
+    expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 });

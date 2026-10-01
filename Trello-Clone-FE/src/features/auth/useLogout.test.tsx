@@ -1,11 +1,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http as mswHttp, HttpResponse } from 'msw';
 
+import { getSocketId } from '@/api/socket-id';
 import { getAccessToken, setAccessToken } from '@/api/token-store';
+import { joinRoom } from '@/lib/socket';
 import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
 import { pageCases, profilePage } from '@/testing/data/routes';
 import { server } from '@/testing/mocks/server';
+import { realtime } from '@/testing/realtime';
 import { renderApp } from '@/testing/render';
 
 import { setSignedOutByUser } from './session';
@@ -58,6 +61,20 @@ describe('useLogout (user menu → Log out)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(pageCases.login.path));
     expect(router.state.location.search).toBe('');
+  });
+
+  it('closes the realtime connection', async () => {
+    server.use(mswHttp.post(LOGOUT_URL, () => new HttpResponse(null, { status: 204 })));
+    const { router } = await openProfileSignedIn();
+    joinRoom('board:join', { boardId: 'clx0000000000000000000031' });
+    await waitFor(() => expect(getSocketId()).toBe(realtime().id));
+    const socket = realtime();
+
+    await logOutFromMenu();
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(pageCases.login.path));
+    expect(socket.connected).toBe(false);
+    expect(getSocketId()).toBeNull();
   });
 
   it('calls the API, goes to /login, and clears the token and the whole query cache', async () => {

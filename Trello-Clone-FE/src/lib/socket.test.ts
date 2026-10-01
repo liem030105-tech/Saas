@@ -1,8 +1,14 @@
 import { http as mswHttp, HttpResponse } from 'msw';
 
+import { onSessionEnded } from '@/api/client';
 import { getAccessToken, setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
-import { freshAccessToken, staleAccessToken } from '@/testing/data/auth';
+import {
+  freshAccessToken,
+  refreshUnauthorizedBody,
+  serverErrorBody,
+  staleAccessToken,
+} from '@/testing/data/auth';
 import { server } from '@/testing/mocks/server';
 import { realtime } from '@/testing/realtime';
 
@@ -82,6 +88,59 @@ describe('realtime connection (lib/socket)', () => {
 
     await vi.waitFor(() => expect(connect).toHaveBeenCalled());
     expect(getAccessToken()).toBe(freshAccessToken);
+  });
+
+  it('a refresh refused with 401 ends the session; one that fails otherwise connects again later', async () => {
+    const ended = vi.fn();
+    const off = onSessionEnded(ended);
+    setAccessToken(staleAccessToken);
+    let refresh = () => HttpResponse.json(serverErrorBody, { status: 500 });
+    server.use(mswHttp.post(apiUrl('/auth/refresh'), () => refresh()));
+    joinRoom('board:join', { boardId });
+    await tick();
+    const socket = realtime();
+    const connect = vi.spyOn(socket, 'connect');
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      socket.refuseHandshake('UNAUTHORIZED');
+      await vi.waitFor(() => expect(vi.getTimerCount()).toBe(1)); // the outage: retry later
+      expect(connect).not.toHaveBeenCalled();
+      await vi.runOnlyPendingTimersAsync();
+      expect(connect).toHaveBeenCalledTimes(1);
+      expect(ended).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    refresh = () => HttpResponse.json(refreshUnauthorizedBody, { status: 401 });
+    socket.refuseHandshake('UNAUTHORIZED');
+    await vi.waitFor(() => expect(ended).toHaveBeenCalledWith('expired'));
+    expect(connect).toHaveBeenCalledTimes(1);
+    off();
+  });
+
+  it('stops after three handshakes in a row refused as UNAUTHORIZED', async () => {
+    setAccessToken(staleAccessToken);
+    let refreshes = 0;
+    server.use(
+      mswHttp.post(apiUrl('/auth/refresh'), () => {
+        refreshes += 1;
+        return HttpResponse.json({ data: { accessToken: freshAccessToken } });
+      }),
+    );
+    joinRoom('board:join', { boardId });
+    await tick();
+    const socket = realtime();
+    // The server keeps refusing: each refresh connects, and the handshake is refused again.
+    vi.spyOn(socket, 'connect').mockImplementation(() => {
+      queueMicrotask(() => socket.refuseHandshake('UNAUTHORIZED'));
+      return socket;
+    });
+
+    socket.refuseHandshake('UNAUTHORIZED');
+    await vi.waitFor(() => expect(refreshes).toBe(3));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(refreshes).toBe(3);
   });
 
   it('closing forgets the rooms', async () => {

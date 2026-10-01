@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 import { createEventDedupe, onEvent } from '@/lib/socket';
 
-import { commentKeys } from '../queries';
+import { applyCommentEvent } from '../queries';
 
 import type { RealtimeEventType } from '@trello-clone/shared';
 
@@ -15,7 +15,8 @@ const COMMENT_EVENTS = [
 
 /**
  * While a card's comments are shown: a comment added, edited or deleted elsewhere (another user,
- * or another tab) refetches them (REALTIME-001); this tab's own are already in the list.
+ * or another tab) is patched into them (REALTIME-001, see applyCommentEvent); this tab's own are
+ * already in the list.
  */
 export function useCommentsSocket(cardId: string, userId: string | undefined) {
   const queryClient = useQueryClient();
@@ -27,7 +28,13 @@ export function useCommentsSocket(cardId: string, userId: string | undefined) {
       onEvent(type, (event) => {
         if (event.data.cardId !== cardId) return;
         if (!isNew(event.eventId)) return;
-        void queryClient.invalidateQueries({ queryKey: commentKeys.list(cardId) });
+        applyCommentEvent(
+          queryClient,
+          cardId,
+          'commentId' in event.data
+            ? { type: 'deleted', commentId: event.data.commentId }
+            : { type: 'saved', comment: event.data },
+        );
       }),
     );
     return () => {

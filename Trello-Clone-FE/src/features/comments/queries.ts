@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { activityKeys, boardKeys, boardMutationScope } from '@/features/boards';
+import { activityKeys, boardChangeKey, boardKeys, boardMutationScope } from '@/features/boards';
 
 import { commentsApi } from './api';
 
@@ -50,6 +50,42 @@ function updatePages(
   );
 }
 
+/**
+ * A comment added, edited or deleted elsewhere (REALTIME-001), patched into the loaded pages rather
+ * than refetched: a refetch could land before this tab's own pending add or delete is stored and
+ * drop or bring back that comment, and the server never sends this tab its own change to fix it.
+ * A new comment goes first (newest first), unless already there; deleting the comment a next page
+ * starts after refetches the pages.
+ */
+export function applyCommentEvent(
+  queryClient: QueryClient,
+  cardId: string,
+  change: { type: 'saved'; comment: CommentDto } | { type: 'deleted'; commentId: string },
+) {
+  const key = commentKeys.list(cardId);
+  const pages = queryClient.getQueryData<CommentPages>(key)?.pages;
+  if (!pages) return;
+  if (change.type === 'deleted') {
+    if (pages.some((page) => page.nextCursor === change.commentId)) {
+      void queryClient.invalidateQueries({ queryKey: key });
+      return;
+    }
+    updatePages(queryClient, cardId, (comments) =>
+      comments.filter((c) => c.id !== change.commentId),
+    );
+    return;
+  }
+  const { comment } = change;
+  const loaded = pages.some((page) => page.data.some((c) => c.id === comment.id));
+  updatePages(queryClient, cardId, (comments, i) =>
+    loaded
+      ? comments.map((c) => (c.id === comment.id ? comment : c))
+      : i === 0
+        ? [comment, ...comments]
+        : comments,
+  );
+}
+
 /** The comment badge on the card's tile follows a comment added or deleted here. */
 function bumpCommentCount(queryClient: QueryClient, boardId: string, cardId: string, by: 1 | -1) {
   queryClient.setQueryData<BoardDetailDto>(boardKeys.detail(boardId), (board) =>
@@ -90,6 +126,7 @@ export function useAddComment(boardId: string, cardId: string, author: UserSumma
   const key = commentKeys.list(cardId);
 
   return useMutation({
+    mutationKey: boardChangeKey(boardId), // the tile's comment count
     mutationFn: (content: string) => commentsApi.create(cardId, { content }),
     onMutate: async (content) => {
       await queryClient.cancelQueries({ queryKey: key });
@@ -145,6 +182,7 @@ export function useDeleteComment(boardId: string, cardId: string) {
   const key = commentKeys.list(cardId);
 
   return useMutation({
+    mutationKey: boardChangeKey(boardId),
     mutationFn: (comment: CommentDto) => commentsApi.remove(comment.id),
     onMutate: async (comment) => {
       await queryClient.cancelQueries({ queryKey: key });

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { boardKeys } from '@/features/boards';
+import { boardChangeKey, boardKeys } from '@/features/boards';
 
 import { cardKeys, cardMutationScope, refetchCardWhenIdle, withCard } from '../queries';
 
@@ -63,6 +63,7 @@ export function useToggleOnCard<Kind extends keyof OnCard>(
   };
   return useMutation({
     scope: cardMutationScope(cardId),
+    mutationKey: boardChangeKey(boardId),
     mutationFn: ({ item, on }: { item: Item; on: boolean }) =>
       on ? api.attach(cardId, item.id) : api.detach(cardId, item.id),
     onMutate: async ({ item, on }) => {

@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-import { refreshAccessToken } from '@/api/client';
+import { endSessionIfOver, refreshAccessToken } from '@/api/client';
 import { setSocketId } from '@/api/socket-id';
 import { getAccessToken } from '@/api/token-store';
 import { env } from '@/config/env';
@@ -24,6 +24,11 @@ export interface RealtimeTransport {
   disconnect(): unknown;
 }
 
+/** Handshakes refused as UNAUTHORIZED in a row before the socket stops trying (until reload). */
+const MAX_REFUSED_HANDSHAKES = 3;
+/** Wait before connecting again after a refresh that failed without ending the session. */
+const RETRY_BASE_MS = 2000;
+
 type Factory = (auth: (cb: (data: { token: string | null }) => void) => void) => RealtimeTransport;
 
 const socketIoFactory: Factory = (auth) =>
@@ -46,22 +51,28 @@ function realtime(): RealtimeTransport {
   if (socket) return socket;
   // The token is read on every (re)connect, so a refreshed token is used from the next one on.
   const created = factory((cb) => cb({ token: getAccessToken() }));
+  let refused = 0;
+  const connectAgain = () => {
+    if (socket === created) created.connect();
+  };
   created.on('connect', () => {
+    refused = 0;
     setSocketId(created.id ?? null);
     for (const { event, payload } of rooms.values()) created.emit(event, payload);
     if (connectedBefore) for (const listener of reconnectListeners) listener();
     connectedBefore = true;
   });
   created.on('disconnect', () => setSocketId(null));
-  // A refused handshake (expired token) is not retried by Socket.IO: refresh, then reconnect.
+  // A refused handshake (expired token) is not retried by Socket.IO: refresh, then connect again.
+  // A refresh refused with 401 ends the session (as for a REST request); an outage retries later.
   created.on('connect_error', (error: Error) => {
     if (error.message !== 'UNAUTHORIZED' || getAccessToken() === null) return;
-    refreshAccessToken().then(
-      () => {
-        if (socket === created) created.connect();
-      },
-      () => {}, // the session ended; the app signs out on the next request
-    );
+    refused += 1;
+    if (refused > MAX_REFUSED_HANDSHAKES) return;
+    refreshAccessToken().then(connectAgain, (refreshError: unknown) => {
+      if (endSessionIfOver(refreshError)) return;
+      setTimeout(connectAgain, RETRY_BASE_MS * 2 ** (refused - 1));
+    });
   });
   socket = created;
   return created;

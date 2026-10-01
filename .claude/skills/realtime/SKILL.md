@@ -29,5 +29,5 @@ The always-on rules live in [`.claude/rules/realtime.md`](../../rules/realtime.m
 
 ## Done checklist
 - [ ] Integration test with a socket client: unauthorized connect rejected, unauthorized join rejected, event received after a REST mutation
-- [ ] FE hook tests: duplicate event ignored, own event ignored, reconnect invalidates
+- [ ] FE hook tests: duplicate event ignored, the tab's own changes not echoed (`X-Socket-Id`, BE test; the same user's other tabs still sync), reconnect invalidates
 - [ ] Event added to `docs/architecture/realtime.md` if it is a new type
