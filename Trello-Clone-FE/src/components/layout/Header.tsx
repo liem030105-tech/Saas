@@ -10,21 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { initials } from '@/lib/utils';
 
 import type { UserDto } from '@trello-clone/shared';
 
 /** What the header shows about the signed-in user. */
 export type HeaderUser = Pick<UserDto, 'name' | 'email' | 'avatarUrl'>;
-
-/** Up to two initials, for the avatar fallback. */
-export function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join('');
-}
 
 // docs/design/ui.md → App shell: a 48px header with the ☰ sidebar toggle (below 768px) and the
 // user's menu. The workspace switcher and search arrive with their tasks. `user` is undefined

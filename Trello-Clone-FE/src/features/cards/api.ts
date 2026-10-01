@@ -2,6 +2,12 @@ import { apiClient } from '@/api/client';
 
 import type {
   CardDetailDto,
+  ChecklistDto,
+  ChecklistItemDto,
+  CreateChecklistInput,
+  CreateChecklistItemInput,
+  UpdateChecklistInput,
+  UpdateChecklistItemInput,
   CardSummaryDto,
   CreateCardInput,
   CreateLabelInput,
@@ -51,4 +57,19 @@ export const cardMembersApi = {
   /** DELETE /cards/:cardId/members/:userId (idempotent). */
   unassign: (cardId: string, userId: string) =>
     apiClient.delete<void>(`/cards/${cardId}/members/${userId}`),
+};
+
+/** A card's checklists and their items (docs/api/cards.md → Checklists; ≥ MEMBER to change). */
+export const checklistsApi = {
+  create: (cardId: string, input: CreateChecklistInput) =>
+    apiClient.post<ChecklistDto>(`/cards/${cardId}/checklists`, input),
+  update: (checklistId: string, input: UpdateChecklistInput) =>
+    apiClient.patch<ChecklistDto>(`/checklists/${checklistId}`, input),
+  remove: (checklistId: string) => apiClient.delete<void>(`/checklists/${checklistId}`),
+  addItem: (checklistId: string, input: CreateChecklistItemInput) =>
+    apiClient.post<ChecklistItemDto>(`/checklists/${checklistId}/items`, input),
+  updateItem: (checklistId: string, itemId: string, input: UpdateChecklistItemInput) =>
+    apiClient.patch<ChecklistItemDto>(`/checklists/${checklistId}/items/${itemId}`, input),
+  removeItem: (checklistId: string, itemId: string) =>
+    apiClient.delete<void>(`/checklists/${checklistId}/items/${itemId}`),
 };

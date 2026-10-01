@@ -3,7 +3,6 @@ import { ChevronDownIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
-import { initials } from '@/components/layout/Header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +12,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { initials } from '@/lib/utils';
 
 import { memberErrorMessage } from '../memberErrors';
 import { assignableRoles, canManageMember } from '../permissions';

@@ -104,6 +104,8 @@ CARD-005a adds labels: the card's labels show as chips (name, or colour only) un
 
 CARD-005b adds members: the people on the card show under "Members" (avatar and name), and a member gets "Members" under "Add to card", a popover listing the workspace's members as checkboxes (checked = on this card; the change shows at once and goes back with the toast "Couldn't update the card's members. Try again." on failure). Card tiles show up to three member avatars below the title, then "+n", named for screen readers ("Members: Ada Owner").
 
+CARD-005c adds checklists: each shows its title (renames in place), "Delete" (confirmed: "The checklist and its items are deleted for everyone."), a progress bar with its percentage (green at 100%), its items as checkboxes (ticked items are struck through) with "Delete item {content}", and "Add an item" (Enter adds and keeps the field open; Escape closes it). Ticking, adding and deleting items show at once and go back with the toast "Couldn't update the checklist. Try again." on failure. A member adds a checklist from "Checklist" under "Add to card" (a popover with the title, "Checklist" to start). Card tiles show the checklist badge `done/total` after the due date, green when all are done. A VIEWER sees checklists read-only.
+
 **Due dates are whole days in UTC:** the picker (a native date input) stores the end of that day in UTC, the day is shown in UTC (so it reads the same in every time zone), and a card is overdue once that day has ended.
 
 ### Auth pages `/login`, `/register`

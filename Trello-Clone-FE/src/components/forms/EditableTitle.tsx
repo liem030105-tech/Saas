@@ -11,7 +11,7 @@ interface EditableTitleProps {
   /** Trims and checks the draft; its first message is shown when the draft is invalid. */
   schema: z.ZodType<string, string>;
   /** The heading level the title renders at. */
-  as: 'h1' | 'h2';
+  as: 'h1' | 'h2' | 'h3';
   /** Tooltip on the title button, e.g. "Rename board". */
   hint: string;
   /** The field's accessible name, e.g. "Board title". */
@@ -78,6 +78,8 @@ export function EditableTitle({
       className={cn('bg-background text-foreground', inputClassName)}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={finish}
+      // Escape belongs to this field, not to a dialog around it (CardDetailModal).
+      data-inline-edit=""
       onKeyDown={(event) => {
         if (event.key === 'Escape') cancelled.current = true;
         if (event.key === 'Enter' || event.key === 'Escape') event.currentTarget.blur();
