@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { boardKeys, boardMutationScope, refetchBoardWhenIdle } from '@/features/boards';
+import { positionBetweenNeighbours } from '@/lib/positions';
 
 import { listsApi } from '../api';
-import { positionBetweenNeighbours } from '../positions';
 
 import type { BoardDetailDto } from '@trello-clone/shared';
 

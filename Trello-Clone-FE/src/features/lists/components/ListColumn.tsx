@@ -1,6 +1,6 @@
 import { GripVerticalIcon } from 'lucide-react';
 
-import { AddCardComposer, CardItem } from '@/features/cards';
+import { AddCardComposer, SortableCards } from '@/features/cards';
 
 import { ListHeader } from './ListHeader';
 
@@ -17,7 +17,10 @@ interface ListColumnProps {
   };
 }
 
-/** One list on the board (docs/design/ui.md → Board): its header, its cards, then "Add a card". */
+/**
+ * One list on the board (docs/design/ui.md → Board): its header, its cards (draggable for a
+ * member, CARD-004), then "Add a card".
+ */
 export function ListColumn({ list, canEdit, dragHandle }: ListColumnProps) {
   return (
     <section
@@ -40,14 +43,14 @@ export function ListColumn({ list, canEdit, dragHandle }: ListColumnProps) {
           <ListHeader list={list} canEdit={canEdit} />
         </div>
       </div>
-      {list.cards.length > 0 && (
-        <ol aria-label={`Cards in ${list.title}`} className="flex flex-col gap-2">
-          {list.cards.map((card) => (
-            <li key={card.id}>
-              <CardItem boardId={list.boardId} card={card} />
-            </li>
-          ))}
-        </ol>
+      {(list.cards.length > 0 || canEdit) && (
+        <SortableCards
+          boardId={list.boardId}
+          listId={list.id}
+          listTitle={list.title}
+          cards={list.cards}
+          canEdit={canEdit}
+        />
       )}
       {canEdit && (
         <AddCardComposer boardId={list.boardId} listId={list.id} listTitle={list.title} />

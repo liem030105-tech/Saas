@@ -76,6 +76,7 @@ A `/w/:slug` page keeps following its workspace when the slug changes (here or i
 - List header (LIST-002): the title renames in place (as the board title), and the ⋯ menu ("List actions for {title}") has "Archive list" (the list leaves the board at once; toast "{title} was archived.") and "Delete list" (confirmed in an `AlertDialog`: "The list and all its cards are deleted for everyone."). A VIEWER sees the title only. There is no view of archived lists yet.
 - Cards (CARD-001): each list shows its cards as tiles (title, at most three lines; since CARD-002 a link to the card modal, with the due-date badge: grey, red when overdue, green when completed, and a "Completed" badge without a due date) and ends with "Add a card" ("Add a card to {list}" for screen readers), a textarea composer: Enter adds the card and keeps the composer open, Escape or ✕ closes it. The card shows at once; on failure it disappears with a toast. A VIEWER, an archived board and a list still being created have no composer.
 - List order (LIST-003): each list has a grip handle ("Move list {title}") left of its title. Drag it with the pointer, or focus it and use Space, ←/→ and Space (Escape cancels); moves are announced ("List Doing is at position 2 of 3."). The list moves at once; on failure it goes back with the toast "Couldn't move the list. Try again." A VIEWER, an archived board and a list still being created have no handle.
+- Card drag (CARD-004): a member drags a card tile with the pointer, or focuses it and uses Space, ↑/↓ (within the list), ←/→ (to the next list) and Space (Escape cancels; Enter still opens the card). Moves are announced ("Card Fix login is at position 1 of 2 in Doing."). A VIEWER, an archived board and a card still being created cannot be dragged.
 - **Card tile:** label chips (colour only, 40×8px), title (max 3 lines), then badges: due date (red when overdue, green when completed), checklist `done/total`, comment count, member avatars (max 3 + "+n").
 - **Add a card / Add another list:** an inline composer (textarea + "Add" + ✕). Enter submits and keeps the composer open for the next item; Escape closes. Never a dialog.
 - **Rename in place:** clicking a board or list title swaps it for an input; Enter or blur saves, Escape cancels.
@@ -107,7 +108,7 @@ A centered 400px card on a neutral background: title, fields, primary button, li
 ## Drag and drop behaviour
 - Cards move within and across lists; lists reorder horizontally. The drag shows a tilted copy of the card (`DragOverlay`) and a placeholder where it will drop.
 - On drop: the move is applied optimistically; on failure the card animates back and a toast says "Couldn't move the card. Try again."
-- Keyboard: focus a card, Space to pick up, arrow keys to move, Space to drop, Escape to cancel; moves are announced to screen readers.
+- Keyboard: focus a card, Space to pick up, ↑/↓ to move within its list, ←/→ to move to the next list, Space to drop, Escape to cancel; moves are announced to screen readers.
 - While a drag is in progress, polling and refetch results for that board are not applied (avoids jumps).
 
 ## shadcn/ui component map

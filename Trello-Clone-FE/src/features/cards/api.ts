@@ -4,6 +4,8 @@ import type {
   CardDetailDto,
   CardSummaryDto,
   CreateCardInput,
+  MoveCardInput,
+  MoveCardResult,
   UpdateCardInput,
 } from '@trello-clone/shared';
 
@@ -16,6 +18,9 @@ export const cardsApi = {
   /** PATCH /cards/:cardId: title, description, due date, completed, archived (≥ MEMBER). */
   update: (cardId: string, input: UpdateCardInput) =>
     apiClient.patch<CardDetailDto>(`/cards/${cardId}`, input),
+  /** PATCH /cards/:cardId/move: to a list (maybe its own) at a position (≥ MEMBER). */
+  move: (cardId: string, input: MoveCardInput) =>
+    apiClient.patch<MoveCardResult>(`/cards/${cardId}/move`, input),
   /** DELETE /cards/:cardId (≥ MEMBER). */
   remove: (cardId: string) => apiClient.delete<void>(`/cards/${cardId}`),
 };

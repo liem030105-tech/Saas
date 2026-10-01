@@ -86,3 +86,15 @@ export const dueCards = {
   overdue: { ...signupCard, dueDate: '2001-01-01T23:59:59.999Z' },
   completed: { ...signupCard, dueDate: '2001-01-01T23:59:59.999Z', completed: true },
 };
+
+/** PATCH /cards/:cardId/move failures (CARD-004): a VIEWER's 403 and a server error. */
+export const cardMoveErrors = {
+  forbidden: {
+    status: 403,
+    body: buildErrorBody({ code: 'FORBIDDEN', message: 'Insufficient role', details: [] }),
+  },
+  server: {
+    status: 500,
+    body: buildErrorBody({ code: 'INTERNAL_ERROR', message: 'Something went wrong', details: [] }),
+  },
+};
