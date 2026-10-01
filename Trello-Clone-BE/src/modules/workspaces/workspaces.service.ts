@@ -7,6 +7,7 @@ import * as workspacesRepository from './workspaces.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { memberRemoved } from '../../realtime/events/members.events';
 
 import type {
   CreateWorkspaceData,
@@ -237,7 +238,7 @@ export async function removeMember(
 ): Promise<void> {
   const leaving = actorId === targetUserId;
 
-  await prisma.$transaction(async (tx) => {
+  const boards = await prisma.$transaction(async (tx) => {
     await lockWorkspace(tx, workspaceId);
     const actorRole = await currentActorRole(tx, workspaceId, actorId);
     if (!leaving && !hasPermission(actorRole, 'members.remove')) throw AppError.forbidden();
@@ -254,5 +255,14 @@ export async function removeMember(
     await tx.cardMember.deleteMany({
       where: { userId: targetUserId, card: { board: { workspaceId } } },
     });
+    // The rooms to evict them from, read here so nothing after the commit can fail.
+    return tx.board.findMany({ where: { workspaceId }, select: { id: true } });
   });
+  // After the commit: tell the workspace, then evict their sockets from its rooms.
+  memberRemoved(
+    actorId,
+    workspaceId,
+    targetUserId,
+    boards.map((board) => board.id),
+  );
 }

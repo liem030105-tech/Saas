@@ -1,8 +1,15 @@
 import { toListDto } from './lists.mapper';
 import { prisma } from '../../config/prisma';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type List } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
-import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
+import { appendPosition, lockContainer, settle } from '../../lib/rebalance';
+import {
+  listCreated,
+  listDeleted,
+  listMoved,
+  listsReordered,
+  listUpdated,
+} from '../../realtime/events/lists.events';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
 
 import type { CreateListData, ListDto, UpdateListData } from '@trello-clone/shared';
@@ -24,8 +31,8 @@ const isMissingList = (error: unknown) =>
 async function assertListAccess(userId: string, listId: string) {
   const list = await prisma.list.findUnique({ where: { id: listId }, select: { boardId: true } });
   if (!list) throw AppError.notFound();
-  await assertBoardAccess(userId, list.boardId, 'list.manage');
-  return list;
+  const { board } = await assertBoardAccess(userId, list.boardId, 'list.manage');
+  return { boardId: list.boardId, workspaceId: board.workspaceId };
 }
 
 /**
@@ -40,17 +47,19 @@ export async function create(
   boardId: string,
   input: CreateListData,
 ): Promise<ListDto> {
-  await assertBoardAccess(userId, boardId, 'list.manage');
+  const { board } = await assertBoardAccess(userId, boardId, 'list.manage');
+  const where = { boardId, workspaceId: board.workspaceId };
+  let rebalanced: Map<string, number> | null = null;
+  let list: List;
   try {
-    const list = await prisma.$transaction(async (tx) => {
+    list = await prisma.$transaction(async (tx) => {
       await lockContainer(tx, 'List', 'boardId', boardId);
       const position = input.position ?? (await appendPosition(tx, 'List', 'boardId', boardId));
       let created = await tx.list.create({ data: { boardId, title: input.title, position } });
       if (input.position !== undefined) {
-        created = {
-          ...created,
-          position: await settlePosition(tx, 'List', 'boardId', boardId, created.id),
-        };
+        const settled = await settle(tx, 'List', 'boardId', boardId, created.id);
+        created = { ...created, position: settled.position };
+        rebalanced = settled.rebalanced;
       }
       await logActivity(tx, {
         boardId,
@@ -60,11 +69,15 @@ export async function create(
       });
       return created;
     });
-    return toListDto(list); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingBoard(error)) throw AppError.notFound();
     throw error;
   }
+  // After the commit (realtime.md → Principles), outside the error mapping.
+  const dto = toListDto(list);
+  listCreated(where, userId, list, dto);
+  if (rebalanced) listsReordered(where, userId, rebalanced);
+  return dto;
 }
 
 /**
@@ -79,22 +92,24 @@ export async function update(
   listId: string,
   input: UpdateListData,
 ): Promise<ListDto> {
-  const { boardId } = await assertListAccess(userId, listId);
+  const where = await assertListAccess(userId, listId);
+  const { boardId } = where;
+  let rebalanced: Map<string, number> | null = null;
   const changes = {
     ...(input.title !== undefined && { title: input.title }),
     ...(input.archived !== undefined && { archived: input.archived }),
     ...(input.position !== undefined && { position: input.position }),
   };
   const moved = input.position !== undefined;
+  let list: List;
   try {
-    const list = await prisma.$transaction(async (tx) => {
+    list = await prisma.$transaction(async (tx) => {
       if (moved) await lockContainer(tx, 'List', 'boardId', boardId);
       let updated = await tx.list.update({ where: { id: listId }, data: changes });
       if (moved) {
-        updated = {
-          ...updated,
-          position: await settlePosition(tx, 'List', 'boardId', boardId, listId),
-        };
+        const settled = await settle(tx, 'List', 'boardId', boardId, listId);
+        updated = { ...updated, position: settled.position };
+        rebalanced = settled.rebalanced;
       }
       await logActivity(tx, {
         boardId,
@@ -104,20 +119,27 @@ export async function update(
       });
       return updated;
     });
-    return toListDto(list);
   } catch (error) {
     if (isMissingList(error)) throw AppError.notFound();
     throw error;
   }
+  const dto = toListDto(list);
+  if (input.title !== undefined || input.archived !== undefined) {
+    listUpdated(where, userId, list, dto);
+  }
+  if (moved) listMoved(where, userId, list);
+  if (rebalanced) listsReordered(where, userId, rebalanced);
+  return dto;
 }
 
 /** DELETE /lists/:listId (≥ MEMBER): its cards go with it (cascade, from CARD-001). */
 export async function remove(userId: string, listId: string): Promise<void> {
-  await assertListAccess(userId, listId);
+  const where = await assertListAccess(userId, listId);
   try {
     await prisma.list.delete({ where: { id: listId } });
   } catch (error) {
     if (isMissingList(error)) throw AppError.notFound();
     throw error;
   }
+  listDeleted(where, userId, listId);
 }

@@ -20,9 +20,10 @@
   | `board:{boardId}` | client emits `board:join { boardId }` (ack) | `assertBoardAccess(userId, boardId, 'board.view')` |
   | `workspace:{workspaceId}` | client emits `workspace:join { workspaceId }` (ack) | `assertWorkspaceAccess(userId, workspaceId, 'workspace.view')` |
 
-  - Ack payload: `{ ok: true }`, `{ ok: false, code: 'NOT_FOUND' }` (a missing room or one the caller may not see, alike), `{ ok: false, code: 'VALIDATION_ERROR' }` (the id is not a cuid) or `{ ok: false, code: 'INTERNAL_ERROR' }` (the check itself failed, e.g. the database is down; logged on the server). A socket's room messages are handled in the order sent, so a join cannot land after a later leave. Leave with `board:leave` / `workspace:leave` (same payloads, always `{ ok: true }` when valid). A message without an ack callback is still handled.
+  - Ack payload: `{ ok: true }`, `{ ok: false, code: 'NOT_FOUND' }` (a missing room or one the caller may not see, alike), `{ ok: false, code: 'VALIDATION_ERROR' }` (the id is not a cuid) or `{ ok: false, code: 'INTERNAL_ERROR' }` (the check itself failed, e.g. the database is down; logged on the server). A socket's room messages are handled in the order sent, so a join cannot land after a later leave. A join checks access again once the socket is in the room and leaves if access is gone, so a join racing the member's removal cannot outlive the eviction. Leave with `board:leave` / `workspace:leave` (same payloads, always `{ ok: true }` when valid). A message without an ack callback is still handled.
   - Code: `Trello-Clone-BE/src/realtime/socket.ts` (`attachRealtime`, wired in `server.ts`; CORS is `CLIENT_URL`, like the REST API) and `realtime/rooms.ts`.
-  - When a member is removed from a workspace, the server evicts all their sockets from that workspace's rooms (`socketsLeave`) and sends them `member:removed`.
+  - Every socket also joins `user:{userId}` on connect (server-side only), so the server can reach all of a user's sockets.
+  - When a member is removed from a workspace, the server sends `member:removed` to the workspace room and to their sockets, then evicts their sockets from the workspace's room and its boards' rooms (`socketsLeave`). Deleting a board empties its room the same way, after `board:deleted`.
 
 ## Event envelope
 Every server event has this shape:
@@ -33,7 +34,7 @@ interface RealtimeEvent<TType extends string, TData> {
   boardId: string | null;       // null for workspace-level events
   workspaceId: string;
   actorId: string;   // user who caused the change
-  version: number;   // updatedAt (epoch ms) of the changed record; Date.now() for deletes
+  version: number;   // updatedAt (epoch ms) of the changed record; Date.now() for deletes and *:reordered
   data: TData;
 }
 ```
@@ -61,7 +62,7 @@ Naming: `<domain>:<past-tense-verb>` (existing convention; D-16 records the alte
 | `comment:deleted` | `board:{id}` | DELETE `/comments/:id` | `{ commentId, cardId }` |
 | `member:removed` | `workspace:{id}` + removed user's sockets | DELETE `/workspaces/:id/members/:userId` | `{ userId }` |
 
-Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). Attachment events are specified in ATTACHMENTS-001 if needed.
+Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). A PATCH `/lists/:id` that renames and moves at once sends both `list:updated` and `list:moved`; a create or move that rebalances also sends one `list:reordered`. Emitters: `Trello-Clone-BE/src/realtime/events/{boards,lists,members}.events.ts` (001b1); cards and comments follow in 001b2. Attachment events are specified in ATTACHMENTS-001 if needed.
 
 ## FE synchronization rules
 | Concern | Rule |

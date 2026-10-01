@@ -4,7 +4,7 @@ import { io as connect, type Socket as ClientSocket } from 'socket.io-client';
 
 import { attachRealtime, closeRealtime } from '../../src/realtime/socket';
 
-import type { RoomAck } from '@trello-clone/shared';
+import type { RealtimeEvent, RealtimeEventType, RoomAck } from '@trello-clone/shared';
 import type { Express } from 'express';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'socket.io';
@@ -47,4 +47,31 @@ export function connected(socket: ClientSocket): Promise<ClientSocket> {
 /** Emits a room message and resolves with the server's ack. */
 export function roomRequest(socket: ClientSocket, event: string, payload: unknown) {
   return socket.timeout(5000).emitWithAck(event, payload) as Promise<RoomAck>;
+}
+
+/** Resolves with the next `type` event the socket hears (rejects after `ms`). */
+export function nextEvent<T extends RealtimeEventType>(
+  socket: ClientSocket,
+  type: T,
+  ms = 3000,
+): Promise<RealtimeEvent<T>> {
+  const name: string = type; // a plain event name for the client's listener types
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      socket.off(name, onEvent);
+      reject(new Error(`No ${type} event within ${ms} ms`));
+    }, ms);
+    function onEvent(...args: unknown[]) {
+      clearTimeout(timer);
+      resolve(args[0] as RealtimeEvent<T>);
+    }
+    socket.once(name, onEvent);
+  });
+}
+
+/** Every event the socket hears from now on, by type, for "nothing was sent" checks. */
+export function recordEvents(socket: ClientSocket) {
+  const heard: RealtimeEvent[] = [];
+  socket.onAny((_name: string, event: RealtimeEvent) => heard.push(event));
+  return heard;
 }
