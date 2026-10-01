@@ -5,7 +5,7 @@
 **Shared shapes**
 - `BoardDto = { id, workspaceId, title, background, archived, createdAt, updatedAt }`
 - `BoardDetailDto = BoardDto & { lists: ListDto[], labels: LabelDto[] }` where each `ListDto` contains `cards: CardSummaryDto[]`. Only non-archived lists and cards, sorted by `position ASC, id ASC`.
-- `CardSummaryDto = { id, listId, title, position, dueDate, completed, coverUrl, labelIds: string[], memberIds: string[], checklist: { done, total }, commentCount }`. Fields owned by CARD-005 are empty or zero until that task lands.
+- `CardSummaryDto = { id, listId, title, position, dueDate, completed, coverUrl, labelIds: string[], memberIds: string[], checklist: { done, total }, commentCount }`. `labelIds` (by id) since CARD-005a; the other CARD-005 fields are empty or zero until their sub-PR lands.
 - `LabelDto = { id, boardId, name, color }`
 - `ActivityDto = { id, type, data, createdAt, cardId, user: { id, name, avatarUrl } }`
 

@@ -401,6 +401,7 @@ model CardLabel {
   card    Card  @relation(fields: [cardId], references: [id], onDelete: Cascade)
   label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
   @@id([cardId, labelId])
+  @@index([labelId])
 }
 
 model Checklist {

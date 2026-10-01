@@ -73,6 +73,8 @@ async function workspace() {
   return { owner, workspaceId, ...(await boardIn(owner, workspaceId)) };
 }
 
+type Fixture = Awaited<ReturnType<typeof workspace>>;
+
 const labelsPath = (boardId: string) => `${paths.boards}/${boardId}/labels`;
 const cardLabelPath = (cardId: string, labelId: string) =>
   `${paths.cards}/${cardId}/labels/${labelId}`;
@@ -99,6 +101,31 @@ describe('default labels', () => {
     expect(labels.map((label) => label.color)).toEqual(labelData.defaults);
     expect(labels.every((label) => label.name === '' && label.boardId === boardId)).toBe(true);
     expect((await boardDetail(boardId, owner)).labels).toEqual(labels);
+  });
+});
+
+describe('401 without a token', () => {
+  it.each([
+    {
+      route: 'GET /boards/:boardId/labels',
+      send: (f: Fixture) => request(app).get(labelsPath(f.boardId)),
+    },
+    {
+      route: 'PATCH /labels/:labelId',
+      send: (f: Fixture) =>
+        request(app).patch(`${paths.labels}/${f.labelIds[0]}`).send({ name: 'Bug' }),
+    },
+    {
+      route: 'DELETE /labels/:labelId',
+      send: (f: Fixture) => request(app).delete(`${paths.labels}/${f.labelIds[0]}`),
+    },
+  ])('$route', async ({ send }) => {
+    const fixture = await workspace();
+
+    const res = await send(fixture);
+
+    expect(res.status).toBe(401);
+    expect(await testPrisma.label.count({ where: { boardId: fixture.boardId } })).toBe(6);
   });
 });
 
@@ -272,4 +299,43 @@ describe('labels and card moves (I2)', () => {
     expect((await cardDetail(cardId, owner)).labels).toEqual([]);
     expect(await testPrisma.label.count({ where: { id: labelIds[0] } })).toBe(1);
   });
+
+  it('an attach racing a move to another board waits for it, then refuses the old label', async () => {
+    const { owner, workspaceId, cardId, labelIds } = await workspace();
+    const other = await boardIn(owner, workspaceId);
+    let attach: Promise<request.Response> | undefined;
+
+    // The move holds the card row (as cards.repository.move does) while the attach comes in.
+    await testPrisma.$transaction(
+      async (tx) => {
+        await tx.card.update({
+          where: { id: cardId },
+          data: { listId: other.listId, boardId: other.boardId },
+        });
+        attach = request(app)
+          .post(cardLabelPath(cardId, labelIds[0]!))
+          .set(bearer(owner.token))
+          .then((res) => res);
+        // Without the lock the attach would not wait, and answers before the move commits.
+        await Promise.race([waitForLockWait(), attach]);
+      },
+      { timeout: 20_000 },
+    );
+
+    const res = await attach!;
+    expect(res.status).toBe(422);
+    expect(res.body.error.details[0].rule).toBe('LABEL_OTHER_BOARD');
+    expect(await testPrisma.cardLabel.count({ where: { cardId } })).toBe(0);
+  });
 });
+
+/** Resolves once some query waits on a row lock (the attach, blocked by the open move). */
+async function waitForLockWait() {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const [row] = await testPrisma.$queryRaw<{ waiting: bigint }[]>`
+      SELECT count(*) AS waiting FROM pg_stat_activity WHERE wait_event_type = 'Lock'`;
+    if (row && row.waiting > 0n) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('The attach never waited for the move');
+}

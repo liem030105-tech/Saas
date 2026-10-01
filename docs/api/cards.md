@@ -86,7 +86,7 @@ Moving to an archived list is allowed. Archived cards can be moved.
 | POST | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` (card or label not visible) · `422` rule `LABEL_OTHER_BOARD` (I2) |
 | DELETE | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` |
 
-Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`. Attaching or detaching a label (CARD-005a) logs nothing; a label the card does not have detaches as a no-op, and a label of another board the caller cannot see is a `404` like one that does not exist.
+Assigning or removing a member logs `MEMBER_ADDED` / `MEMBER_REMOVED` with `data.userId`. Attaching or detaching a label (CARD-005a) logs nothing; the attach re-reads the card's board under a row lock, so it cannot race a cross-board move into breaking I2; a label the card does not have detaches as a no-op, and a label of another board the caller cannot see is a `404` like one that does not exist.
 
 ## Checklists (CARD-005)
 | Method | Path | Authorization | Body → Success |

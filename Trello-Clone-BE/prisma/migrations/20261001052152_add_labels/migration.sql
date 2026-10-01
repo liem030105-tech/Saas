@@ -32,7 +32,7 @@ ALTER TABLE "CardLabel" ADD CONSTRAINT "CardLabel_cardId_fkey" FOREIGN KEY ("car
 ALTER TABLE "CardLabel" ADD CONSTRAINT "CardLabel_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "Label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Backfill (docs/api/boards.md → Labels): every existing board gets the six default colour-only
--- labels that board creation adds from CARD-005 on. Ids are cuid-shaped ("c" + 24 characters)
+-- labels that board creation adds from CARD-005 on. Ids are cuid-shaped (24 characters in all)
 -- and start with "c0", so they sort before any label created later (labels are listed by id) and,
 -- per board, in the default colour order.
 INSERT INTO "Label" ("id", "boardId", "name", "color")
