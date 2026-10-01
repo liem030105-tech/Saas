@@ -20,9 +20,15 @@ export function findBoardWithRole(userId: string, boardId: string) {
 /** Sort order of every ordered container (docs/database/relationships.md → Ordering). */
 const BY_POSITION = [{ position: 'asc' }, { id: 'asc' }] as const;
 
+/** A card's label ids, as CardSummaryDto carries them (CARD-005). */
+const CARD_LABEL_IDS = {
+  labels: { select: { labelId: true }, orderBy: { labelId: 'asc' } },
+} as const;
+
 /**
  * GET /boards/:boardId in one query after the access check: the board with its non-archived lists
- * (LIST-001), each with its non-archived cards (CARD-001). Labels (CARD-005) join as they arrive.
+ * (LIST-001), each with its non-archived cards (CARD-001) and their label ids, and the board's labels
+ * (CARD-005).
  */
 export function findDetail(boardId: string) {
   return prisma.board.findUnique({
@@ -31,8 +37,11 @@ export function findDetail(boardId: string) {
       lists: {
         where: { archived: false },
         orderBy: [...BY_POSITION],
-        include: { cards: { where: { archived: false }, orderBy: [...BY_POSITION] } },
+        include: {
+          cards: { where: { archived: false }, orderBy: [...BY_POSITION], include: CARD_LABEL_IDS },
+        },
       },
+      labels: { orderBy: { id: 'asc' } },
     },
   });
 }

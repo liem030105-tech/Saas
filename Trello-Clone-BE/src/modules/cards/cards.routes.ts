@@ -39,3 +39,8 @@ cardsRouter.patch(
   validate({ body: MoveCardInputSchema }),
   controller.move,
 );
+
+// Card labels (CARD-005): authorized in the service, on the card's stored board.
+const CARD_LABEL = `${CARD}/labels/:labelId`;
+cardsRouter.post(CARD_LABEL, authenticate, apiRateLimit, controller.attachLabel);
+cardsRouter.delete(CARD_LABEL, authenticate, apiRateLimit, controller.detachLabel);

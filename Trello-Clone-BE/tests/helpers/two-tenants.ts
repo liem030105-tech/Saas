@@ -12,7 +12,7 @@ import type { Express } from 'express';
 
 // Two-tenant fixture (WORKSPACE-006): two users, each OWNER of their own workspace with a second
 // member, a pending invite and a board (BOARD-001) with a list (LIST-001) holding a card
-// (CARD-001). Later tasks add their own sample data here,
+// (CARD-001); the board's default labels (CARD-005) carry one on the card. Later tasks add their own sample data here,
 // their tables to snapshotWorkspace (it is what detects a cross-tenant change), and their
 // endpoints to tests/integration/tenant-isolation.test.ts.
 
@@ -57,13 +57,20 @@ async function tenant(
     .set(bearer(owner.token))
     .send({ title: cardTitle })
     .expect(201);
+  const cardId = card.body.data.id as string;
+  const label = await testPrisma.label.findFirstOrThrow({ where: { boardId } });
+  await request(app)
+    .post(`${paths.cards}/${cardId}/labels/${label.id}`)
+    .set(bearer(owner.token))
+    .expect(204);
   return {
     owner,
     member,
     workspaceId,
     boardId,
     listId,
-    cardId: card.body.data.id as string,
+    cardId,
+    labelId: label.id,
     slug: created.body.data.slug as string,
     inviteId: invite.body.data.id as string,
     /** The raw token from the invite link, as its recipient would have it. */
@@ -96,14 +103,20 @@ export async function createTwoTenants(app: Express) {
 
 /** Everything stored for a workspace, in a stable order, to compare before and after a request. */
 export async function snapshotWorkspace(workspaceId: string) {
-  const [workspace, members, invites, boards, lists, cards, activities] = await Promise.all([
-    testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
-    testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
-    testPrisma.workspaceInvite.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
-    testPrisma.board.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
-    testPrisma.list.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
-    testPrisma.card.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
-    testPrisma.activity.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
-  ]);
-  return { workspace, members, invites, boards, lists, cards, activities };
+  const [workspace, members, invites, boards, lists, cards, activities, labels, cardLabels] =
+    await Promise.all([
+      testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
+      testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
+      testPrisma.workspaceInvite.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
+      testPrisma.board.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
+      testPrisma.list.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
+      testPrisma.card.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
+      testPrisma.activity.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
+      testPrisma.label.findMany({ where: { board: { workspaceId } }, orderBy: { id: 'asc' } }),
+      testPrisma.cardLabel.findMany({
+        where: { card: { board: { workspaceId } } },
+        orderBy: [{ cardId: 'asc' }, { labelId: 'asc' }],
+      }),
+    ]);
+  return { workspace, members, invites, boards, lists, cards, activities, labels, cardLabels };
 }

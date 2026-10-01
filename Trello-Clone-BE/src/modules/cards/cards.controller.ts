@@ -37,3 +37,15 @@ export async function move(req: Request, res: Response) {
   const card = await cardsService.move(currentUserId(req), cardIdOf(req), body);
   res.status(200).json({ data: card });
 }
+
+const labelIdOf = (req: Request) => req.params.labelId as string;
+
+export async function attachLabel(req: Request, res: Response) {
+  await cardsService.attachLabel(currentUserId(req), cardIdOf(req), labelIdOf(req));
+  res.status(204).end();
+}
+
+export async function detachLabel(req: Request, res: Response) {
+  await cardsService.detachLabel(currentUserId(req), cardIdOf(req), labelIdOf(req));
+  res.status(204).end();
+}

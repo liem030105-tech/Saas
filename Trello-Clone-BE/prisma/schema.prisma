@@ -141,6 +141,7 @@ model Board {
   activities  Activity[]
   lists       List[]
   cards       Card[]
+  labels      Label[]
 
   @@index([workspaceId, archived])
 }
@@ -164,7 +165,7 @@ model List {
 /// A card in a list, ordered by `position ASC, id ASC`. `boardId` always equals the list's
 /// (invariant I1): it is denormalized for one-query authorization and board-wide queries. CARD-001.
 model Card {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   boardId     String
   listId      String
   title       String
@@ -172,18 +173,45 @@ model Card {
   description String?
   position    Float
   dueDate     DateTime?
-  completed   Boolean    @default(false)
+  completed   Boolean     @default(false)
   /// Unused until ATTACHMENTS-001.
   coverUrl    String?
-  archived    Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  board       Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  list        List       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  archived    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  board       Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list        List        @relation(fields: [listId], references: [id], onDelete: Cascade)
   activities  Activity[]
+  labels      CardLabel[]
 
   @@index([listId, position])
   @@index([boardId])
+}
+
+/// A board's label (CARD-005); a board starts with six colour-only defaults.
+model Label {
+  id      String      @id @default(cuid())
+  boardId String
+  /// May be empty (a colour-only label).
+  name    String      @default("")
+  /// Hex colour `#rrggbb`; the UI offers the presets in docs/design/ui.md.
+  color   String
+  board   Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards   CardLabel[]
+
+  @@index([boardId])
+}
+
+/// A label on a card; both belong to the same board (invariant I2). CARD-005.
+model CardLabel {
+  cardId  String
+  labelId String
+  card    Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, labelId])
+  /// Deleting a label detaches it from its cards.
+  @@index([labelId])
 }
 
 /// Append-only board activity feed. BOARD-001; `cardId` since CARD-001.

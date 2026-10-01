@@ -2,7 +2,13 @@ import * as boardsService from './boards.service';
 import { currentUserId } from '../../middlewares/authenticate';
 import { validated } from '../../middlewares/validate';
 
-import type { CreateBoardData, ListBoardsQuery, UpdateBoardData } from '@trello-clone/shared';
+import type {
+  CreateBoardData,
+  CreateLabelData,
+  ListBoardsQuery,
+  UpdateBoardData,
+  UpdateLabelData,
+} from '@trello-clone/shared';
 import type { Request, Response } from 'express';
 
 // /workspaces/:workspaceId routes run after requireWorkspaceRole.
@@ -37,5 +43,30 @@ export async function update(req: Request, res: Response) {
 
 export async function remove(req: Request, res: Response) {
   await boardsService.remove(currentUserId(req), boardIdOf(req));
+  res.status(204).end();
+}
+
+export async function listLabels(req: Request, res: Response) {
+  const labels = await boardsService.listLabels(currentUserId(req), boardIdOf(req));
+  res.status(200).json({ data: labels });
+}
+
+export async function createLabel(req: Request, res: Response) {
+  const { body } = validated<unknown, unknown, CreateLabelData>(res);
+  const label = await boardsService.createLabel(currentUserId(req), boardIdOf(req), body);
+  res.status(201).json({ data: label });
+}
+
+// /labels/:labelId routes authorize in the service, on the label's stored board.
+const labelIdOf = (req: Request) => req.params.labelId as string;
+
+export async function updateLabel(req: Request, res: Response) {
+  const { body } = validated<unknown, unknown, UpdateLabelData>(res);
+  const label = await boardsService.updateLabel(currentUserId(req), labelIdOf(req), body);
+  res.status(200).json({ data: label });
+}
+
+export async function removeLabel(req: Request, res: Response) {
+  await boardsService.removeLabel(currentUserId(req), labelIdOf(req));
   res.status(204).end();
 }

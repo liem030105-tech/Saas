@@ -6,6 +6,7 @@ import { prisma } from '../../src/config/prisma';
 import { assertBoardAccess } from '../../src/modules/boards/boards.service';
 import { boardData, invalidBoardBodies, invalidBoardUpdates } from '../data/boards';
 import { paths } from '../data/http';
+import { labelData } from '../data/labels';
 import { unknownWorkspaceId } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
 import { createTestApp } from '../helpers/test-app';
@@ -244,19 +245,20 @@ describe('/api/v1/boards/:boardId', () => {
   }
 
   describe('GET', () => {
-    it('200 for a VIEWER: the board, with (for now) no lists or labels', async () => {
+    it('200 for a VIEWER: the board, with no lists yet and its default labels', async () => {
       const { boardId, workspaceId, member } = await boardWith('VIEWER');
 
       const res = await request(app).get(boardPath(boardId)).set(bearer(member.token));
 
       expect(res.status).toBe(200);
-      expect(BoardDetailDtoSchema.parse(res.body.data)).toMatchObject({
+      const board = BoardDetailDtoSchema.parse(res.body.data);
+      expect(board).toMatchObject({
         id: boardId,
         workspaceId,
         title: boardData.titles[0],
         lists: [],
-        labels: [],
       });
+      expect(board.labels.map((label) => label.color)).toEqual(labelData.defaults);
     });
 
     it('an archived board stays viewable', async () => {

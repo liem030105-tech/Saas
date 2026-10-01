@@ -14,6 +14,7 @@ export * from './types/auth';
 export * from './types/boards';
 export * from './types/cards';
 export * from './types/common';
+export * from './types/labels';
 export * from './types/lists';
 export * from './types/workspaces';
 export * from './utils/position';

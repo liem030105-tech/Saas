@@ -39,9 +39,9 @@ async function lockSourceAndTarget(tx: Prisma.TransactionClient, cardId: string,
  * PATCH /cards/:cardId/move, steps 2–6 of docs/api/cards.md → Transaction (step 1, the access
  * checks, runs in cards.service before the transaction):
  * 2. lock the card rows of its current list and of the target list (together, in id order);
- * 3. set `listId`, `boardId` (from the target list, I1) and
- * `position`; 4. on another board, drop labels of the old board (I2; card labels arrive with
- * CARD-005, which adds that step here); 5. rebalance the target list if the threshold is hit;
+ * 3. set `listId`, `boardId` (from the target list, I1) and `position`;
+ * 4. on another board, drop the labels of the old board (I2; members stay, same workspace);
+ * 5. rebalance the target list if the threshold is hit;
  * 6. log CARD_MOVED. Returns the card with its final position.
  */
 export async function move(tx: Prisma.TransactionClient, move: CardMove) {
@@ -51,6 +51,9 @@ export async function move(tx: Prisma.TransactionClient, move: CardMove) {
     where: { id: cardId },
     data: { listId: to.listId, boardId: to.boardId, position: move.position },
   });
+  if (from.boardId !== to.boardId) {
+    await tx.cardLabel.deleteMany({ where: { cardId, label: { boardId: { not: to.boardId } } } });
+  }
   const position = await settlePosition(tx, 'Card', 'listId', to.listId, cardId);
   await logActivity(tx, {
     // The card's (new) board: the move shows in the target board's feed.

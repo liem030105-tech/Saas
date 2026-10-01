@@ -5,6 +5,7 @@ import { prisma } from '../../src/config/prisma';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
+import { labelData } from '../data/labels';
 import { listData } from '../data/lists';
 import { roleMatrixData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
@@ -288,4 +289,65 @@ describeRoleMatrix(getApp, {
       .set(as(ctx))
       .send({ listId: ctx.fixture.listId, position: 512 }),
   expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+// Labels (CARD-005).
+
+/** A board (with its default labels) holding one card; `labelId` is the board's first label. */
+async function addLabelledCard(ctx: Omit<MatrixContext, 'caller' | 'fixture'>) {
+  const fixture = await addCard(ctx);
+  const label = await testPrisma.label.findFirstOrThrow({ where: { boardId: fixture.boardId } });
+  return { ...fixture, labelId: label.id };
+}
+
+const labelPath = (ctx: MatrixContext) => `${paths.labels}/${ctx.fixture.labelId}`;
+const cardLabelPath = (ctx: MatrixContext) => `${cardPath(ctx)}/labels/${ctx.fixture.labelId}`;
+
+describeRoleMatrix(getApp, {
+  name: 'GET /boards/:boardId/labels',
+  setup: addBoard,
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${boardPath(ctx)}/labels`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 200, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /boards/:boardId/labels',
+  setup: addBoard,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${boardPath(ctx)}/labels`)
+      .set(as(ctx))
+      .send(labelData.create.input),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'PATCH /labels/:labelId',
+  setup: addLabelledCard,
+  request: (ctx) => request(ctx.app).patch(labelPath(ctx)).set(as(ctx)).send({ name: 'Bug' }),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /labels/:labelId',
+  setup: addLabelledCard,
+  request: (ctx) => request(ctx.app).delete(labelPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /cards/:cardId/labels/:labelId',
+  setup: addLabelledCard,
+  request: (ctx) => request(ctx.app).post(cardLabelPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'DELETE /cards/:cardId/labels/:labelId',
+  setup: addLabelledCard,
+  request: (ctx) => request(ctx.app).delete(cardLabelPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 204, VIEWER: 403, NON_MEMBER: 404 },
 });
