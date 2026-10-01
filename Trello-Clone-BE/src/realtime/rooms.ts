@@ -66,7 +66,10 @@ export function registerRooms(socket: Socket) {
   // access cannot land after a later leave of the same room (fast navigation, StrictMode).
   let queue: Promise<unknown> = Promise.resolve();
   const inOrder = (run: () => Promise<void>) => {
-    queue = queue.then(run, run);
+    // A failing message is logged, so it never leaves an unhandled rejection behind.
+    queue = queue.then(run).catch((error: unknown) => {
+      logger.warn({ err: error }, 'Room message failed');
+    });
   };
 
   const handle =
