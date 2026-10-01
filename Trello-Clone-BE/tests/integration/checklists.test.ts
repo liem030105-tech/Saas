@@ -200,6 +200,69 @@ describe('checklists', () => {
     expect(await testPrisma.checklistItem.count({ where: { checklistId: launch.id } })).toBe(0);
   });
 
+  it('logs adding and deleting a checklist, and each real tick or untick of an item', async () => {
+    const { owner, cardId } = await card();
+    const launch = await addChecklist(owner, cardId, 'Launch');
+    const item = await addItem(owner, launch.id, 'Ship it');
+    const itemPath = `${itemsOf(launch.id)}/${item.id}`;
+
+    for (const body of [{ done: true }, { done: true }, { content: 'Ship' }, { done: false }]) {
+      await request(app).patch(itemPath).set(bearer(owner.token)).send(body).expect(200);
+    }
+    await request(app)
+      .patch(checklistPath(launch.id))
+      .set(bearer(owner.token))
+      .send({ title: 'Go live' })
+      .expect(200);
+    await request(app).delete(checklistPath(launch.id)).set(bearer(owner.token)).expect(204);
+
+    const logged = await testPrisma.activity.findMany({
+      where: { cardId, type: { not: 'CARD_CREATED' } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    expect(logged.map(({ type, data }) => ({ type, data }))).toEqual([
+      { type: 'CHECKLIST_ADDED', data: { checklistId: launch.id, title: 'Launch' } },
+      {
+        type: 'CHECKLIST_ITEM_CHECKED',
+        data: { checklistId: launch.id, itemId: item.id, content: 'Ship it', done: true },
+      },
+      {
+        type: 'CHECKLIST_ITEM_CHECKED',
+        data: { checklistId: launch.id, itemId: item.id, content: 'Ship', done: false },
+      },
+      { type: 'CHECKLIST_REMOVED', data: { checklistId: launch.id, title: 'Go live' } },
+    ]);
+    expect(logged.every((a) => a.userId === owner.user.id)).toBe(true);
+  });
+
+  it('two ticks of the same item at once log it once', async () => {
+    const { owner, cardId } = await card();
+    const launch = await addChecklist(owner, cardId, 'Launch');
+    const item = await addItem(owner, launch.id, 'Ship it');
+    const tick = () =>
+      request(app)
+        .patch(`${itemsOf(launch.id)}/${item.id}`)
+        .set(bearer(owner.token))
+        .send({ done: true })
+        .then((res) => res);
+    let ticks: Promise<request.Response>[] = [];
+
+    // Hold the item row while both ticks come in, so each must read `done` after the other.
+    await testPrisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM "ChecklistItem" WHERE "id" = ${item.id} FOR UPDATE`;
+        ticks = [tick(), tick()];
+        await waitForLockWaits(2);
+      },
+      { timeout: 20_000 },
+    );
+
+    expect((await Promise.all(ticks)).map((res) => res.status)).toEqual([200, 200]);
+    expect(
+      await testPrisma.activity.count({ where: { cardId, type: 'CHECKLIST_ITEM_CHECKED' } }),
+    ).toBe(1);
+  });
+
   it('404 for an item addressed through another checklist, even on the same card', async () => {
     const { owner, cardId } = await card();
     const a = await addChecklist(owner, cardId, 'A');
@@ -280,3 +343,14 @@ describe('checklists', () => {
     }
   });
 });
+
+/** Resolves once `count` queries wait for a row lock (the ticks above). */
+async function waitForLockWaits(count: number) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const [row] = await testPrisma.$queryRaw<{ waiting: bigint }[]>`
+      SELECT count(*) AS waiting FROM pg_stat_activity WHERE wait_event_type = 'Lock'`;
+    if (row && row.waiting >= BigInt(count)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Fewer than ${count} queries waited for the lock`);
+}

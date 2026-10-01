@@ -1,5 +1,5 @@
 import { HistoryIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -11,23 +11,22 @@ import {
 } from '@/components/ui/dialog';
 
 import { ActivityFeed } from './ActivityFeed';
-import { namesOf } from '../activity';
 
-import type { BoardDetailDto, UserSummary } from '@trello-clone/shared';
+import type { ActivityNames } from '../activity';
+import type { BoardDetailDto } from '@trello-clone/shared';
 
 interface ActivityDrawerProps {
   board: BoardDetailDto;
-  /** The workspace's members, to name the people an entry is about. */
-  members: readonly UserSummary[];
+  /** Names of the board's lists, cards and labels and the workspace's members. */
+  names: ActivityNames;
 }
 
 /**
  * "Activity" in the board header (docs/design/ui.md → Board): a panel on the right with the
  * board's activity feed. Every member sees it, a VIEWER included.
  */
-export function ActivityDrawer({ board, members }: ActivityDrawerProps) {
+export function ActivityDrawer({ board, names }: ActivityDrawerProps) {
   const [open, setOpen] = useState(false);
-  const names = useMemo(() => namesOf(board, members), [board, members]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

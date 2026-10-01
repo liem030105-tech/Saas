@@ -1,4 +1,4 @@
-import type { ActivityDto, BoardDetailDto, UserSummary } from '@trello-clone/shared';
+import type { ActivityDto, BoardDetailDto, LabelDto, UserSummary } from '@trello-clone/shared';
 
 // How an activity entry reads in a feed (docs/design/ui.md → Activity): "{actor} {what they did}".
 // `data` is the event as logged (docs/api/boards.md → GET /boards/:boardId/activities); names come
@@ -9,9 +9,15 @@ export interface ActivityNames {
   lists: ReadonlyMap<string, string>;
   cards: ReadonlyMap<string, string>;
   members: ReadonlyMap<string, string>;
+  /** The board's labels as they are now (an entry names a renamed label by its new name). */
+  labels: ReadonlyMap<string, LabelLike>;
+  /** What a label reads as: its name, or e.g. "Green label" (cards → labelText). */
+  labelText: (label: LabelLike) => string;
   /** The card whose feed this is: it reads as "this card". */
   cardId?: string;
 }
+
+type LabelLike = Pick<LabelDto, 'name' | 'color'>;
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
@@ -33,6 +39,15 @@ export function describeActivity(activity: ActivityDto, names: ActivityNames): s
         'a card');
   const member = (id: unknown) => names.members.get(text(id) ?? '') ?? 'a former member';
   const self = data.userId === activity.user.id;
+  const checklist = text(data.title) ? `checklist ${text(data.title)}` : 'a checklist';
+  /** "label Urgent" or "the green label"; a deleted label reads as it was logged. */
+  const label = () => {
+    const known =
+      names.labels.get(text(data.labelId) ?? '') ??
+      (text(data.color) ? { name: text(data.name) ?? '', color: text(data.color)! } : undefined);
+    if (!known) return 'a label';
+    return known.name ? `label ${known.name}` : `the ${names.labelText(known).toLowerCase()}`;
+  };
 
   switch (activity.type) {
     case 'BOARD_CREATED':
@@ -76,15 +91,38 @@ export function describeActivity(activity: ActivityDto, names: ActivityNames): s
       return self ? `left ${card}` : `removed ${member(data.userId)} from ${card}`;
     case 'COMMENT_ADDED':
       return `commented on ${card}`;
+    case 'LABEL_ADDED':
+      return `added ${label()} to ${card}`;
+    case 'LABEL_REMOVED':
+      return `removed ${label()} from ${card}`;
+    case 'CHECKLIST_ADDED':
+      return `added ${checklist} to ${card}`;
+    case 'CHECKLIST_REMOVED':
+      return `removed ${checklist} from ${card}`;
+    case 'CHECKLIST_ITEM_CHECKED':
+      return data.done === false
+        ? `marked ${text(data.content) ?? 'an item'} incomplete on ${card}`
+        : `completed ${text(data.content) ?? 'an item'} on ${card}`;
   }
 }
 
-/** The names a board's feed can show: its open lists and cards, and the workspace's members. */
-export function namesOf(board: BoardDetailDto, members: readonly UserSummary[]): ActivityNames {
+/**
+ * The names a board's feed can show: its open lists and cards, its labels (read with
+ * `labelText`), and the workspace's members. Empty while the board loads.
+ */
+export function namesOf(
+  board: BoardDetailDto | undefined,
+  members: readonly UserSummary[],
+  labelText: ActivityNames['labelText'],
+): ActivityNames {
   return {
-    lists: new Map(board.lists.map((list) => [list.id, list.title])),
+    labels: new Map((board?.labels ?? []).map((label) => [label.id, label])),
+    labelText,
+    lists: new Map((board?.lists ?? []).map((list) => [list.id, list.title])),
     cards: new Map(
-      board.lists.flatMap((list) => list.cards.map((card) => [card.id, card.title] as const)),
+      (board?.lists ?? []).flatMap((list) =>
+        list.cards.map((card) => [card.id, card.title] as const),
+      ),
     ),
     members: new Map(members.map((user) => [user.id, user.name])),
   };

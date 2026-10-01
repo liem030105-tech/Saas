@@ -1,9 +1,4 @@
-import {
-  BoardTitleSchema,
-  type BoardDetailDto,
-  type UpdateBoardInput,
-  type UserSummary,
-} from '@trello-clone/shared';
+import { BoardTitleSchema, type BoardDetailDto, type UpdateBoardInput } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, PaletteIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { ActivityDrawer } from './ActivityDrawer';
+import { type ActivityNames } from '../activity';
 import { BOARD_BACKGROUNDS, readableTextColor } from '../colors';
 import { useDeleteBoard, useUpdateBoard } from '../queries';
 
@@ -37,8 +33,8 @@ interface BoardHeaderProps {
   canDelete: boolean;
   /** After a delete, e.g. open the workspace. */
   onDeleted: () => void;
-  /** The workspace's members, to name people in the activity feed. */
-  members: readonly UserSummary[];
+  /** Names for the activity feed (lists, cards, labels, members). */
+  activityNames: ActivityNames;
 }
 
 /**
@@ -46,7 +42,13 @@ interface BoardHeaderProps {
  * unarchive, and delete. A caller who may not edit sees the title only. "Activity" (CARD-005e) opens
  * the board's activity feed for everyone.
  */
-export function BoardHeader({ board, canEdit, canDelete, onDeleted, members }: BoardHeaderProps) {
+export function BoardHeader({
+  board,
+  canEdit,
+  canDelete,
+  onDeleted,
+  activityNames,
+}: BoardHeaderProps) {
   const updateBoard = useUpdateBoard(board.id);
   const deleteBoard = useDeleteBoard(board.id, board.workspaceId);
   const color = readableTextColor(board.background);
@@ -73,7 +75,7 @@ export function BoardHeader({ board, canEdit, canDelete, onDeleted, members }: B
         <h1 className="px-2 text-xl font-semibold">{board.title}</h1>
       )}
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <ActivityDrawer board={board} members={members} />
+        <ActivityDrawer board={board} names={activityNames} />
         {canEdit && (
           <>
             <DropdownMenu>

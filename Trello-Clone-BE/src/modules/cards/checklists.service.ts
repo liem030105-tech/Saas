@@ -4,7 +4,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
-import { assertBoardAccess } from '../boards/boards.service';
+import { assertBoardAccess, logActivity } from '../boards/boards.service';
 
 import type {
   ChecklistDto,
@@ -19,6 +19,8 @@ import type {
 // the card's stored board; a checklist resolves to its card, an item to its checklist. Positions
 // work like lists and cards: appended after the last one, a client position goes through the
 // rebalance check, and the container's rows are locked first so concurrent writers run in turn.
+// Adding or deleting a checklist and ticking or unticking an item log activity (D-25); renames,
+// item adds and deletes, and moves do not.
 
 /** A row the write points to (the card, the checklist) was deleted after the access check. */
 const isMissingReference = (error: unknown) =>
@@ -52,29 +54,40 @@ async function assertChecklistAccess(userId: string, checklistId: string) {
   });
   if (!checklist) throw AppError.notFound();
   await assertBoardAccess(userId, checklist.card.boardId, 'card.assign');
-  return checklist;
+  return { id: checklist.id, cardId: checklist.cardId, boardId: checklist.card.boardId };
 }
 
 /** Loads an item of a checklist the caller may edit; an item of another checklist is a 404. */
 async function assertItemAccess(userId: string, checklistId: string, itemId: string) {
-  await assertChecklistAccess(userId, checklistId);
+  const checklist = await assertChecklistAccess(userId, checklistId);
   const item = await prisma.checklistItem.findFirst({ where: { id: itemId, checklistId } });
   if (!item) throw AppError.notFound();
-  return item;
+  return { item, checklist };
 }
 
-/** POST /cards/:cardId/checklists (≥ MEMBER): appended after the card's last checklist. */
+/**
+ * POST /cards/:cardId/checklists (≥ MEMBER): appended after the card's last checklist. Logs
+ * CHECKLIST_ADDED with its id and title.
+ */
 export async function createChecklist(
   userId: string,
   cardId: string,
   input: CreateChecklistData,
 ): Promise<ChecklistDto> {
-  await assertCardAccess(userId, cardId, 'card.assign');
+  const card = await assertCardAccess(userId, cardId, 'card.assign');
   const checklist = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       await lockContainer(tx, 'Checklist', 'cardId', cardId);
       const position = await appendPosition(tx, 'Checklist', 'cardId', cardId);
-      return tx.checklist.create({ data: { cardId, title: input.title, position } });
+      const created = await tx.checklist.create({ data: { cardId, title: input.title, position } });
+      await logActivity(tx, {
+        boardId: card.boardId,
+        userId,
+        cardId,
+        type: 'CHECKLIST_ADDED',
+        data: { checklistId: created.id, title: created.title },
+      });
+      return created;
     }),
   );
   return toChecklistDto({ ...checklist, items: [] });
@@ -107,10 +120,24 @@ export async function updateChecklist(
   return toChecklistDto(checklist);
 }
 
-/** DELETE /checklists/:checklistId (≥ MEMBER): its items go with it (cascade). */
+/**
+ * DELETE /checklists/:checklistId (≥ MEMBER): its items go with it (cascade). Logs
+ * CHECKLIST_REMOVED with its id and title.
+ */
 export async function removeChecklist(userId: string, checklistId: string): Promise<void> {
-  await assertChecklistAccess(userId, checklistId);
-  await withNotFound(() => prisma.checklist.delete({ where: { id: checklistId } }));
+  const { cardId, boardId } = await assertChecklistAccess(userId, checklistId);
+  await withNotFound(() =>
+    prisma.$transaction(async (tx) => {
+      const removed = await tx.checklist.delete({ where: { id: checklistId } });
+      await logActivity(tx, {
+        boardId,
+        userId,
+        cardId,
+        type: 'CHECKLIST_REMOVED',
+        data: { checklistId, title: removed.title },
+      });
+    }),
+  );
 }
 
 /** POST /checklists/:checklistId/items (≥ MEMBER): appended after the checklist's last item. */
@@ -130,18 +157,25 @@ export async function createItem(
   return toChecklistItemDto(item);
 }
 
-/** PATCH /checklists/:checklistId/items/:itemId (≥ MEMBER): edit, tick or move within the list. */
+/**
+ * PATCH /checklists/:checklistId/items/:itemId (≥ MEMBER): edit, tick or move within the list. A
+ * change of `done` logs CHECKLIST_ITEM_CHECKED with the item's id, content and new `done`; the row
+ * is locked first, so two clients ticking the same item log it once.
+ */
 export async function updateItem(
   userId: string,
   checklistId: string,
   itemId: string,
   input: UpdateChecklistItemData,
 ): Promise<ChecklistItemDto> {
-  await assertItemAccess(userId, checklistId, itemId);
+  const { checklist } = await assertItemAccess(userId, checklistId, itemId);
   const moved = input.position !== undefined;
   const item = await withNotFound(() =>
     prisma.$transaction(async (tx) => {
       if (moved) await lockContainer(tx, 'ChecklistItem', 'checklistId', checklistId);
+      const [before] = await tx.$queryRaw<{ done: boolean }[]>`
+        SELECT "done" FROM "ChecklistItem"
+        WHERE "id" = ${itemId} AND "checklistId" = ${checklistId} FOR UPDATE`;
       // Still in this checklist (no route moves an item, but the write should not assume it).
       const updated = await tx.checklistItem.update({
         where: { id: itemId, checklistId },
@@ -151,6 +185,15 @@ export async function updateItem(
           ...(moved && { position: input.position }),
         },
       });
+      if (before && input.done !== undefined && input.done !== before.done) {
+        await logActivity(tx, {
+          boardId: checklist.boardId,
+          userId,
+          cardId: checklist.cardId,
+          type: 'CHECKLIST_ITEM_CHECKED',
+          data: { checklistId, itemId, content: updated.content, done: updated.done },
+        });
+      }
       if (!moved) return updated;
       const position = await settlePosition(
         tx,

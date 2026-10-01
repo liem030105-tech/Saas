@@ -64,6 +64,11 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'MEMBER_ADDED',
       'MEMBER_REMOVED',
       'COMMENT_ADDED',
+      'LABEL_ADDED',
+      'LABEL_REMOVED',
+      'CHECKLIST_ADDED',
+      'CHECKLIST_REMOVED',
+      'CHECKLIST_ITEM_CHECKED',
     ]);
   });
 });

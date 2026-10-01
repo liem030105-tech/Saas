@@ -244,6 +244,36 @@ describe('POST and DELETE /api/v1/cards/:cardId/labels/:labelId', () => {
     expect((await cardDetail(cardId, owner)).labels.map((label) => label.id)).toEqual([second]);
   });
 
+  it('logs LABEL_ADDED and LABEL_REMOVED once per real change, with the label as it was', async () => {
+    const { owner, cardId, labelIds } = await workspace();
+    const labelId = labelIds[0]!;
+    await request(app)
+      .patch(`${paths.labels}/${labelId}`)
+      .set(bearer(owner.token))
+      .send({ name: 'Urgent' })
+      .expect(200);
+
+    for (let i = 0; i < 2; i += 1) {
+      await request(app).post(cardLabelPath(cardId, labelId)).set(bearer(owner.token)).expect(204);
+    }
+    for (let i = 0; i < 2; i += 1) {
+      await request(app)
+        .delete(cardLabelPath(cardId, labelId))
+        .set(bearer(owner.token))
+        .expect(204);
+    }
+
+    const logged = await testPrisma.activity.findMany({
+      where: { cardId, type: { in: ['LABEL_ADDED', 'LABEL_REMOVED'] } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    const label = { labelId, name: 'Urgent', color: '#61bd4f' };
+    expect(logged.map(({ type, data, userId }) => ({ type, data, userId }))).toEqual([
+      { type: 'LABEL_ADDED', data: label, userId: owner.user.id },
+      { type: 'LABEL_REMOVED', data: label, userId: owner.user.id },
+    ]);
+  });
+
   it('422 LABEL_OTHER_BOARD for a visible label of another board; the card keeps its labels', async () => {
     const { owner, workspaceId, cardId } = await workspace();
     const other = await boardIn(owner, workspaceId);

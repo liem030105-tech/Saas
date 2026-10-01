@@ -8,4 +8,5 @@ export { acceptsDrop, type BoardDndType } from './dnd';
 export { useCardDrag } from './hooks/useCardDrag';
 export { CardModalStatus } from './components/CardModalStatus';
 export { cardPath } from './paths';
+export { labelText } from './labels';
 export { useCard } from './queries';

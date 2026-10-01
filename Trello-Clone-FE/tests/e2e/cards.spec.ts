@@ -202,9 +202,12 @@ test('board → list → cards in order; the card modal edits a card at a sharea
   await expect(activity.locator('strong', { hasText: 'review' })).toBeVisible();
   // CARD-005e: the card's activity and the board's activity feed show what happened.
   await activity.getByRole('button', { name: 'Show details' }).click();
-  await expect(activity.getByRole('list', { name: 'Activity' })).toContainText(
-    'commented on this card',
-  );
+  const cardFeed = activity.getByRole('list', { name: 'Activity' });
+  await expect(cardFeed).toContainText('commented on this card');
+  // Labels and checklists show too (D-25).
+  await expect(cardFeed).toContainText('completed Design the form on this card');
+  await expect(cardFeed).toContainText('added checklist Checklist to this card');
+  await expect(cardFeed).toContainText('added the green label to this card');
   await signup.getByRole('button', { name: 'Close' }).click();
   await expect(doing.getByRole('link', { name: /Sign-up form/ })).toContainText('Comments:1');
   await page.getByRole('button', { name: 'Activity' }).click();
