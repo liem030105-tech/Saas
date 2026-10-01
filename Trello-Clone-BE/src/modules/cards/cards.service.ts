@@ -184,7 +184,6 @@ export async function move(
       cardsRepository.move(tx, {
         cardId,
         userId,
-        from: { listId: card.listId, boardId: card.boardId },
         to: { listId: target.id, boardId: target.boardId },
         position: input.position,
       }),

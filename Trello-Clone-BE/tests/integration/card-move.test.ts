@@ -220,6 +220,38 @@ describe('PATCH /api/v1/cards/:cardId/move', () => {
     expect(doing![0]).toBe('Doing card');
   });
 
+  it('moves in opposite directions between two lists never deadlock', async () => {
+    const { owner, boardA, lists, cards } = await workspaceWith();
+    const back = await newCard(owner, lists.doing, 'Doing card');
+    const titleOf = { [cards.First!]: 'First', [back]: 'Doing card' };
+
+    // First goes to Doing while Doing card goes to To do, at the same moment, then back again.
+    const [a, b] = [cards.First!, back];
+    let [aTo, bTo] = [lists.doing, lists.todo];
+    for (let round = 0; round < moveData.parallelRounds; round += 1) {
+      const results = await Promise.all([
+        moveCard(owner, a, { listId: aTo, position: 512 }),
+        moveCard(owner, b, { listId: bTo, position: 512 }),
+      ]);
+      expect(results.map((res) => res.status)).toEqual([200, 200]);
+      [aTo, bTo] = [bTo, aTo];
+    }
+
+    // An even number of rounds puts every card back where it started.
+    const board = await cardsOn(boardA, owner);
+    expect(board[moveData.lists.doing]).toContain(titleOf[back]);
+    expect(board[moveData.lists.todo]).toContain(titleOf[a]);
+    const moves = await testPrisma.activity.findMany({
+      where: { type: 'CARD_MOVED', cardId: cards.First! },
+      orderBy: { createdAt: 'asc' },
+    });
+    // Each logged move starts where the previous one ended (`from` is read under the locks).
+    for (let i = 1; i < moves.length; i += 1) {
+      const previous = moves[i - 1]!.data as { toListId: string };
+      expect((moves[i]!.data as { fromListId: string }).fromListId).toBe(previous.toListId);
+    }
+  });
+
   it('422 CROSS_WORKSPACE_MOVE to a visible list in another workspace; nothing changes', async () => {
     const { owner, lists, cards } = await workspaceWith();
     const otherWorkspace = await newWorkspace(owner, moveData.workspaceName.other);

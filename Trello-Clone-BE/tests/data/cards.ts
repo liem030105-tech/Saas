@@ -60,6 +60,8 @@ export const moveData = {
   cards: ['First', 'Second', 'Third'],
   /** How many moves go into one gap: far more than the ~30 halvings that reach the threshold. */
   gapMoves: 40,
+  /** Rounds of two opposite moves run in parallel (an even number: the cards end where they began). */
+  parallelRounds: 16,
 };
 
 /** One invalid PATCH /cards/:cardId/move body per rule; each must fail with 400. */
