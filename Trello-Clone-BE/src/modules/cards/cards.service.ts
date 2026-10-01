@@ -1,12 +1,21 @@
 import { toCardDetailDto, toChecklistDto } from './cards.mapper';
 import * as cardsRepository from './cards.repository';
+import { logger } from '../../config/logger';
 import { prisma } from '../../config/prisma';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type Card } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
-import { appendPosition, lockContainer, settlePosition } from '../../lib/rebalance';
+import { appendPosition, lockContainer, settle } from '../../lib/rebalance';
+import {
+  cardCreated,
+  cardDeleted,
+  cardMoved,
+  cardsReordered,
+  cardUpdated,
+} from '../../realtime/events/cards.events';
 import {
   assertBoardAccess,
   checklistProgress,
+  loadCardSummary,
   logActivity,
   NO_CHECKLIST,
   toCardSummaryDto,
@@ -68,6 +77,24 @@ const toDetail = (card: CardDetailRow) =>
   );
 
 /**
+ * After a committed change to a card's labels, members or checklists (which the board tile shows):
+ * sends `card:updated` with the tile as it is now. A failure to read it only loses the event
+ * (logged); the change itself is done.
+ */
+export async function emitCardChanged(actorId: string, cardId: string, workspaceId: string) {
+  // Taken before the read: a PATCH committed after it has a later `updatedAt`, so this older tile
+  // never wins over that PATCH's own event on the client.
+  const version = Date.now();
+  try {
+    const summary = await loadCardSummary(cardId);
+    if (!summary) return; // deleted meanwhile; its deletion has its own event
+    cardUpdated({ boardId: summary.card.boardId, workspaceId }, actorId, summary.data, version);
+  } catch (error) {
+    logger.error({ err: error, cardId }, 'card:updated not sent');
+  }
+}
+
+/**
  * Loads a card and checks the caller's role on its stored board (the denormalized `boardId`,
  * ADR-006). An unknown or malformed id and a card the caller cannot see are the same 404.
  */
@@ -93,19 +120,21 @@ export async function create(
   const list = await prisma.list.findUnique({ where: { id: listId }, select: { boardId: true } });
   if (!list) throw AppError.notFound();
   const { boardId } = list;
-  await assertBoardAccess(userId, boardId, 'card.edit');
+  const { board } = await assertBoardAccess(userId, boardId, 'card.edit');
+  const where = { boardId, workspaceId: board.workspaceId };
+  let rebalanced: Map<string, number> | null = null;
+  let card: Card;
   try {
-    const card = await prisma.$transaction(async (tx) => {
+    card = await prisma.$transaction(async (tx) => {
       await lockContainer(tx, 'Card', 'listId', listId);
       const position = input.position ?? (await appendPosition(tx, 'Card', 'listId', listId));
       let created = await tx.card.create({
         data: { boardId, listId, title: input.title, position },
       });
       if (input.position !== undefined) {
-        created = {
-          ...created,
-          position: await settlePosition(tx, 'Card', 'listId', listId, created.id),
-        };
+        const settled = await settle(tx, 'Card', 'listId', listId, created.id);
+        created = { ...created, position: settled.position };
+        rebalanced = settled.rebalanced;
       }
       await logActivity(tx, {
         boardId,
@@ -116,17 +145,21 @@ export async function create(
       });
       return created;
     });
-    return toCardSummaryDto({
-      ...card,
-      labels: [],
-      members: [],
-      checklist: NO_CHECKLIST,
-      _count: { comments: 0 },
-    }); // realtime emit (REALTIME-001) goes here, after the commit
   } catch (error) {
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
+  const dto = toCardSummaryDto({
+    ...card,
+    labels: [],
+    members: [],
+    checklist: NO_CHECKLIST,
+    _count: { comments: 0 },
+  });
+  // After the commit (realtime.md → Principles), outside the error mapping.
+  cardCreated(where, userId, card, dto);
+  if (rebalanced) cardsReordered(where, userId, listId, rebalanced);
+  return dto;
 }
 
 /** GET /cards/:cardId (≥ VIEWER). Archived cards are returned (the modal shows a banner). */
@@ -159,8 +192,9 @@ export async function update(
     ...(input.completed !== undefined && { completed: input.completed }),
     ...(input.archived !== undefined && { archived: input.archived }),
   };
+  let card: CardDetailRow;
   try {
-    const card = await prisma.$transaction(async (tx) => {
+    card = await prisma.$transaction(async (tx) => {
       const updated = await tx.card.update({
         where: { id: cardId },
         data: changes,
@@ -186,11 +220,20 @@ export async function update(
       });
       return updated;
     });
-    return toDetail(card);
   } catch (error) {
     if (isMissingCard(error)) throw AppError.notFound();
     throw error;
   }
+  const detail = toDetail(card);
+  const tile = toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) });
+  // The board the card is on now (a move may have committed since the access check).
+  cardUpdated(
+    { boardId: card.boardId, workspaceId: current.workspaceId },
+    userId,
+    { ...tile, archived: card.archived },
+    card.updatedAt.getTime(),
+  );
+  return detail;
 }
 
 /**
@@ -198,13 +241,21 @@ export async function update(
  * (docs/database/relationships.md); nothing else is logged.
  */
 export async function remove(userId: string, cardId: string): Promise<void> {
-  await assertCardAccess(userId, cardId, 'card.edit');
+  const card = await assertCardAccess(userId, cardId, 'card.edit');
+  let deleted: Card;
   try {
-    await prisma.card.delete({ where: { id: cardId } });
+    deleted = await prisma.card.delete({ where: { id: cardId } });
   } catch (error) {
     if (isMissingCard(error)) throw AppError.notFound();
     throw error;
   }
+  // The list it was deleted from (a move may have changed it since the access check).
+  cardDeleted(
+    { boardId: deleted.boardId, workspaceId: card.workspaceId },
+    userId,
+    cardId,
+    deleted.listId,
+  );
 }
 
 /**
@@ -232,8 +283,9 @@ export async function move(
       'A card can only move to a list in its own workspace',
     );
   }
+  let result: Awaited<ReturnType<typeof cardsRepository.move>>;
   try {
-    const moved = await prisma.$transaction((tx) =>
+    result = await prisma.$transaction((tx) =>
       cardsRepository.move(tx, {
         cardId,
         userId,
@@ -241,18 +293,36 @@ export async function move(
         position: input.position,
       }),
     );
-    return {
-      id: moved.id,
-      listId: moved.listId,
-      boardId: moved.boardId,
-      position: moved.position,
-      updatedAt: moved.updatedAt.toISOString(),
-    }; // realtime emit (REALTIME-001: card:moved) goes here, after the commit
   } catch (error) {
     // The card (P2025) or the target list (P2003) was deleted after the checks.
     if (isMissingCard(error) || isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
+  const { card: moved, from, rebalanced } = result;
+  // After the commit: both boards hear the move, the target board any rebalance.
+  cardMoved(card.workspaceId, userId, moved, {
+    cardId,
+    fromListId: from.listId,
+    toListId: moved.listId,
+    fromBoardId: from.boardId,
+    toBoardId: moved.boardId,
+    position: moved.position,
+  });
+  if (rebalanced) {
+    cardsReordered(
+      { boardId: moved.boardId, workspaceId: card.workspaceId },
+      userId,
+      moved.listId,
+      rebalanced,
+    );
+  }
+  return {
+    id: moved.id,
+    listId: moved.listId,
+    boardId: moved.boardId,
+    position: moved.position,
+    updatedAt: moved.updatedAt.toISOString(),
+  };
 }
 
 // Card labels (CARD-005, docs/api/cards.md → Card members & labels). Both are idempotent.
@@ -273,8 +343,9 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
     await assertBoardAccess(userId, label.boardId, 'board.view');
     throw otherBoard();
   }
+  let changed: boolean;
   try {
-    await prisma.$transaction(async (tx) => {
+    changed = await prisma.$transaction(async (tx) => {
       // A cross-board move of the card (it locks and updates the card row) may be committing:
       // FOR SHARE waits for it, so the board compared is the one the card ends up on, and a move
       // that starts later waits for this insert and then drops the label (I2).
@@ -295,12 +366,14 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
           data: { labelId, name: label.name, color: label.color },
         });
       }
+      return count > 0;
     });
   } catch (error) {
     // The label was deleted after the checks.
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
+  if (changed) await emitCardChanged(userId, cardId, card.workspaceId);
 }
 
 /**
@@ -310,14 +383,14 @@ export async function attachLabel(userId: string, cardId: string, labelId: strin
  */
 export async function detachLabel(userId: string, cardId: string, labelId: string): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
-  await prisma.$transaction(async (tx) => {
+  const changed = await prisma.$transaction(async (tx) => {
     // The card row first (the log's foreign key locks it anyway), in the order a card delete
     // takes its rows, so the two wait for each other instead of deadlocking.
     const [held] = await tx.$queryRaw<{ id: string }[]>`
       SELECT "id" FROM "Card" WHERE "id" = ${cardId} FOR KEY SHARE`;
     if (!held) throw AppError.notFound();
     const removed = await tx.cardLabel.deleteMany({ where: { cardId, labelId } });
-    if (removed.count === 0) return;
+    if (removed.count === 0) return false;
     const label = await tx.label.findUnique({ where: { id: labelId } });
     await logActivity(tx, {
       boardId: card.boardId,
@@ -326,7 +399,9 @@ export async function detachLabel(userId: string, cardId: string, labelId: strin
       type: 'LABEL_REMOVED',
       data: { labelId, name: label?.name ?? null, color: label?.color ?? null },
     });
+    return true;
   });
+  if (changed) await emitCardChanged(userId, cardId, card.workspaceId);
 }
 
 // Card members (CARD-005, docs/api/cards.md → Card members & labels). Both are idempotent, and
@@ -346,8 +421,9 @@ export async function assignMember(
   memberId: string,
 ): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
+  let changed: boolean;
   try {
-    await prisma.$transaction(async (tx) => {
+    changed = await prisma.$transaction(async (tx) => {
       const [membership] = await tx.$queryRaw<{ userId: string }[]>`
         SELECT "userId" FROM "WorkspaceMember"
         WHERE "userId" = ${memberId} AND "workspaceId" = ${card.workspaceId} FOR KEY SHARE`;
@@ -370,12 +446,14 @@ export async function assignMember(
           data: { userId: memberId },
         });
       }
+      return count > 0;
     });
   } catch (error) {
     // The card was deleted after the check.
     if (isMissingReference(error)) throw AppError.notFound();
     throw error;
   }
+  if (changed) await emitCardChanged(userId, cardId, card.workspaceId);
 }
 
 /**
@@ -388,7 +466,7 @@ export async function unassignMember(
   memberId: string,
 ): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
-  await prisma.$transaction(async (tx) => {
+  const changed = await prisma.$transaction(async (tx) => {
     const { count } = await tx.cardMember.deleteMany({ where: { cardId, userId: memberId } });
     if (count > 0) {
       await logActivity(tx, {
@@ -399,5 +477,7 @@ export async function unassignMember(
         data: { userId: memberId },
       });
     }
+    return count > 0;
   });
+  if (changed) await emitCardChanged(userId, cardId, card.workspaceId);
 }

@@ -64,6 +64,8 @@ const WORKSPACE: Room<z.infer<typeof WorkspaceRoomSchema>> = {
 
 export function registerRooms(socket: Socket) {
   const userId = socket.data.userId as string;
+  // Synchronous with the in-memory adapter (ADR-009); an async adapter must await this, or a
+  // socket it failed to add would miss `member:removed` and its eviction.
   void socket.join(userRoom(userId));
   // A socket's room messages run one after another, in the order sent: a join still checking
   // access cannot land after a later leave of the same room (fast navigation, StrictMode).

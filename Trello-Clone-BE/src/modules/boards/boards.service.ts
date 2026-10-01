@@ -4,6 +4,7 @@ import {
   toActivityDto,
   toBoardDetailDto,
   toBoardDto,
+  toCardSummaryDto,
   toLabelDto,
 } from './boards.mapper';
 import * as boardsRepository from './boards.repository';
@@ -99,6 +100,17 @@ export async function create(
 /** The board was deleted between the access check and this query (e.g. a concurrent DELETE). */
 const isNotFound = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+
+/**
+ * A card as its board tile shows it, with `archived` (the `card:updated` realtime payload); null
+ * if it was deleted meanwhile. Read after a change commits, for the event only.
+ */
+export async function loadCardSummary(cardId: string) {
+  const found = await boardsRepository.findCardSummary(cardId);
+  if (!found) return null;
+  const { card, checklist } = found;
+  return { card, data: { ...toCardSummaryDto({ ...card, checklist }), archived: card.archived } };
+}
 
 /** GET /boards/:boardId (≥ VIEWER): archived boards stay viewable. */
 export async function get(userId: string, boardId: string): Promise<BoardDetailDto> {

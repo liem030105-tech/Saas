@@ -1,5 +1,5 @@
 import { AppError } from '../../lib/app-error';
-import { lockContainers, settlePosition } from '../../lib/rebalance';
+import { lockContainers, settle } from '../../lib/rebalance';
 import { logActivity } from '../boards/boards.service';
 
 import type { Prisma } from '../../generated/prisma/client';
@@ -42,7 +42,8 @@ async function lockSourceAndTarget(tx: Prisma.TransactionClient, cardId: string,
  * 3. set `listId`, `boardId` (from the target list, I1) and `position`;
  * 4. on another board, drop the labels of the old board (I2; members stay, same workspace);
  * 5. rebalance the target list if the threshold is hit;
- * 6. log CARD_MOVED. Returns the card with its final position.
+ * 6. log CARD_MOVED. Returns the card with its final position, where it was (`from`) and the
+ *    target list's new positions if it was rebalanced (for the realtime events).
  */
 export async function move(tx: Prisma.TransactionClient, move: CardMove) {
   const { cardId, userId, to } = move;
@@ -54,7 +55,7 @@ export async function move(tx: Prisma.TransactionClient, move: CardMove) {
   if (from.boardId !== to.boardId) {
     await tx.cardLabel.deleteMany({ where: { cardId, label: { boardId: { not: to.boardId } } } });
   }
-  const position = await settlePosition(tx, 'Card', 'listId', to.listId, cardId);
+  const { position, rebalanced } = await settle(tx, 'Card', 'listId', to.listId, cardId);
   await logActivity(tx, {
     // The card's (new) board: the move shows in the target board's feed.
     boardId: to.boardId,
@@ -69,5 +70,9 @@ export async function move(tx: Prisma.TransactionClient, move: CardMove) {
       toBoardId: to.boardId,
     },
   });
-  return { ...moved, position };
+  return {
+    card: { ...moved, position },
+    from: { listId: from.listId, boardId: from.boardId },
+    rebalanced,
+  };
 }

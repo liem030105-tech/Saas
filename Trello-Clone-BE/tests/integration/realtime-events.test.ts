@@ -82,7 +82,8 @@ const addList = (user: User, boardId: string, body: { title: string; position?: 
   request(app).post(`${paths.boards}/${boardId}/lists`).set(bearer(user.token)).send(body);
 
 /** The envelope every event shares. */
-const envelope = (event: RealtimeEvent, expected: Partial<RealtimeEvent>) => {
+/** `expected` may give part of `data` (toMatchObject). */
+const envelope = (event: RealtimeEvent, expected: Record<string, unknown>) => {
   expect(event.eventId).toMatch(/^[0-9a-f-]{36}$/);
   expect(typeof event.version).toBe('number');
   expect(event).toMatchObject(expected);
@@ -299,5 +300,353 @@ describe('member:removed', () => {
       code: 'NOT_FOUND',
     });
     expect(await harness.io.in(`workspace:${workspaceId}`).fetchSockets()).toHaveLength(1);
+  });
+});
+
+// REALTIME-001b2: cards and comments.
+
+/** A list on the watched board, with one card. */
+async function withCard(owner: User, boardId: string) {
+  const list = (await addList(owner, boardId, { title: 'To do' }).expect(201)).body.data;
+  const card = (
+    await request(app)
+      .post(`${paths.lists}/${list.id}/cards`)
+      .set(bearer(owner.token))
+      .send({ title: 'Fix login' })
+      .expect(201)
+  ).body.data;
+  return { listId: list.id as string, cardId: card.id as string, card };
+}
+
+describe('card events', () => {
+  it('card:created, card:updated (with archived) and card:deleted reach the board room', async () => {
+    const { owner, workspaceId, boardId, socket } = await watchedBoard();
+    const list = (await addList(owner, boardId, { title: 'To do' }).expect(201)).body.data;
+
+    const created = nextEvent(socket, 'card:created');
+    const card = (
+      await request(app)
+        .post(`${paths.lists}/${list.id}/cards`)
+        .set(bearer(owner.token))
+        .send({ title: 'Fix login' })
+        .expect(201)
+    ).body.data;
+    envelope(await created, {
+      type: 'card:created',
+      boardId,
+      workspaceId,
+      actorId: owner.user.id,
+      data: card,
+    });
+
+    const updated = nextEvent(socket, 'card:updated');
+    const patched = (
+      await request(app)
+        .patch(`${paths.cards}/${card.id}`)
+        .set(bearer(owner.token))
+        .send({ title: 'Fix the login', archived: true })
+        .expect(200)
+    ).body.data;
+    const event = await updated;
+    envelope(event, {
+      type: 'card:updated',
+      data: { ...card, title: 'Fix the login', archived: true },
+    });
+    expect(event.version).toBe(Date.parse(patched.updatedAt));
+
+    const deleted = nextEvent(socket, 'card:deleted');
+    await request(app).delete(`${paths.cards}/${card.id}`).set(bearer(owner.token)).expect(204);
+    envelope(await deleted, { type: 'card:deleted', data: { cardId: card.id, listId: list.id } });
+  });
+
+  it('card:moved within a board, and to another board (both boards hear it)', async () => {
+    const { owner, workspaceId, boardId, socket } = await watchedBoard();
+    const { listId, cardId } = await withCard(owner, boardId);
+    const doing = (await addList(owner, boardId, { title: 'Doing' }).expect(201)).body.data;
+
+    const within = nextEvent(socket, 'card:moved');
+    await request(app)
+      .patch(`${paths.cards}/${cardId}/move`)
+      .set(bearer(owner.token))
+      .send({ listId: doing.id, position: 2048 })
+      .expect(200);
+    envelope(await within, {
+      type: 'card:moved',
+      boardId,
+      data: {
+        cardId,
+        fromListId: listId,
+        toListId: doing.id,
+        fromBoardId: boardId,
+        toBoardId: boardId,
+        position: 2048,
+      },
+    });
+
+    // Another board of the same workspace, watched by its own socket.
+    const other = (
+      await request(app)
+        .post(`${paths.workspaces}/${workspaceId}/boards`)
+        .set(bearer(owner.token))
+        .send({ title: 'Other' })
+        .expect(201)
+    ).body.data;
+    const target = (await addList(owner, other.id, { title: 'Inbox' }).expect(201)).body.data;
+    const otherSocket = await watch(owner, workspaceId, other.id);
+    const left = nextEvent(socket, 'card:moved');
+    const joined = nextEvent(otherSocket, 'card:moved');
+    await request(app)
+      .patch(`${paths.cards}/${cardId}/move`)
+      .set(bearer(owner.token))
+      .send({ listId: target.id, position: 1024 })
+      .expect(200);
+    for (const event of await Promise.all([left, joined])) {
+      envelope(event, {
+        boardId: other.id,
+        data: { cardId, fromBoardId: boardId, toBoardId: other.id, toListId: target.id },
+      });
+    }
+  });
+
+  it('a card rebalance sends one card:reordered with every new position in the list', async () => {
+    const { owner, boardId, socket } = await watchedBoard();
+    const { listId, cardId } = await withCard(owner, boardId);
+    const first = await testPrisma.card.findUniqueOrThrow({ where: { id: cardId } });
+
+    const reordered = nextEvent(socket, 'card:reordered');
+    await request(app)
+      .post(`${paths.lists}/${listId}/cards`)
+      .set(bearer(owner.token))
+      .send({ title: 'Squeezed', position: first.position + 1e-7 })
+      .expect(201);
+
+    const event = await reordered;
+    const stored = await testPrisma.card.findMany({ where: { listId } });
+    expect(event.data).toEqual({
+      listId,
+      positions: Object.fromEntries(stored.map((card) => [card.id, card.position])),
+    });
+  });
+
+  it('labels, members and checklist progress send card:updated only on a real change', async () => {
+    const { owner, member, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const label = await testPrisma.label.findFirstOrThrow({ where: { boardId } });
+    const heard = recordEvents(socket);
+    const as = bearer(owner.token);
+
+    let next = nextEvent(socket, 'card:updated');
+    await request(app).post(`${paths.cards}/${cardId}/labels/${label.id}`).set(as).expect(204);
+    expect((await next).data.labelIds).toEqual([label.id]);
+    await request(app).post(`${paths.cards}/${cardId}/labels/${label.id}`).set(as).expect(204);
+
+    next = nextEvent(socket, 'card:updated');
+    await request(app)
+      .post(`${paths.cards}/${cardId}/members/${member.user.id}`)
+      .set(as)
+      .expect(204);
+    expect((await next).data.memberIds).toEqual([member.user.id]);
+
+    next = nextEvent(socket, 'card:updated');
+    const checklist = (
+      await request(app)
+        .post(`${paths.cards}/${cardId}/checklists`)
+        .set(as)
+        .send({ title: 'Launch' })
+        .expect(201)
+    ).body.data;
+    const item = (
+      await request(app)
+        .post(`${paths.checklists}/${checklist.id}/items`)
+        .set(as)
+        .send({ content: 'Ship' })
+        .expect(201)
+    ).body.data;
+    expect((await next).data.checklist).toEqual({ done: 0, total: 1 });
+
+    next = nextEvent(socket, 'card:updated');
+    const itemPath = `${paths.checklists}/${checklist.id}/items/${item.id}`;
+    await request(app).patch(itemPath).set(as).send({ done: true }).expect(200);
+    expect((await next).data.checklist).toEqual({ done: 1, total: 1 });
+    // An edit of the item's text changes nothing on the tile: no event.
+    await request(app).patch(itemPath).set(as).send({ content: 'Ship it' }).expect(200);
+
+    next = nextEvent(socket, 'card:updated');
+    await request(app).delete(`${paths.cards}/${cardId}/labels/${label.id}`).set(as).expect(204);
+    expect((await next).data.labelIds).toEqual([]);
+
+    next = nextEvent(socket, 'card:updated');
+    const memberPath = `${paths.cards}/${cardId}/members/${member.user.id}`;
+    await request(app).delete(memberPath).set(as).expect(204);
+    expect((await next).data.memberIds).toEqual([]);
+    await request(app).delete(memberPath).set(as).expect(204); // not assigned: nothing changes
+
+    next = nextEvent(socket, 'card:updated');
+    await request(app).delete(itemPath).set(as).expect(204);
+    expect((await next).data.checklist).toEqual({ done: 0, total: 0 });
+
+    const second = (
+      await request(app)
+        .post(`${paths.checklists}/${checklist.id}/items`)
+        .set(as)
+        .send({ content: 'Tell users' })
+        .expect(201)
+    ).body.data;
+    expect(second.id).toBeTruthy();
+    next = nextEvent(socket, 'card:updated');
+    await request(app).delete(`${paths.checklists}/${checklist.id}`).set(as).expect(204);
+    expect((await next).data.checklist).toEqual({ done: 0, total: 0 });
+
+    // One event per real change (label, member, item added, tick, unlabel, unassign, item
+    // deleted, item added, checklist deleted); the repeated attach, the text edit and the second
+    // unassign sent nothing.
+    expect(heard.filter((e) => e.type === 'card:updated')).toHaveLength(9);
+  });
+});
+
+describe('card and comment failures', () => {
+  it('a refused or rolled-back card or comment change sends nothing', async () => {
+    const { owner, workspaceId, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const other = await watchedBoard(); // another workspace
+    const foreignLabel = await testPrisma.label.findFirstOrThrow({
+      where: { boardId: other.boardId },
+    });
+    const otherList = (await addList(other.owner, other.boardId, { title: 'X' }).expect(201)).body
+      .data;
+    // The owner of the first workspace may see the other board: make them a member there too.
+    await testPrisma.workspaceMember.create({
+      data: { userId: owner.user.id, workspaceId: other.workspaceId, role: 'MEMBER' },
+    });
+    const heard = recordEvents(socket);
+    const as = bearer(owner.token);
+
+    // Refused before any write: another board's label (422), a list in another workspace (422).
+    await request(app)
+      .post(`${paths.cards}/${cardId}/labels/${foreignLabel.id}`)
+      .set(as)
+      .expect(422);
+    await request(app)
+      .patch(`${paths.cards}/${cardId}/move`)
+      .set(as)
+      .send({ listId: otherList.id, position: 1024 })
+      .expect(422);
+    // Written, then rolled back: a comment whose transaction fails after the insert.
+    const original = prisma.$transaction.bind(prisma) as (
+      fn: (tx: unknown) => Promise<unknown>,
+    ) => Promise<unknown>;
+    vi.spyOn(prisma, '$transaction').mockImplementationOnce(((
+      fn: (tx: unknown) => Promise<unknown>,
+    ) =>
+      original(async (tx) => {
+        await fn(tx);
+        throw new Error('rolled back');
+      })) as never);
+    await request(app)
+      .post(`${paths.cards}/${cardId}/comments`)
+      .set(as)
+      .send({ content: 'Lost' })
+      .expect(500);
+    expect(await testPrisma.comment.count({ where: { cardId } })).toBe(0);
+
+    // The socket was listening all along: a real change is heard.
+    const created = nextEvent(socket, 'list:created');
+    await addList(owner, boardId, { title: 'Heard' }).expect(201);
+    await created;
+    expect(heard.map((e) => e.type)).toEqual(['list:created']);
+    expect(workspaceId).not.toBe(other.workspaceId);
+  });
+
+  it('a failed read of the tile after the commit loses only the event, not the change', async () => {
+    const { owner, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const label = await testPrisma.label.findFirstOrThrow({ where: { boardId } });
+    const heard = recordEvents(socket);
+    const original = prisma.card.findUnique.bind(prisma.card);
+    // The tile read (it includes the label and member ids) fails; the access check does not.
+    vi.spyOn(prisma.card, 'findUnique').mockImplementation(((args: { include?: unknown }) =>
+      args.include ? Promise.reject(new Error('read failed')) : original(args as never)) as never);
+
+    await request(app)
+      .post(`${paths.cards}/${cardId}/labels/${label.id}`)
+      .set(bearer(owner.token))
+      .expect(204);
+
+    vi.restoreAllMocks();
+    expect(await testPrisma.cardLabel.count({ where: { cardId } })).toBe(1);
+    const created = nextEvent(socket, 'list:created');
+    await addList(owner, boardId, { title: 'Heard' }).expect(201);
+    await created;
+    expect(heard.map((e) => e.type)).toEqual(['list:created']);
+  });
+
+  it('a move to another board that rebalances sends card:reordered to the target board only', async () => {
+    const { owner, workspaceId, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const other = (
+      await request(app)
+        .post(`${paths.workspaces}/${workspaceId}/boards`)
+        .set(bearer(owner.token))
+        .send({ title: 'Other' })
+        .expect(201)
+    ).body.data;
+    const target = (await addList(owner, other.id, { title: 'Inbox' }).expect(201)).body.data;
+    await request(app)
+      .post(`${paths.lists}/${target.id}/cards`)
+      .set(bearer(owner.token))
+      .send({ title: 'Already there', position: 1024 })
+      .expect(201);
+    const otherSocket = await watch(owner, workspaceId, other.id);
+    const heard = recordEvents(socket);
+
+    const reordered = nextEvent(otherSocket, 'card:reordered');
+    const moved = nextEvent(socket, 'card:moved');
+    await request(app)
+      .patch(`${paths.cards}/${cardId}/move`)
+      .set(bearer(owner.token))
+      .send({ listId: target.id, position: 1024 + 1e-7 })
+      .expect(200);
+
+    expect((await reordered).data.listId).toBe(target.id);
+    await moved;
+    expect(heard.map((e) => e.type)).toEqual(['card:moved']);
+  });
+});
+
+describe('comment events', () => {
+  it('comment:created, comment:updated and comment:deleted, and the tile count follows', async () => {
+    const { owner, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const as = bearer(owner.token);
+
+    const created = nextEvent(socket, 'comment:created');
+    let tile = nextEvent(socket, 'card:updated');
+    const comment = (
+      await request(app)
+        .post(`${paths.cards}/${cardId}/comments`)
+        .set(as)
+        .send({ content: 'Hi' })
+        .expect(201)
+    ).body.data;
+    envelope(await created, { type: 'comment:created', boardId, data: comment });
+    expect((await tile).data.commentCount).toBe(1);
+
+    const updated = nextEvent(socket, 'comment:updated');
+    const edited = (
+      await request(app)
+        .patch(`${paths.comments}/${comment.id}`)
+        .set(as)
+        .send({ content: 'Hello' })
+        .expect(200)
+    ).body.data;
+    const event = await updated;
+    envelope(event, { type: 'comment:updated', data: edited });
+    expect(event.version).toBe(Date.parse(edited.updatedAt));
+
+    const deleted = nextEvent(socket, 'comment:deleted');
+    tile = nextEvent(socket, 'card:updated');
+    await request(app).delete(`${paths.comments}/${comment.id}`).set(as).expect(204);
+    envelope(await deleted, { type: 'comment:deleted', data: { commentId: comment.id, cardId } });
+    expect((await tile).data.commentCount).toBe(0);
   });
 });

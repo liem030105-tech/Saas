@@ -2,8 +2,13 @@ import { toCommentDto } from './comments.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import {
+  commentCreated,
+  commentDeleted,
+  commentUpdated,
+} from '../../realtime/events/comments.events';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
-import { assertCardAccess } from '../cards/cards.service';
+import { assertCardAccess, emitCardChanged } from '../cards/cards.service';
 import { hasPermission } from '../workspaces/permissions';
 
 import type {
@@ -74,8 +79,9 @@ export async function create(
   input: CommentData,
 ): Promise<CommentDto> {
   const card = await assertCardAccess(userId, cardId, 'comment.create');
+  let comment: Prisma.CommentGetPayload<{ include: typeof AUTHOR }>;
   try {
-    const comment = await prisma.$transaction(async (tx) => {
+    comment = await prisma.$transaction(async (tx) => {
       const created = await tx.comment.create({
         data: { cardId, authorId: userId, content: input.content },
         include: AUTHOR,
@@ -89,11 +95,15 @@ export async function create(
       });
       return created;
     });
-    return toCommentDto(comment); // realtime emit (REALTIME-001: comment:created) goes here
   } catch (error) {
     if (isMissing(error)) throw AppError.notFound();
     throw error;
   }
+  // After the commit, outside the error mapping; the card's tile also shows one more comment.
+  const dto = toCommentDto(comment);
+  commentCreated({ boardId: card.boardId, workspaceId: card.workspaceId }, userId, dto);
+  await emitCardChanged(userId, cardId, card.workspaceId);
+  return dto;
 }
 
 /**
@@ -108,15 +118,15 @@ async function assertCommentAccess(
 ) {
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
-    select: { id: true, authorId: true, card: { select: { boardId: true } } },
+    select: { id: true, cardId: true, authorId: true, card: { select: { boardId: true } } },
   });
   if (!comment) throw AppError.notFound();
-  const { role } = await assertBoardAccess(userId, comment.card.boardId, 'comment.view');
+  const { role, board } = await assertBoardAccess(userId, comment.card.boardId, 'comment.view');
   const allowed =
     (comment.authorId === userId && hasPermission(role, own)) ||
     (any !== undefined && hasPermission(role, any));
   if (!allowed) throw AppError.forbidden();
-  return comment;
+  return { ...comment, board: { boardId: board.id, workspaceId: board.workspaceId } };
 }
 
 /** PATCH /comments/:commentId: the author, while their role is ≥ MEMBER. */
@@ -125,27 +135,37 @@ export async function update(
   commentId: string,
   input: CommentData,
 ): Promise<CommentDto> {
-  await assertCommentAccess(userId, commentId, 'comment.editOwn');
+  const { board } = await assertCommentAccess(userId, commentId, 'comment.editOwn');
+  let comment: Prisma.CommentGetPayload<{ include: typeof AUTHOR }>;
   try {
-    const comment = await prisma.comment.update({
+    comment = await prisma.comment.update({
       where: { id: commentId },
       data: { content: input.content },
       include: AUTHOR,
     });
-    return toCommentDto(comment);
   } catch (error) {
     if (isMissing(error)) throw AppError.notFound();
     throw error;
   }
+  const dto = toCommentDto(comment);
+  commentUpdated(board, userId, dto);
+  return dto;
 }
 
 /** DELETE /comments/:commentId: the author with a role ≥ MEMBER, or anyone ≥ ADMIN. */
 export async function remove(userId: string, commentId: string): Promise<void> {
-  await assertCommentAccess(userId, commentId, 'comment.deleteOwn', 'comment.deleteAny');
+  const { board, cardId } = await assertCommentAccess(
+    userId,
+    commentId,
+    'comment.deleteOwn',
+    'comment.deleteAny',
+  );
   try {
     await prisma.comment.delete({ where: { id: commentId } });
   } catch (error) {
     if (isMissing(error)) throw AppError.notFound();
     throw error;
   }
+  commentDeleted(board, userId, commentId, cardId);
+  await emitCardChanged(userId, cardId, board.workspaceId); // one comment fewer on the tile
 }

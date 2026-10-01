@@ -17,7 +17,8 @@ export interface RealtimeEventData {
   'list:reordered': { positions: Record<string, number> };
   'list:deleted': { listId: string };
   'card:created': CardSummaryDto;
-  'card:updated': CardSummaryDto;
+  /** The tile as it is now; `archived` tells the board to drop (or bring back) the tile. */
+  'card:updated': CardSummaryDto & { archived: boolean };
   'card:moved': {
     cardId: string;
     fromListId: string;
