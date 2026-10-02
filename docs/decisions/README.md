@@ -143,4 +143,3 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** uses the realtime layer already built; no email provider or new infrastructure (no queues or schedulers without an ADR, so "coming due" must not need a job runner; the spec decides how).
 - **Trade-offs:** users only see notifications while they use the app.
 - **Status:** Accepted
-
