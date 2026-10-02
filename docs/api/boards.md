@@ -60,7 +60,7 @@ Archived boards remain viewable; the FE shows an "archived" banner.
 | Task | BOARD-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN (`'board.delete'`) |
-| Success | `204` (cascade: lists, cards, labels and the activity log go with it) |
+| Success | `204` (cascade: lists, cards, labels and the activity log go with it; the cards' attachment files are deleted from storage after commit, ATTACHMENTS-001) |
 | Errors | `401` · `403` · `404` · `429 RATE_LIMITED` |
 
 Schemas: `UpdateBoardInputSchema`, `BoardDetailDtoSchema`, `ListDtoSchema`, `CardSummaryDtoSchema`, `LabelDtoSchema` (`@trello-clone/shared`).

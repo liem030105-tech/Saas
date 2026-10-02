@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { attachmentData } from '../data/attachments';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
 import { resetDb, testPrisma } from '../helpers/db';
@@ -667,5 +668,41 @@ describe('comment events', () => {
     await request(app).delete(`${paths.comments}/${comment.id}`).set(as).expect(204);
     envelope(await deleted, { type: 'comment:deleted', data: { commentId: comment.id, cardId } });
     expect((await tile).data.commentCount).toBe(0);
+  });
+});
+
+// ATTACHMENTS-001: a cover set or its attachment deleted is a card:updated with the signed coverUrl.
+describe('cover events', () => {
+  it('card:updated carries the new coverUrl, and null once the cover attachment is deleted', async () => {
+    const { owner, boardId, socket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+
+    const uploaded = nextEvent(socket, 'card:updated');
+    const image = (
+      await request(app)
+        .post(`${paths.cards}/${cardId}/attachments`)
+        .set(bearer(owner.token))
+        .attach('file', attachmentData.png.bytes, attachmentData.png.name)
+        .expect(201)
+    ).body.data;
+    expect((await uploaded).data).toMatchObject({ id: cardId, coverUrl: null });
+    const { storageKey } = await testPrisma.attachment.findUniqueOrThrow({
+      where: { id: image.id as string },
+    });
+
+    const covered = nextEvent(socket, 'card:updated');
+    await request(app)
+      .patch(`${paths.cards}/${cardId}`)
+      .set(bearer(owner.token))
+      .send({ coverAttachmentId: image.id })
+      .expect(200);
+    expect((await covered).data.coverUrl).toContain(storageKey);
+
+    const uncovered = nextEvent(socket, 'card:updated');
+    await request(app)
+      .delete(`${paths.attachments}/${image.id as string}`)
+      .set(bearer(owner.token))
+      .expect(204);
+    expect((await uncovered).data).toMatchObject({ id: cardId, coverUrl: null });
   });
 });

@@ -2,7 +2,9 @@ import { toListDto } from './lists.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma, type List } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { lockAttachmentKeys } from '../../lib/attachment-files';
 import { appendPosition, lockContainer, settle } from '../../lib/rebalance';
+import { removeFiles } from '../../lib/storage';
 import {
   listCreated,
   listDeleted,
@@ -135,11 +137,17 @@ export async function update(
 /** DELETE /lists/:listId (≥ MEMBER): its cards go with it (cascade, from CARD-001). */
 export async function remove(userId: string, listId: string): Promise<void> {
   const where = await assertListAccess(userId, listId);
+  let files: string[];
   try {
-    await prisma.list.delete({ where: { id: listId } });
+    files = await prisma.$transaction(async (tx) => {
+      const keys = await lockAttachmentKeys(tx, { listId });
+      await tx.list.delete({ where: { id: listId } });
+      return keys;
+    });
   } catch (error) {
     if (isMissingList(error)) throw AppError.notFound();
     throw error;
   }
+  await removeFiles(files); // its cards' attachment files, after the commit (ATTACHMENTS-001)
   listDeleted(where, userId, listId);
 }

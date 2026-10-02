@@ -27,6 +27,8 @@ export const BUSINESS_RULES = [
   'LABEL_OTHER_BOARD',
   /** Only a member of the card's workspace can be assigned to it (invariant I3, CARD-005). */
   'NOT_WORKSPACE_MEMBER',
+  /** A card's cover must be one of its own image attachments (ATTACHMENTS-001). */
+  'COVER_NOT_IMAGE_OF_CARD',
 ] as const;
 
 export type BusinessRule = (typeof BUSINESS_RULES)[number];

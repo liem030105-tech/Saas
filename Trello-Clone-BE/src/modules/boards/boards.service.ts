@@ -11,6 +11,8 @@ import * as boardsRepository from './boards.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Board } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { lockAttachmentKeys } from '../../lib/attachment-files';
+import { removeFiles, signedFileUrl } from '../../lib/storage';
 import { boardCreated, boardDeleted, boardUpdated } from '../../realtime/events/boards.events';
 import { hasPermission, type WorkspaceAction } from '../workspaces/permissions';
 
@@ -111,7 +113,11 @@ export async function loadCardSummary(cardId: string) {
   const found = await boardsRepository.findCardSummary(cardId);
   if (!found) return null;
   const { card, checklist } = found;
-  return { card, data: { ...toCardSummaryDto({ ...card, checklist }), archived: card.archived } };
+  const coverUrl = await signedFileUrl(card.coverAttachment);
+  return {
+    card,
+    data: { ...toCardSummaryDto({ ...card, checklist, coverUrl }), archived: card.archived },
+  };
 }
 
 /** GET /boards/:boardId (≥ VIEWER): archived boards stay viewable. */
@@ -122,7 +128,18 @@ export async function get(userId: string, boardId: string): Promise<BoardDetailD
     boardsRepository.findChecklistProgress(boardId),
   ]);
   if (!board) throw AppError.notFound();
-  return toBoardDetailDto(board, (cardId) => progress.get(cardId) ?? NO_CHECKLIST);
+  // Covers get fresh signed URLs (ADR-020); signing is local, no request per card.
+  const cards = board.lists.flatMap((list) => list.cards);
+  const covers = new Map(
+    await Promise.all(
+      cards.map(async (card) => [card.id, await signedFileUrl(card.coverAttachment)] as const),
+    ),
+  );
+  return toBoardDetailDto(
+    board,
+    (cardId) => progress.get(cardId) ?? NO_CHECKLIST,
+    (cardId) => covers.get(cardId) ?? null,
+  );
 }
 
 /**
@@ -159,12 +176,18 @@ export async function update(
 /** DELETE /boards/:boardId (≥ ADMIN): lists, cards and the activity log go with it (cascade). */
 export async function remove(userId: string, boardId: string): Promise<void> {
   const { board } = await assertBoardAccess(userId, boardId, 'board.delete');
+  let files: string[];
   try {
-    await prisma.board.delete({ where: { id: boardId } });
+    files = await prisma.$transaction(async (tx) => {
+      const keys = await lockAttachmentKeys(tx, { boardId });
+      await tx.board.delete({ where: { id: boardId } });
+      return keys;
+    });
   } catch (error) {
     if (isNotFound(error)) throw AppError.notFound();
     throw error;
   }
+  await removeFiles(files); // its cards' attachment files, after the commit (ATTACHMENTS-001)
   boardDeleted(userId, boardId, board.workspaceId);
 }
 
@@ -195,8 +218,14 @@ export async function search(
     boardsRepository.searchCards(boardId, query, new Date()),
     boardsRepository.findChecklistProgress(boardId),
   ]);
-  return cards.map((card) =>
-    toCardSummaryDto({ ...card, checklist: progress.get(card.id) ?? NO_CHECKLIST }),
+  return Promise.all(
+    cards.map(async (card) =>
+      toCardSummaryDto({
+        ...card,
+        checklist: progress.get(card.id) ?? NO_CHECKLIST,
+        coverUrl: await signedFileUrl(card.coverAttachment),
+      }),
+    ),
   );
 }
 

@@ -15,6 +15,8 @@ export type CardSummaryRow = Card & {
   _count: { comments: number };
   /** Done and total checklist items over all the card's checklists (CARD-005c). */
   checklist: ChecklistProgress;
+  /** The cover image's signed URL (ATTACHMENTS-001), or null. */
+  coverUrl: string | null;
 };
 
 export interface ChecklistProgress {
@@ -40,17 +42,22 @@ export function toBoardDto(board: Board): BoardDto {
 /** docs/api/boards.md → BoardDetailDto. */
 export function toBoardDetailDto(
   board: Board & {
-    lists: (List & { cards: Omit<CardSummaryRow, 'checklist'>[] })[];
+    lists: (List & { cards: Omit<CardSummaryRow, 'checklist' | 'coverUrl'>[] })[];
     labels: Label[];
   },
   checklistProgressOf: (cardId: string) => ChecklistProgress,
+  coverUrlOf: (cardId: string) => string | null,
 ): BoardDetailDto {
   return {
     ...toBoardDto(board),
     lists: board.lists.map((list) => ({
       ...toDetailListDto(list),
       cards: list.cards.map((card) =>
-        toCardSummaryDto({ ...card, checklist: checklistProgressOf(card.id) }),
+        toCardSummaryDto({
+          ...card,
+          checklist: checklistProgressOf(card.id),
+          coverUrl: coverUrlOf(card.id),
+        }),
       ),
     })),
     labels: board.labels.map(toLabelDto),
@@ -88,7 +95,7 @@ export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
     position: card.position,
     dueDate: card.dueDate?.toISOString() ?? null,
     completed: card.completed,
-    coverUrl: null, // the cover's signed URL arrives with ATTACHMENTS-001b
+    coverUrl: card.coverUrl,
     labelIds: card.labels.map((label) => label.labelId),
     memberIds: card.members.map((member) => member.userId),
     checklist: card.checklist,

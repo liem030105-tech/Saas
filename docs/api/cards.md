@@ -75,7 +75,7 @@ Moving to an archived list is allowed. Archived cards can be moved.
 | Task | CARD-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ MEMBER (as PATCH) |
-| Success | `204` (cascade; `Activity.cardId` is set to null). Logs nothing |
+| Success | `204` (cascade; `Activity.cardId` is set to null; its attachment files are deleted from storage after commit, ATTACHMENTS-001). Logs nothing |
 | Errors | `401` · `403` · `404` (also when already deleted) · `429 RATE_LIMITED` |
 
 ## Card members & labels (CARD-005)

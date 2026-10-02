@@ -53,6 +53,8 @@ describe('describeActivity', () => {
     ['CARD_UPDATED', { completed: true }, card, 'marked Fix login as complete'],
     ['CARD_UPDATED', { dueDate: null }, card, 'removed the due date of Fix login'],
     ['CARD_UPDATED', { description: true }, card, 'updated the description of Fix login'],
+    ['CARD_UPDATED', { coverAttachmentId: 'a1' }, card, 'changed the cover of Fix login'],
+    ['CARD_UPDATED', { coverAttachmentId: null }, card, 'removed the cover of Fix login'],
     ['CARD_ARCHIVED', { archived: true }, card, 'archived Fix login'],
     [
       'CARD_MOVED',

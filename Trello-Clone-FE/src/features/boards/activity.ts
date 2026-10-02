@@ -78,6 +78,8 @@ export function describeActivity(activity: ActivityDto, names: ActivityNames): s
       if (data.dueDate !== undefined) return `changed the due date of ${card}`;
       if (data.description !== undefined) return `updated the description of ${card}`;
       if (data.archived === false) return `unarchived ${card}`;
+      if (data.coverAttachmentId === null) return `removed the cover of ${card}`;
+      if (data.coverAttachmentId !== undefined) return `changed the cover of ${card}`;
       return `updated ${card}`;
     case 'CARD_ARCHIVED':
       return `archived ${card}`;
