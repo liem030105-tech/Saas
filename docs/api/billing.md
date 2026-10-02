@@ -3,7 +3,7 @@
 > **Domain:** `billing` module, delivered by BILLING-001. Conventions, errors, permission matrix: [README](README.md). Webhook security: [security.md](../architecture/security.md#stripe-webhook).
 
 ## Plans and limits
-Limit values are proposed defaults (**D-10**); the enforcement timing is **D-11**; the Pro price model is **D-13 (blocking for BILLING-001)**.
+Limit values are proposed defaults (**D-10**); the enforcement timing is **D-11**; Pro costs **$5 per member per month** (D-13, demo, Stripe test mode).
 
 | | Free | Pro |
 |--|------|-----|

@@ -28,7 +28,7 @@ export const ListBoardsQuerySchema = z.object({
 });
 
 /**
- * GET /boards/:boardId/search `due` filter (SEARCH-001). Meanings are the proposed default of D-26
+ * GET /boards/:boardId/search `due` filter (SEARCH-001). Meanings decided in D-26
  * (docs/decisions/DECISIONS-REQUIRED.md): `overdue` = due date passed and not completed; `week` =
  * due in the next 7 days and not completed; `none` = no due date.
  */

@@ -69,7 +69,7 @@
 - **Markdown** (card descriptions, comments) is stored raw and rendered by the FE only through `components/ui/Markdown.tsx` (CARD-002): `react-markdown` with `skipHtml` + `rehype-sanitize`, links with `target="_blank" rel="noopener noreferrer"`. Its test covers script tags, event handlers, `javascript:` links and iframes. Never `dangerouslySetInnerHTML`.
 
 ## File uploads (ATTACHMENTS-001)
-- Multer memory storage → storage provider (**D-20**). Nothing is written to server disk.
+- Multer memory storage → AWS S3 (D-20, ADR-020). Nothing is written to server disk.
 - MIME allowlist (**D-19**) verified by magic bytes, not the extension. Size by plan (**D-10**).
 - File names are sanitized. Storage keys are `<workspaceId>/<cardId>/<uuid>`.
 

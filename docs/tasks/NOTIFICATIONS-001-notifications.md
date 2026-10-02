@@ -4,33 +4,33 @@
 |-------|-------|
 | Phase | 6 (Post-MVP) |
 | Depends on | REALTIME-001 |
-| Blocked by decisions | **D-09** (design), D-18 (email) |
+| Blocked by decisions | none (D-09 resolved: in-app only, ADR-021); D-18 (email) not needed |
 | Skills | backend, database, frontend, realtime |
 
 # Goal
 Users are notified about events relevant to them (e.g. being assigned to a card).
 
 # Context
-Listed in the Phase 6 scope, but **no data model, API, or trigger list is specified yet**. This task first requires D-09 to be resolved and the spec written.
+Delivery and triggers are decided ([ADR-021](../decisions/README.md#adr-021-in-app-notifications-only-d-09)): in-app only; assigned to a card, a comment on a card you are a member of (or mentioning you), a card you are a member of coming due, a workspace invite for an existing account. The data model and API are written first (requirement 1).
 
 # Requirements
-1. **Blocked until D-09 is resolved.** Before any code: write `docs/api/notifications.md` and add the `Notification` entity to `docs/database/schema.md`, via a docs-only PR approved by the owner.
+1. Before any code: write `docs/api/notifications.md` and add the `Notification` entity to `docs/database/schema.md`, via a docs-only PR approved by the owner.
 2. Then implement exactly that spec.
 
 # Out of Scope
-Email delivery unless D-18 decides it; push notifications.
+Email delivery (ADR-021); push notifications.
 
 # Frontend Changes
-Defined by the D-09 spec.
+Defined by the spec PR (requirement 1).
 
 # Backend Changes
-Defined by the D-09 spec.
+Defined by the spec PR (requirement 1).
 
 # Database Changes
-Defined by the D-09 spec (new `Notification` entity expected).
+Defined by the spec PR (requirement 1) (new `Notification` entity expected).
 
 # API Changes
-Defined by the D-09 spec.
+Defined by the spec PR (requirement 1).
 
 # Realtime Changes
 Likely a per-user room (e.g. `user:{userId}`) – must be added to realtime.md by the spec.
@@ -49,7 +49,7 @@ Defined by the spec; the baseline DoD applies.
 - [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
-REALTIME-001; decision D-09.
+REALTIME-001; ADR-021 (D-09).
 
 # Risks
-Scope creep → keep the trigger list small in the D-09 spec.
+Scope creep → keep to ADR-021's trigger list.

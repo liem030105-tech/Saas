@@ -109,7 +109,7 @@ Durations are **estimates** for one developer with Claude Code. Every task merge
 Every task satisfies the single canonical [Definition of Done](docs/development/definition-of-done.md): architecture boundaries, backend authorization, tenant isolation, validation, tests per the [test matrix](docs/development/testing.md#when-each-test-type-is-required), typecheck, lint, updated docs, no secrets, no unrelated refactoring, green CI.
 
 ## 9. Unresolved decisions
-Open questions needing human approval are tracked in [DECISIONS-REQUIRED.md](docs/decisions/DECISIONS-REQUIRED.md) (`D-01`…`D-24`). Tasks may proceed on proposed defaults unless an item is marked **blocking** for that task. Currently blocking: D-09 (NOTIFICATIONS-001), D-13 (BILLING-001), D-20 (ATTACHMENTS-001), D-21 and D-22 (DEPLOYMENT-001).
+Open questions needing human approval are tracked in [DECISIONS-REQUIRED.md](docs/decisions/DECISIONS-REQUIRED.md) (`D-01`…`D-26`). Tasks may proceed on proposed defaults unless an item is marked **blocking** for that task. Currently blocking: D-21 and D-22 (DEPLOYMENT-001).
 
 ## 10. Documentation index
 - Architecture: [overview](docs/architecture/overview.md) · [frontend](docs/architecture/frontend.md) · [backend](docs/architecture/backend.md) · [database](docs/architecture/database.md) · [realtime](docs/architecture/realtime.md) · [security](docs/architecture/security.md)
