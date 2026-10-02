@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { boardsApi } from '../api';
+import { searchKeys } from '../queries';
 import { useBoardFilters } from '../store';
 
 import type { SearchCardsQuery } from '@trello-clone/shared';
@@ -11,17 +12,11 @@ export const SEARCH_DEBOUNCE_MS = 300;
 /** At most this many matches come back (D-14). */
 export const SEARCH_LIMIT = 100;
 
-// Search results (SEARCH-001) sit under their own prefix, not under ['board', id]: board fetches
-// (and the realtime rules that watch them) never count a search.
-export const searchKeys = {
-  board: (boardId: string) => ['board-search', boardId] as const,
-  query: (boardId: string, query: SearchCardsQuery) =>
-    [...searchKeys.board(boardId), query] as const,
-};
-
 /** `value` once it has stopped changing for `ms`; an empty value at once (clearing is instant). */
 function useDebounced(value: string, ms: number) {
   const [debounced, setDebounced] = useState(value);
+  // Cleared: forget the old text now, so typing again soon never brings it back.
+  if (value === '' && debounced !== '') setDebounced('');
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(value), ms);
     return () => clearTimeout(timer);

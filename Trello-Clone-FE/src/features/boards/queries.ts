@@ -12,6 +12,7 @@ import type {
   BoardDetailDto,
   BoardDto,
   CreateBoardInput,
+  SearchCardsQuery,
   UpdateBoardInput,
 } from '@trello-clone/shared';
 
@@ -24,6 +25,14 @@ export const boardKeys = {
   list: (workspaceId: string, archived: boolean) =>
     [...boardKeys.workspace(workspaceId), { archived }] as const,
   detail: (boardId: string) => ['board', boardId] as const,
+};
+
+// Search results (SEARCH-001) sit under their own prefix, not under ['board', id]: board fetches
+// (and the realtime rules that watch them) never count a search.
+export const searchKeys = {
+  board: (boardId: string) => ['board-search', boardId] as const,
+  query: (boardId: string, query: SearchCardsQuery) =>
+    [...searchKeys.board(boardId), query] as const,
 };
 
 // Activity feeds (CARD-005e): `['activities', boardId]` prefixes the board's feed and its cards'.
