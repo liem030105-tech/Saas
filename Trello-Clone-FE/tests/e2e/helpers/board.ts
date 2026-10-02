@@ -13,10 +13,21 @@ export async function boardWithLists(page: Page, titles: string[]) {
   await page.getByRole('button', { name: 'Create account' }).click();
   await page.getByLabel('Workspace name').fill(`Team ${owner.name.split(' ').pop()}`);
   await page.getByRole('button', { name: 'Create workspace' }).click();
-  await page.getByRole('button', { name: 'Create your first board' }).click();
-  await page.getByRole('dialog').getByLabel('Board title').fill('Roadmap');
+  return addBoardWithLists(page, { create: 'Create your first board', title: 'Roadmap', titles });
+}
+
+/**
+ * On a workspace page (signed in): creates the board `title` with `create` (the "Create your first
+ * board" button or the "Create board" tile), opens it and adds `titles` as lists in that order.
+ */
+export async function addBoardWithLists(
+  page: Page,
+  { create, title: boardTitle, titles }: { create: string; title: string; titles: string[] },
+) {
+  await page.getByRole('button', { name: create }).click();
+  await page.getByRole('dialog').getByLabel('Board title').fill(boardTitle);
   await page.getByRole('dialog').getByRole('button', { name: 'Create board' }).click();
-  await page.getByRole('link', { name: 'Roadmap' }).click();
+  await page.getByRole('link', { name: boardTitle }).click();
   await page.getByRole('button', { name: 'Add a list' }).click();
   const titleField = page.getByRole('textbox', { name: 'List title' });
   for (const title of titles) {
