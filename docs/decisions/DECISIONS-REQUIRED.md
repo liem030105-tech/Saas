@@ -59,10 +59,10 @@
 - **Recommendation:** landing and pricing pages → BILLING-001 (Phase 7). Templates → post-Phase 9 backlog. Dark mode → backlog. Favorites → backlog (client-side only if ever done).
 - **Affects:** `plan.md`, `architecture/frontend.md` routes. **Blocking:** no.
 
-### D-09 Notifications design
+### D-09 Notifications design: **Resolved** (in-app only), [ADR-021](README.md#adr-021-in-app-notifications-only-d-09)
+- **Decision:** notifications are **in-app only** (a bell with a list, live over the existing Socket.IO connection); no email (D-18 stays open for invites). Triggers: being assigned to a card; a comment on a card you are a member of (or one that mentions you); a card you are a member of coming due; an invite to a workspace (for an existing account with that email). The data model, API and exact rules are written in the NOTIFICATIONS-001 spec PR first (its requirement 1).
 - **Question:** which events notify whom, delivery (in-app only vs. email), and the data model (`Notification` entity).
-- **Context:** Phase 6 lists "notifications", but no entity or API exists in the specification.
-- **Affects:** NOTIFICATIONS-001. **Blocking:** yes (NOTIFICATIONS-001 needs a spec first).
+- **Affects:** NOTIFICATIONS-001. **Blocking:** was yes; NOTIFICATIONS-001 now starts with its spec PR.
 
 ## Billing & plan limits
 
@@ -89,9 +89,10 @@
 - **Recommendation:** filter-on-read in BILLING-001; add a cleanup job only if the table grows.
 - **Affects:** BILLING-001. **Blocking:** no.
 
-### D-13 Pro pricing model
-- **Question:** flat price per workspace, or per member? And the amount (the earlier plan said "$5/user/month – demo").
-- **Affects:** BILLING-001, pricing page. **Blocking:** yes (BILLING-001).
+### D-13 Pro pricing model: **Resolved** ($5 per member per month)
+- **Decision:** Pro is priced **per member: $5 per member per month** (demo; Stripe test mode). The member count is the workspace's members, as the plan limits count them ([api/billing.md](../api/billing.md#plans-and-limits)).
+- **Question:** flat price per workspace, or per member? And the amount.
+- **Affects:** BILLING-001, pricing page. **Blocking:** was yes (BILLING-001).
 
 ## API conventions
 
@@ -109,10 +110,9 @@
 - **Recommendation:** keep `domain:verb` (common Socket.IO style, already documented).
 - **Affects:** `architecture/realtime.md`, REALTIME-001. **Blocking:** no (until REALTIME-001).
 
-### D-26 Search `due` filter meanings
-- **Question:** what `due=overdue|week|none` on `GET /boards/:boardId/search` selects (SEARCH-001).
-- **Proposed default:** `overdue` = due date passed and not completed (as the card badge's "overdue" already is); `week` = due within the next 7 days (rolling, not the calendar week) and not completed; `none` = no due date (completed or not).
-- **Affects:** [api/boards.md → Search](../api/boards.md#search-post-mvp-search-001), SEARCH-001. **Blocking:** no.
+### D-26 Search `due` filter meanings: **Resolved** (the proposed default)
+- **Decision:** `overdue` = due date passed and not completed (as the card badge's "overdue"); `week` = due within the next 7 days (rolling, not the calendar week) and not completed; `none` = no due date (completed or not).
+- **Affects:** [api/boards.md → Search](../api/boards.md#search-post-mvp-search-001), SEARCH-001 (Done). **Blocking:** no.
 
 ## Invitations & email
 
@@ -131,9 +131,10 @@
 - **Proposed default:** size per D-10. Allowlist: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `application/pdf`, `text/plain`, and Office documents (docx/xlsx/pptx).
 - **Affects:** ATTACHMENTS-001. **Blocking:** no.
 
-### D-20 File storage provider
-- **Options:** AWS S3 · Cloudinary.
-- **Affects:** ATTACHMENTS-001, env vars. **Blocking:** yes (ATTACHMENTS-001).
+### D-20 File storage provider: **Resolved** (AWS S3), [ADR-020](README.md#adr-020-attachments-in-aws-s3-d-20)
+- **Decision:** attachments are stored in **AWS S3** (any S3-compatible store works the same, e.g. MinIO for local development), behind `lib/storage.ts`.
+- **Options were:** AWS S3 · Cloudinary.
+- **Affects:** ATTACHMENTS-001, env vars. **Blocking:** was yes (ATTACHMENTS-001).
 
 ## Deployment & operations
 

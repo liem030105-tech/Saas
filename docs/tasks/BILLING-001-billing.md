@@ -4,7 +4,7 @@
 |-------|-------|
 | Phase | 7 (Post-MVP) |
 | Depends on | REALTIME-001 |
-| Blocked by decisions | **D-13** (pricing); D-08, D-10, D-11, D-12 have defaults |
+| Blocked by decisions | none (D-13 resolved: $5 per member per month); D-08, D-10, D-11, D-12 have defaults |
 | Skills | backend, database, frontend |
 
 # Goal
@@ -53,7 +53,7 @@ Integration: signature failure, idempotency, each handled event, limit boundarie
 - [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
-REALTIME-001 (recommended order); decision D-13.
+REALTIME-001 (recommended order); D-13 ($5 per member per month).
 
 # Risks
 Webhook delivery in local dev → use the Stripe CLI (documented in setup.md by this task).

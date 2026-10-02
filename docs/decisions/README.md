@@ -129,3 +129,18 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** the user names their workspace, and registration stays a single-purpose transaction (AUTH-001 already shipped without it).
 - **Trade-offs:** one extra step for new users, and one more empty state to design.
 - **Status:** Accepted
+
+### ADR-020: Attachments in AWS S3 (D-20)
+- **Context:** ATTACHMENTS-001 needs file storage; D-20 offered AWS S3 or Cloudinary.
+- **Decision:** AWS S3. Files go through the API (Multer memory storage, then `lib/storage.ts`), nothing is written to server disk, and downloads use short-lived signed URLs. The adapter speaks the S3 API only, so an S3-compatible store (MinIO locally) works unchanged.
+- **Rationale:** plain object storage with no vendor-specific processing; the S3 API is the common standard, cheap at demo scale, and easy to run locally.
+- **Trade-offs:** no built-in image transformations (thumbnails, if wanted, are a later change); AWS credentials to manage per environment.
+- **Status:** Accepted
+
+### ADR-021: In-app notifications only (D-09)
+- **Context:** Phase 6 lists notifications but nothing specified delivery, triggers or data.
+- **Decision:** in-app only: stored notifications per user, a bell with an unread count and a list, and a live update over the existing Socket.IO connection (the user's own room). Triggers: assigned to a card; a comment on a card you are a member of, or one mentioning you; a card you are a member of coming due; a workspace invite for an existing account. No email (D-18 stays open), no push.
+- **Rationale:** uses the realtime layer already built; no email provider or new infrastructure (no queues or schedulers without an ADR, so "coming due" must not need a job runner; the spec decides how).
+- **Trade-offs:** users only see notifications while they use the app.
+- **Status:** Accepted
+

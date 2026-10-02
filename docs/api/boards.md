@@ -96,7 +96,7 @@ Creating a board also creates 6 default labels (`#61bd4f` `#f2d600` `#ff9f1a` `#
 - Finds the board's open cards in open lists (archived cards and cards in archived lists never match), in board order (list position, then card position), at most 100. Every given filter must match; none given lists them all.
 - `q` matches the title or the description, case-insensitively, as typed: `%`, `_` and `\` are plain characters, not wildcards (escaped before the `ILIKE`).
 - `labelId` / `memberId`: cards with that label / that member. An id that is not on this board (or another workspace's) simply matches nothing.
-- `due`: proposed default (D-26, [DECISIONS-REQUIRED.md](../decisions/DECISIONS-REQUIRED.md#d-26-search-due-filter-meanings)): `overdue` = due date passed and not completed; `week` = due within the next 7 days and not completed; `none` = no due date.
+- `due` (D-26): `overdue` = due date passed and not completed; `week` = due within the next 7 days and not completed; `none` = no due date.
 - Errors: `400` (invalid filter), `401`, `404` (unknown board or not a member).
 
 ## Realtime (Post-MVP, REALTIME-001)

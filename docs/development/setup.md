@@ -41,7 +41,7 @@ pnpm dev                                     # FE :5173, BE :4000
 | `REFRESH_TOKEN_TTL_DAYS` | Proposed default `30` (D-02) |
 | `CLIENT_URL` | FE origin, used for CORS |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO` | Phase 7 |
-| `STORAGE_*` | Phase 6; exact variables depend on the provider (D-20) |
+| `STORAGE_*` | Phase 6: the AWS S3 bucket, region and credentials (D-20, ADR-020); the exact names are set by ATTACHMENTS-001 |
 
 `Trello-Clone-FE/.env.example`
 | Variable | Description |

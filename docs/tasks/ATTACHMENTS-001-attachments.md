@@ -4,7 +4,7 @@
 |-------|-------|
 | Phase | 6 (Post-MVP) |
 | Depends on | REALTIME-001 |
-| Blocked by decisions | **D-20** (storage provider); D-10, D-19 have defaults |
+| Blocked by decisions | none (D-20 resolved: AWS S3, ADR-020); D-10, D-19 have defaults |
 | Skills | backend, database, frontend |
 
 # Goal
@@ -27,7 +27,7 @@ Image resizing/thumbnails; per-plan limits beyond size (BILLING-001).
 `features/cards/components/AttachmentsSection.tsx`, cover rendering in `CardItem`.
 
 # Backend Changes
-`modules/cards/attachments.*`, `lib/storage.ts` (provider adapter per D-20).
+`modules/cards/attachments.*`, `lib/storage.ts` (AWS S3 adapter, ADR-020).
 
 # Database Changes
 Model `Attachment`; migration `add_attachments`.
@@ -52,7 +52,7 @@ Integration with a stubbed storage adapter: 413, 415 (a renamed .exe), delete pe
 - [ ] Status set to **Done** in [docs/tasks/README.md](README.md) (the only place task status is tracked)
 
 # Dependencies
-REALTIME-001 (emits); decision D-20.
+REALTIME-001 (emits); ADR-020 (D-20).
 
 # Risks
 Orphaned files on failures → the post-commit deletion is retried and logged; a cleanup job stays out of scope.
