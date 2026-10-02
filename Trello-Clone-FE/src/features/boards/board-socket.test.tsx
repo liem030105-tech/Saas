@@ -201,7 +201,7 @@ describe('board realtime sync (REALTIME-001c)', () => {
     await waitFor(() => expect(listTitles()).toEqual(['Mine', 'Theirs']));
   });
 
-  it('an event that arrives while the board is being fetched is not lost to that older answer', async () => {
+  it('events that arrive while the board is being fetched are not lost to that older answer', async () => {
     const state = await openBoard();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
@@ -220,9 +220,17 @@ describe('board realtime sync (REALTIME-001c)', () => {
     const done = { ...doingList, id: 'clx00000000000000000000l5', title: 'Done', position: 9000 };
     state.board.lists.push({ ...done, cards: [] });
     realtime().serverSends('list:created', { ...envelope(), data: done });
+    // More events during the same fetch still cost one more fetch, not one each.
+    for (const title of ['Done!', 'Done!!']) {
+      state.board.lists[2]!.title = title;
+      realtime().serverSends('list:updated', { ...envelope(), data: { ...done, title } });
+    }
+    expect(answered).toBe(1); // nothing cancelled or added while it runs
     release();
 
-    await waitFor(() => expect(listTitles()).toEqual(['To do', 'Doing', 'Done']));
+    await waitFor(() => expect(listTitles()).toEqual(['To do', 'Doing', 'Done!!']));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(answered).toBe(2);
   });
 
   it('refetches the board after a reconnect, and when the event cannot be applied', async () => {

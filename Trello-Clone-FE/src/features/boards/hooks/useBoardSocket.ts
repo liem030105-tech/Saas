@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { hashKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { createEventDedupe, joinRoom, onEvent } from '@/lib/socket';
@@ -16,7 +16,8 @@ import type { BoardDetailDto } from '@trello-clone/shared';
  * - repeats (by `eventId`);
  * - while one of this tab's own changes to the board is pending (`ownBoardChangePending`): that
  *   change refetches the board when it settles, which brings this event along;
- * - while the board is being fetched: it is fetched again instead, as that answer may predate it.
+ * - while the board is being fetched: it is fetched once more when that fetch settles, as that
+ *   answer may predate the event.
  * It also refetches the board (and its activity) each time it joins the room, the first time and
  * after a reconnect, as changes made before that sent it no event. When the caller is removed from
  * the board's workspace, `onRemoved` runs (the page leaves).
@@ -39,6 +40,13 @@ export function useBoardSocket(boardId: string, userId: string | undefined, onRe
 
     // Every join (the first, and each after a reconnect) refetches: changes made before the socket
     // was in the room (while the board loaded, or while disconnected) reach no event.
+    let refetchWhenIdle = false;
+    const offCache = queryClient.getQueryCache().subscribe(({ query }) => {
+      if (!refetchWhenIdle || query.queryHash !== hashKey(key)) return;
+      if (query.state.fetchStatus !== 'idle') return;
+      refetchWhenIdle = false;
+      void queryClient.invalidateQueries({ queryKey: key });
+    });
     const leave = joinRoom('board:join', { boardId }, (ack) => {
       if (ack.ok && !ownBoardChangePending(queryClient, boardId)) refetch();
     });
@@ -52,9 +60,9 @@ export function useBoardSocket(boardId: string, userId: string | undefined, onRe
         const board = queryClient.getQueryData<BoardDetailDto>(key);
         if (!board) return;
         // A fetch of the board is under way: its answer may predate this change and would replace
-        // the patch, so fetch again instead (this cancels that one).
+        // the patch, so the board is fetched once more after it (however many events arrive).
         if (queryClient.isFetching({ queryKey: key }) > 0) {
-          void queryClient.invalidateQueries({ queryKey: key });
+          refetchWhenIdle = true;
           return;
         }
         const next = applyBoardEvent(board, event);
@@ -70,6 +78,7 @@ export function useBoardSocket(boardId: string, userId: string | undefined, onRe
       removed.current();
     });
     return () => {
+      offCache();
       leave();
       offRemoved();
       for (const off of unsubscribe) off();
