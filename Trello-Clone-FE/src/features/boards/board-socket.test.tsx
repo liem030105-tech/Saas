@@ -201,6 +201,38 @@ describe('board realtime sync (REALTIME-001c)', () => {
     await waitFor(() => expect(listTitles()).toEqual(['Mine', 'Theirs']));
   });
 
+  it('events that arrive while the board is being fetched are not lost to that older answer', async () => {
+    const state = await openBoard();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let answered = 0;
+    server.use(
+      mswHttp.get(apiUrl(`/boards/${roadmapBoard.id}`), async () => {
+        const snapshot = structuredClone(state.board); // the board as it is when the GET runs
+        if (answered++ === 0) await gate;
+        return HttpResponse.json({ data: snapshot });
+      }),
+    );
+    realtime().reconnect(); // the join refetches the board: that GET waits
+    await waitFor(() => expect(answered).toBe(1));
+
+    // Someone adds a list meanwhile; its event arrives before that older answer.
+    const done = { ...doingList, id: 'clx00000000000000000000l5', title: 'Done', position: 9000 };
+    state.board.lists.push({ ...done, cards: [] });
+    realtime().serverSends('list:created', { ...envelope(), data: done });
+    // More events during the same fetch still cost one more fetch, not one each.
+    for (const title of ['Done!', 'Done!!']) {
+      state.board.lists[2]!.title = title;
+      realtime().serverSends('list:updated', { ...envelope(), data: { ...done, title } });
+    }
+    expect(answered).toBe(1); // nothing cancelled or added while it runs
+    release();
+
+    await waitFor(() => expect(listTitles()).toEqual(['To do', 'Doing', 'Done!!']));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(answered).toBe(2);
+  });
+
   it('refetches the board after a reconnect, and when the event cannot be applied', async () => {
     const state = await openBoard();
     const before = state.boardGets;
