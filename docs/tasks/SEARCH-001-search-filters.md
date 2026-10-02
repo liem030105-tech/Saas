@@ -24,7 +24,7 @@ Cross-board or workspace-wide search; full-text ranking (`pg_trgm` only if neede
 `features/boards/components/BoardFilterBar.tsx`, `features/boards/store.ts`.
 
 # Backend Changes
-`boards.repository.search`.
+`boards.repository.searchCards`.
 
 # Database Changes
 None (add an index only if profiling shows the need).

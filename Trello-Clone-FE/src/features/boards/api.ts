@@ -4,7 +4,9 @@ import type {
   ActivityDto,
   BoardDetailDto,
   BoardDto,
+  CardSummaryDto,
   CreateBoardInput,
+  SearchCardsQuery,
   UpdateBoardInput,
 } from '@trello-clone/shared';
 
@@ -22,6 +24,9 @@ export const boardsApi = {
     apiClient.patch<BoardDto>(`/boards/${boardId}`, input),
   /** DELETE /boards/:boardId (≥ ADMIN): everything on the board goes with it. */
   remove: (boardId: string) => apiClient.delete<void>(`/boards/${boardId}`),
+  /** GET /boards/:boardId/search (≥ VIEWER, SEARCH-001): the open cards matching every filter. */
+  search: (boardId: string, query: SearchCardsQuery) =>
+    apiClient.get<CardSummaryDto[]>(`/boards/${boardId}/search`, { params: query }),
   /** GET /boards/:boardId/activities (≥ VIEWER): newest first; `cardId` keeps one card's entries. */
   activities: (boardId: string, options: { cardId?: string; cursor?: string }) =>
     apiClient.getPage<ActivityDto>(`/boards/${boardId}/activities`, {

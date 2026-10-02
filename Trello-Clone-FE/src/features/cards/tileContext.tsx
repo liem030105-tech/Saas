@@ -7,6 +7,11 @@ interface CardTileData {
   labels: readonly LabelDto[];
   /** The workspace's members: a tile shows the avatars of its `memberIds`. */
   members: readonly UserSummary[];
+  /**
+   * The cards matching the board's filters (SEARCH-001): the others are dimmed. Null (or absent)
+   * when no filter is set.
+   */
+  matches?: ReadonlySet<string> | null;
 }
 
 const CardTileContext = createContext<CardTileData>({ labels: [], members: [] });
