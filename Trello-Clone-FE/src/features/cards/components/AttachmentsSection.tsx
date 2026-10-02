@@ -43,8 +43,8 @@ interface AttachmentsSectionProps {
 
 /**
  * The card modal's attachments (ATTACHMENTS-001, docs/design/ui.md → Card modal): newest first,
- * each a link that opens or downloads the file (its URL is signed and expires, so the card is
- * refetched for fresh ones), with "Make cover" for an image and Delete behind a confirmation.
+ * each a link that opens or downloads the file (its URL is signed and expires; useCard refetches
+ * the card for fresh ones, D-27), with "Make cover" for an image and Delete behind a confirmation.
  * "Add attachment" picks a file; files over the size limit are refused before uploading.
  */
 export function AttachmentsSection({
@@ -101,9 +101,13 @@ export function AttachmentsSection({
       </div>
 
       {progress !== null && (
-        <div role="status" className="flex items-center gap-2 text-sm">
-          <span>Uploading… {Math.round(progress * 100)}%</span>
+        // The live region says once what is uploading; the bar carries the percentage.
+        <div className="flex items-center gap-2 text-sm">
+          <span role="status" className="truncate">
+            Uploading {upload.variables?.name}…
+          </span>
           <progress aria-label="Upload progress" value={progress} max={1} className="h-2 flex-1" />
+          <span aria-hidden="true">{Math.round(progress * 100)}%</span>
         </div>
       )}
 

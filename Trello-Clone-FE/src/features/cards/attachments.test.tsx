@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MAX_ATTACHMENT_BYTES } from '@trello-clone/shared';
-import { delay, http as mswHttp, HttpResponse } from 'msw';
+import { http as mswHttp, HttpResponse } from 'msw';
 import { toast } from 'sonner';
 
 import { setAccessToken } from '@/api/token-store';
 import { apiUrl } from '@/testing/data/api';
 import {
   adasSpec,
+  attachmentServerError,
   myScreenshot,
   unsupportedFileError,
   uploadedPhoto,
@@ -25,7 +26,17 @@ import type { BoardDetailDto, CardDetailDto, Role } from '@trello-clone/shared';
 /** Signed in with `role`; "Fix login" has my screenshot and Ada's spec. */
 function signedInAs(
   role: Role,
-  options: { cover?: boolean; failUpload?: boolean; failDelete?: boolean } = {},
+  options: {
+    cover?: boolean;
+    failUpload?: boolean;
+    /** POST …/attachments waits until the test calls `state.answerUpload()`. */
+    holdUpload?: boolean;
+    failDelete?: boolean;
+    /** PATCH /cards/:cardId waits until the test calls `state.answerCover()`. */
+    holdCover?: boolean;
+    /** PATCH /cards/:cardId fails with a 500. */
+    failCover?: boolean;
+  } = {},
 ) {
   const state = {
     board: structuredClone(roadmapWithCards) as BoardDetailDto,
@@ -34,7 +45,17 @@ function signedInAs(
       attachments: [structuredClone(myScreenshot), structuredClone(adasSpec)],
     } as CardDetailDto,
     calls: [] as string[],
+    answerCover: () => {},
+    answerUpload: () => {},
   };
+  const uploadAnswered = new Promise<void>((resolve) => {
+    state.answerUpload = resolve;
+  });
+  if (!options.holdUpload) state.answerUpload();
+  const coverAnswered = new Promise<void>((resolve) => {
+    state.answerCover = resolve;
+  });
+  if (!options.holdCover) state.answerCover();
   const setCover = (id: string | null) => {
     const url = state.card.attachments.find((file) => file.id === id)?.url ?? null;
     state.card.coverAttachmentId = id;
@@ -55,7 +76,7 @@ function signedInAs(
     mswHttp.post(apiUrl('/cards/:cardId/attachments'), async ({ request }) => {
       const file = (await request.formData()).get('file') as File;
       state.calls.push(`POST ${file.name}`);
-      await delay(50);
+      await uploadAnswered;
       if (options.failUpload) return HttpResponse.json(unsupportedFileError, { status: 415 });
       state.card.attachments.unshift(structuredClone(uploadedPhoto));
       return HttpResponse.json({ data: uploadedPhoto }, { status: 201 });
@@ -63,14 +84,15 @@ function signedInAs(
     mswHttp.patch(apiUrl('/cards/:cardId'), async ({ request }) => {
       const body = (await request.json()) as { coverAttachmentId: string | null };
       state.calls.push(`PATCH cover ${body.coverAttachmentId}`);
+      await coverAnswered;
+      if (options.failCover) return HttpResponse.json(attachmentServerError, { status: 500 });
+      state.calls.push('PATCH answered');
       setCover(body.coverAttachmentId);
       return HttpResponse.json({ data: state.card });
     }),
     mswHttp.delete(apiUrl('/attachments/:attachmentId'), ({ params }) => {
       state.calls.push(`DELETE ${String(params.attachmentId)}`);
-      if (options.failDelete) {
-        return HttpResponse.json(unsupportedFileError, { status: 500 });
-      }
+      if (options.failDelete) return HttpResponse.json(attachmentServerError, { status: 500 });
       if (state.card.coverAttachmentId === params.attachmentId) setCover(null);
       state.card.attachments = state.card.attachments.filter((f) => f.id !== params.attachmentId);
       return new HttpResponse(null, { status: 204 });
@@ -136,13 +158,15 @@ describe('card attachments (ATTACHMENTS-001)', () => {
   });
 
   it('a MEMBER uploads an image and makes it the cover: the tile shows it at once', async () => {
-    const { state, section } = await openCard('MEMBER');
+    const { state, section } = await openCard('MEMBER', { holdUpload: true, holdCover: true });
 
     attach(section, await png('photo.png'));
 
     // The progress shows until the server has the file; "Add attachment" waits for it.
-    expect(await within(section).findByRole('status')).toHaveTextContent(/Uploading… \d+%/);
+    expect(await within(section).findByRole('status')).toHaveTextContent('Uploading photo.png…');
+    expect(within(section).getByRole('progressbar', { name: 'Upload progress' })).toBeVisible();
     expect(within(section).getByRole('button', { name: 'Add attachment' })).toBeDisabled();
+    state.answerUpload();
     expect(await within(section).findByRole('link', { name: 'photo.png' })).toBeVisible();
     expect(within(section).queryByRole('status')).toBeNull();
     expect(state.calls).toEqual(['POST photo.png']);
@@ -150,11 +174,15 @@ describe('card attachments (ATTACHMENTS-001)', () => {
 
     fireEvent.click(within(section).getByRole('button', { name: 'Make cover: photo.png' }));
 
+    // Before the server answers: the tile and the modal already show the cover.
     await waitFor(() => expect(coverOf()).toBe(uploadedPhoto.url));
-    await waitFor(() => expect(state.calls).toContain(`PATCH cover ${uploadedPhoto.id}`));
-    expect(
-      await within(section).findByRole('button', { name: 'Remove cover: photo.png' }),
-    ).toBeVisible();
+    expect(within(section).getByRole('button', { name: 'Remove cover: photo.png' })).toBeVisible();
+    await waitFor(() =>
+      expect(state.calls).toEqual(['POST photo.png', `PATCH cover ${uploadedPhoto.id}`]),
+    );
+    state.answerCover();
+    await waitFor(() => expect(state.calls).toContain('PATCH answered'));
+    expect(coverOf()).toBe(uploadedPhoto.url);
     // Only images can be a cover.
     expect(within(section).queryByRole('button', { name: /cover: spec\.pdf/ })).toBeNull();
   });
@@ -166,7 +194,26 @@ describe('card attachments (ATTACHMENTS-001)', () => {
     fireEvent.click(within(section).getByRole('button', { name: 'Remove cover: screenshot.png' }));
 
     await waitFor(() => expect(coverOf()).toBeNull());
-    await waitFor(() => expect(state.calls).toEqual(['PATCH cover null']));
+    await waitFor(() => expect(state.calls).toEqual(['PATCH cover null', 'PATCH answered']));
+  });
+
+  it('a failed cover change goes back, with a toast', async () => {
+    const { state, section } = await openCard('MEMBER', {
+      cover: true,
+      holdCover: true,
+      failCover: true,
+    });
+    await waitFor(() => expect(coverOf()).toBe(myScreenshot.url));
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Remove cover: screenshot.png' }));
+    await waitFor(() => expect(coverOf()).toBeNull());
+    state.answerCover();
+
+    expect(await screen.findByText(attachmentServerError.error.message)).toBeVisible();
+    await waitFor(() => expect(coverOf()).toBe(myScreenshot.url));
+    expect(
+      within(section).getByRole('button', { name: 'Remove cover: screenshot.png' }),
+    ).toBeVisible();
   });
 
   it("a refused upload shows the API's message; a file over the limit is never sent", async () => {
@@ -209,7 +256,7 @@ describe('card attachments (ATTACHMENTS-001)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delete attachment' }));
 
     const alert = await screen.findByRole('alertdialog');
-    expect(await within(alert).findByText(unsupportedFileError.error.message)).toBeVisible();
+    expect(await within(alert).findByText(attachmentServerError.error.message)).toBeVisible();
     expect(
       within(section).getByRole('link', { name: 'spec.pdf', hidden: true }),
     ).toBeInTheDocument();

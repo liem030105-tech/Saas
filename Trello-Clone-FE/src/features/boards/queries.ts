@@ -78,10 +78,22 @@ export function useCreateBoard(workspaceId: string) {
 }
 
 /** The board page's data (GET /boards/:boardId). */
+/**
+ * How often a page showing signed file URLs (covers, attachments; ADR-020) refetches them: well
+ * within their lifetime (D-27, proposed 1 hour), so a page left open never shows expired links.
+ * Only while the tab is visible; a hidden tab refetches on focus.
+ */
+export const SIGNED_URL_REFRESH_MS = 30 * 60 * 1000;
+
 export function useBoard(boardId: string) {
   return useQuery({
     queryKey: boardKeys.detail(boardId),
     queryFn: () => boardsApi.get(boardId),
+    // Only a board showing covers holds signed URLs.
+    refetchInterval: ({ state }) =>
+      state.data?.lists.some((list) => list.cards.some((card) => card.coverUrl))
+        ? SIGNED_URL_REFRESH_MS
+        : false,
   });
 }
 

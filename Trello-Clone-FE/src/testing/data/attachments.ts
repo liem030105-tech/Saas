@@ -35,6 +35,13 @@ export const adasSpec = attachment('clx00000000000000000000a2', 'spec.pdf', 'app
 /** What POST /cards/:cardId/attachments answers for an uploaded `photo.png`. */
 export const uploadedPhoto = attachment('clx00000000000000000000a3', 'photo.png', 'image/png', me);
 
+/** A failure the API explains (a 500): its message shows to the user. */
+export const attachmentServerError = buildErrorBody({
+  code: 'INTERNAL_ERROR',
+  message: 'Something went wrong',
+  details: [],
+});
+
 export const unsupportedFileError = buildErrorBody({
   code: 'UNSUPPORTED_FILE_TYPE',
   message: 'This file type is not allowed',

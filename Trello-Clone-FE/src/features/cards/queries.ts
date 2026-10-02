@@ -9,6 +9,7 @@ import {
   boardKeys,
   boardMutationScope,
   refetchBoardWhenIdle,
+  SIGNED_URL_REFRESH_MS,
 } from '@/features/boards';
 
 import { cardsApi } from './api';
@@ -35,8 +36,9 @@ export const cardKeys = {
 };
 
 /**
- * One card's changes made from its modal (fields, labels, members, checklists) share this mutation
- * scope: they send their requests in turn, in the order they were made.
+ * One card's changes made from its modal (fields, labels, members, checklists, attachments) share
+ * this mutation scope: they send their requests in turn, in the order they were made. An upload
+ * holds the scope while it runs, so edits made meanwhile show at once but are sent after it.
  */
 export const cardMutationScope = (cardId: string) => ({ id: `card-detail:${cardId}` });
 
@@ -137,6 +139,9 @@ export function useCard(cardId: string | undefined) {
     queryKey: cardKeys.detail(cardId ?? ''),
     queryFn: () => cardsApi.get(cardId!),
     enabled: cardId !== undefined,
+    // Fresh signed URLs for the card's files before they expire (D-27).
+    refetchInterval: ({ state }) =>
+      state.data?.attachments.length ? SIGNED_URL_REFRESH_MS : false,
   });
 }
 
