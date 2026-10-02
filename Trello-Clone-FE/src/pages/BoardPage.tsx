@@ -28,7 +28,8 @@ export function BoardPage() {
   const card = useCard(cardId);
   const currentUser = useCurrentUser(); // the author of their own comments (CARD-005d)
   // Everyone else's changes to this board arrive as they happen (REALTIME-001).
-  useBoardSocket(boardId, currentUser.data?.id);
+  // Removed from its workspace meanwhile: back to the start (realtime.md → Removed from workspace).
+  useBoardSocket(boardId, currentUser.data?.id, () => void navigate('/', { replace: true }));
   // Who can be assigned to cards, and whose avatars the tiles show (CARD-005b).
   const members = useMembers(board?.workspaceId ?? '');
   const workspaceMembers = useMemo(

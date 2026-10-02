@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { createEventDedupe, joinRoom, onEvent } from '@/lib/socket';
 
@@ -16,11 +16,16 @@ import type { BoardDetailDto } from '@trello-clone/shared';
  * - repeats (by `eventId`);
  * - while one of this tab's own changes to the board is pending (`ownBoardChangePending`): that
  *   change refetches the board when it settles, which brings this event along;
- * and refetches the board (and its activity) each time it joins the room, the first time and after
+ * When the caller is removed from the board's workspace, `onRemoved` runs (the page leaves).
+ * It refetches the board (and its activity) each time it joins the room, the first time and after
  * a reconnect, as changes made before that sent it no event.
  */
-export function useBoardSocket(boardId: string, userId: string | undefined) {
+export function useBoardSocket(boardId: string, userId: string | undefined, onRemoved: () => void) {
   const queryClient = useQueryClient();
+  const removed = useRef(onRemoved);
+  useLayoutEffect(() => {
+    removed.current = onRemoved;
+  });
 
   useEffect(() => {
     if (!boardId || !userId) return;
@@ -50,8 +55,16 @@ export function useBoardSocket(boardId: string, userId: string | undefined) {
         else if (next !== board) queryClient.setQueryData(key, next);
       }),
     );
+    // The caller was removed from the board's workspace (the server evicts them from its room).
+    const offRemoved = onEvent('member:removed', (event) => {
+      const board = queryClient.getQueryData<BoardDetailDto>(key);
+      if (event.data.userId !== userId || event.workspaceId !== board?.workspaceId) return;
+      queryClient.removeQueries({ queryKey: key });
+      removed.current();
+    });
     return () => {
       leave();
+      offRemoved();
       for (const off of unsubscribe) off();
     };
   }, [boardId, userId, queryClient]);
