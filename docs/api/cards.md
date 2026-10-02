@@ -32,7 +32,7 @@
 | Task | CARD-002 (base fields) · CARD-005 (members, labels, checklists) · ATTACHMENTS-001 (attachments) |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ VIEWER (the card's stored `boardId` → `assertBoardAccess(…, 'card.view')`) |
-| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a, `members` (`UserSummary`, by id) since CARD-005b, `checklists` (and their items, by `position, id`) since CARD-005c; `attachments` is an empty array until ATTACHMENTS-001 |
+| Success | `200 { data: CardDetailDto }`. Archived cards are returned (the modal shows an "archived" banner). `labels` (by id) since CARD-005a, `members` (`UserSummary`, by id) since CARD-005b, `checklists` (and their items, by `position, id`) since CARD-005c; `attachments` (newest first, each with a fresh signed `url`) since ATTACHMENTS-001a |
 | Errors | `401` · `404` (unknown card, malformed id, or not a member) · `429 RATE_LIMITED` |
 
 ### PATCH /cards/:cardId

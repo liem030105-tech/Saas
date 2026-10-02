@@ -9,6 +9,8 @@ import type { NextFunction, Request, Response } from 'express';
 // server's disk, and the size limit (D-10) is enforced while it streams in.
 const single = multer({
   storage: multer.memoryStorage(),
+  // Browsers send the file name as UTF-8 (multer's default would read it as latin1).
+  defParamCharset: 'utf8',
   limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1, fields: 0 },
 }).single('file');
 

@@ -19,7 +19,11 @@ export async function toAttachmentDto(attachment: AttachmentRow): Promise<Attach
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,
     size: attachment.size,
-    url: await fileStorage().signedUrl(attachment.storageKey, attachment.fileName),
+    url: await fileStorage().signedUrl(
+      attachment.storageKey,
+      attachment.fileName,
+      attachment.mimeType,
+    ),
     createdAt: attachment.createdAt.toISOString(),
     uploader: attachment.uploader,
   };

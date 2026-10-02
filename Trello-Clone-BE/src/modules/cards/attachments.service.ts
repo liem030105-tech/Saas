@@ -39,11 +39,18 @@ async function verifiedMimeType(bytes: Buffer): Promise<string | null> {
 export function sanitizeFileName(name: string) {
   const base = name.split(/[\\/]/).pop() ?? '';
   const clean = [...base]
-    .filter((char) => char.charCodeAt(0) >= 0x20 && char !== '\u007f' && !'<>:"|?*'.includes(char))
+    .filter((char) => {
+      const code = char.codePointAt(0)!;
+      const control = code < 0x20 || code === 0x7f;
+      // Bidirectional overrides and isolates would make a name read as something else.
+      const bidi = (code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069);
+      return !control && !bidi && !'<>:"|?*'.includes(char);
+    })
     .join('')
-    .trim()
-    .slice(0, 255);
-  return clean === '' || clean === '.' || clean === '..' ? 'file' : clean;
+    .trim();
+  // At most 255 characters, counted by code point (never half of a surrogate pair).
+  const short = [...clean].slice(0, 255).join('');
+  return short === '' || short === '.' || short === '..' ? 'file' : short;
 }
 
 interface Upload {

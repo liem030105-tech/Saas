@@ -26,6 +26,8 @@ export const attachmentData = {
   binary: { name: 'data.bin', bytes: Buffer.from([0, 1, 2, 3, 0, 255]) },
   /** A name with a path and characters a file system or header must not get. */
   unsafeName: { sent: '../../etc/pa<ss>wd:"x?.png', stored: 'passwdx.png' },
+  /** Vietnamese, sent as UTF-8, with a right-to-left override that is dropped. */
+  unicodeName: { sent: 'ảnh chụp\u202emàn hình.png', stored: 'ảnh chụpmàn hình.png' },
   /** One byte over the 10 MB limit (D-10). */
   tooLargeBytes: 10 * 1024 * 1024 + 1,
 };

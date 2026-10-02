@@ -79,8 +79,8 @@ export const AttachmentDtoSchema = z.object({
 });
 
 /**
- * GET /cards/:cardId (docs/api/cards.md → CardDetailDto). Members, labels and checklists arrive
- * with CARD-005 and attachments with ATTACHMENTS-001; until then those arrays are empty.
+ * GET /cards/:cardId (docs/api/cards.md → CardDetailDto): members, labels and checklists
+ * (CARD-005) and attachments, newest first with fresh signed URLs (ATTACHMENTS-001).
  */
 export const CardDetailDtoSchema = CardSummaryDtoSchema.extend({
   boardId: CuidSchema,

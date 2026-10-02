@@ -115,6 +115,13 @@ describe('POST /api/v1/cards/:cardId/attachments', () => {
       bytes: attachmentData.png.bytes,
     }).expect(201);
     expect(unsafe.body.data.fileName).toBe(attachmentData.unsafeName.stored);
+
+    // A UTF-8 name comes back as sent; bidirectional overrides are dropped.
+    const vietnamese = await upload(cardId, owner.token, {
+      name: attachmentData.unicodeName.sent,
+      bytes: attachmentData.png.bytes,
+    }).expect(201);
+    expect(vietnamese.body.data.fileName).toBe(attachmentData.unicodeName.stored);
   });
 
   it('415: the type comes from the bytes, not the name (a renamed executable, a binary blob)', async () => {
@@ -187,6 +194,15 @@ describe('DELETE /api/v1/attachments/:attachmentId', () => {
     await request(app).delete(path).set(bearer(owner.token)).expect(204);
     expect(await testPrisma.attachment.count()).toBe(0);
     expect(storage.removed).toHaveLength(1);
+  });
+
+  it('401 without a token (the attachment stays)', async () => {
+    const { owner, cardId } = await cardWithMember();
+    const created = await upload(cardId, owner.token, attachmentData.png).expect(201);
+    await request(app)
+      .delete(`${paths.attachments}/${created.body.data.id as string}`)
+      .expect(401);
+    expect(await testPrisma.attachment.count()).toBe(1);
   });
 
   it('404 for an unknown id', async () => {
