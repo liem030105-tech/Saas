@@ -1,3 +1,5 @@
+import { COVER_MIME_TYPES } from '@trello-clone/shared';
+
 import { toAttachmentDto, UPLOADER } from './attachments.mapper';
 import { toCardDetailDto, toChecklistDto } from './cards.mapper';
 import * as cardsRepository from './cards.repository';
@@ -5,7 +7,9 @@ import { logger } from '../../config/logger';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Card } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { lockAttachmentKeys } from '../../lib/attachment-files';
 import { appendPosition, lockContainer, settle } from '../../lib/rebalance';
+import { removeFiles, signedFileUrl } from '../../lib/storage';
 import {
   cardCreated,
   cardDeleted,
@@ -63,6 +67,7 @@ const DETAIL = {
   },
   _count: { select: { comments: true } },
   attachments: { include: UPLOADER, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] },
+  coverAttachment: { select: { storageKey: true, fileName: true, mimeType: true } },
 } satisfies Prisma.CardInclude;
 
 type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
@@ -71,7 +76,11 @@ type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
 const toDetail = async (card: CardDetailRow) =>
   toCardDetailDto(
     card,
-    toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) }),
+    toCardSummaryDto({
+      ...card,
+      checklist: checklistProgress(card.checklists),
+      coverUrl: await signedFileUrl(card.coverAttachment),
+    }),
     {
       labels: card.labels.map(({ label }) => toLabelDto(label)),
       members: card.members.map(({ user }) => user),
@@ -159,6 +168,7 @@ export async function create(
     members: [],
     checklist: NO_CHECKLIST,
     _count: { comments: 0 },
+    coverUrl: null,
   });
   // After the commit (realtime.md → Principles), outside the error mapping.
   cardCreated(where, userId, card, dto);
@@ -195,10 +205,12 @@ export async function update(
     }),
     ...(input.completed !== undefined && { completed: input.completed }),
     ...(input.archived !== undefined && { archived: input.archived }),
+    ...(input.coverAttachmentId !== undefined && { coverAttachmentId: input.coverAttachmentId }),
   };
   let card: CardDetailRow;
   try {
     card = await prisma.$transaction(async (tx) => {
+      if (input.coverAttachmentId) await assertCoverOf(tx, cardId, input.coverAttachmentId);
       const updated = await tx.card.update({
         where: { id: cardId },
         data: changes,
@@ -220,6 +232,9 @@ export async function update(
           ...(input.archived !== undefined && { archived: input.archived }),
           // The description changed: a flag only, so the log never copies long text.
           ...(input.description !== undefined && { description: true }),
+          ...(input.coverAttachmentId !== undefined && {
+            coverAttachmentId: input.coverAttachmentId,
+          }),
         },
       });
       return updated;
@@ -229,7 +244,11 @@ export async function update(
     throw error;
   }
   const detail = await toDetail(card);
-  const tile = toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) });
+  const tile = toCardSummaryDto({
+    ...card,
+    checklist: checklistProgress(card.checklists),
+    coverUrl: detail.coverUrl,
+  });
   // The board the card is on now (a move may have committed since the access check).
   cardUpdated(
     { boardId: card.boardId, workspaceId: current.workspaceId },
@@ -241,18 +260,44 @@ export async function update(
 }
 
 /**
+ * A card's cover must be one of its own image attachments (ATTACHMENTS-001): another card's
+ * attachment (a foreign one included) or a non-image is a 422, the same for each. The card is
+ * locked first, so a card deleted meanwhile (its attachments gone with it) stays a 404; the
+ * attachment row is held (FOR KEY SHARE) so it cannot be deleted before the card points to it.
+ */
+async function assertCoverOf(tx: Prisma.TransactionClient, cardId: string, attachmentId: string) {
+  const [card] = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "Card" WHERE "id" = ${cardId} FOR NO KEY UPDATE`;
+  if (!card) throw AppError.notFound();
+  const [attachment] = await tx.$queryRaw<{ cardId: string; mimeType: string }[]>`
+    SELECT "cardId", "mimeType" FROM "Attachment" WHERE "id" = ${attachmentId} FOR KEY SHARE`;
+  const image = (COVER_MIME_TYPES as readonly string[]).includes(attachment?.mimeType ?? '');
+  if (attachment?.cardId !== cardId || !image) {
+    throw AppError.businessRule(
+      'COVER_NOT_IMAGE_OF_CARD',
+      "The cover must be one of this card's image attachments",
+    );
+  }
+}
+
+/**
  * DELETE /cards/:cardId (≥ MEMBER). Its activity stays on the board with `cardId` set to null
  * (docs/database/relationships.md); nothing else is logged.
  */
 export async function remove(userId: string, cardId: string): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.edit');
   let deleted: Card;
+  let files: string[];
   try {
-    deleted = await prisma.card.delete({ where: { id: cardId } });
+    [deleted, files] = await prisma.$transaction(async (tx) => {
+      const keys = await lockAttachmentKeys(tx, { cardId });
+      return [await tx.card.delete({ where: { id: cardId } }), keys] as const;
+    });
   } catch (error) {
     if (isMissingCard(error)) throw AppError.notFound();
     throw error;
   }
+  await removeFiles(files); // its attachments' files, after the commit (ATTACHMENTS-001)
   // The list it was deleted from (a move may have changed it since the access check).
   cardDeleted(
     { boardId: deleted.boardId, workspaceId: card.workspaceId },

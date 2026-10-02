@@ -100,6 +100,17 @@ export function setStorage(next: FileStorage | null) {
   storage = next;
 }
 
+/** What a signed URL needs of a stored file (an attachment row). */
+export interface StoredFile {
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+}
+
+/** A fresh signed URL for `file` (null for none): a card's cover, for one. */
+export const signedFileUrl = (file: StoredFile | null) =>
+  file ? fileStorage().signedUrl(file.storageKey, file.fileName, file.mimeType) : null;
+
 /**
  * Deletes objects after the database no longer points to them: a failure is retried once, then
  * logged (the object is orphaned; no cleanup job, see ATTACHMENTS-001 → Risks). Never throws.

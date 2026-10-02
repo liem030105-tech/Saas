@@ -41,7 +41,7 @@
 | Task | LIST-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ MEMBER (as PATCH) |
-| Success | `204`. Deletes the list's cards (cascade, from CARD-001). Logs nothing: the list's history goes with it |
+| Success | `204`. Deletes the list's cards (cascade, from CARD-001) and, after commit, their attachment files (ATTACHMENTS-001). Logs nothing: the list's history goes with it |
 | Errors | `401` · `403` · `404` (unknown list, malformed id, not a member, or already deleted) · `429 RATE_LIMITED` |
 
 ## Realtime (Post-MVP, REALTIME-001)

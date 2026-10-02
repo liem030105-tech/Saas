@@ -61,7 +61,7 @@ The FE resolves `/w/:slug` by finding the slug in the `GET /workspaces` result. 
 | Task | WORKSPACE-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | OWNER |
-| Success | `204`. Cascades to members, invitations, and all boards and content ([relationships.md](../database/relationships.md#foreign-keys-and-delete-behavior)) |
+| Success | `204`. Cascades to members, invitations, and all boards and content ([relationships.md](../database/relationships.md#foreign-keys-and-delete-behavior)); every attachment file is deleted from storage after commit (ATTACHMENTS-001) |
 | Errors | `401` · `403` · `404` · `429 RATE_LIMITED` |
 
 ## Members

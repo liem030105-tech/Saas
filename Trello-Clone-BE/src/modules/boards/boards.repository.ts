@@ -29,6 +29,8 @@ const CARD_SUMMARY_IDS = {
   labels: { select: { labelId: true }, orderBy: { labelId: 'asc' } },
   members: { select: { userId: true }, orderBy: { userId: 'asc' } },
   _count: { select: { comments: true } },
+  /** The cover image, signed into CardSummaryDto.coverUrl (ATTACHMENTS-001). */
+  coverAttachment: { select: { storageKey: true, fileName: true, mimeType: true } },
 } as const;
 
 /**

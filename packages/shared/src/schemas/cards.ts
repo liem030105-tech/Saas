@@ -55,6 +55,8 @@ export const UpdateCardInputSchema = z
     dueDate: DueDateSchema.optional(),
     completed: z.boolean().optional(),
     archived: z.boolean().optional(),
+    /** One of this card's image attachments as its cover, or null to remove it (ATTACHMENTS-001). */
+    coverAttachmentId: CuidSchema.nullable().optional(),
   })
   .refine((input) => Object.values(input).some((value) => value !== undefined), {
     error: 'Change at least one field',

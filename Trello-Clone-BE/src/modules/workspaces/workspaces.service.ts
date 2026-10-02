@@ -7,6 +7,8 @@ import * as workspacesRepository from './workspaces.repository';
 import { prisma } from '../../config/prisma';
 import { Prisma, type Role } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
+import { lockAttachmentKeys } from '../../lib/attachment-files';
+import { removeFiles } from '../../lib/storage';
 import { memberRemoved } from '../../realtime/events/members.events';
 
 import type {
@@ -126,12 +128,18 @@ export async function update(
 
 /** DELETE /workspaces/:workspaceId (OWNER): the foreign keys cascade to members and all content. */
 export async function remove(workspaceId: string): Promise<void> {
+  let files: string[];
   try {
-    await prisma.workspace.delete({ where: { id: workspaceId } });
+    files = await prisma.$transaction(async (tx) => {
+      const keys = await lockAttachmentKeys(tx, { workspaceId });
+      await tx.workspace.delete({ where: { id: workspaceId } });
+      return keys;
+    });
   } catch (error) {
     if (isNotFound(error)) throw AppError.notFound();
     throw error;
   }
+  await removeFiles(files); // every attachment file of the workspace (ATTACHMENTS-001)
 }
 
 // Members (WORKSPACE-003). Rules: docs/api/README.md → Permission matrix, footnotes 1–3.
