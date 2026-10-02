@@ -7,6 +7,7 @@ import type {
   CreateLabelData,
   ListActivitiesQuery,
   ListBoardsQuery,
+  SearchCardsQuery,
   UpdateBoardData,
   UpdateLabelData,
 } from '@trello-clone/shared';
@@ -52,6 +53,12 @@ export async function listActivities(req: Request, res: Response) {
   const { query } = validated<unknown, ListActivitiesQuery, unknown>(res);
   const page = await boardsService.listActivities(currentUserId(req), boardIdOf(req), query);
   res.status(200).json(page);
+}
+
+export async function search(req: Request, res: Response) {
+  const { query } = validated<unknown, SearchCardsQuery, unknown>(res);
+  const cards = await boardsService.search(currentUserId(req), boardIdOf(req), query);
+  res.status(200).json({ data: cards });
 }
 
 export async function listLabels(req: Request, res: Response) {

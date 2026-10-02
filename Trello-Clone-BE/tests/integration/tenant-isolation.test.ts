@@ -465,6 +465,33 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token)),
   },
   {
+    route: 'GET /boards/:boardId/search',
+    attempt: "search B's board",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(b.boardId)}/search`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${board(missingId)}/search`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /boards/:boardId/search',
+    attempt: "filter A's board by B's label and member",
+    request: (a, b) =>
+      request(app)
+        .get(`${board(a.boardId)}/search`)
+        .query({ labelId: b.labelId, memberId: b.member.user.id })
+        .set(bearer(a.owner.token)),
+    // Only A's cards can match: B's ids find nothing, like ids nobody has.
+    expectResponse: (res, b) => {
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+      expectNoTraceOf(res, b);
+    },
+  },
+  {
     route: 'GET /boards/:boardId/labels',
     attempt: "list B's labels",
     request: (a, b) =>

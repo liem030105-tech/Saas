@@ -6,6 +6,7 @@ import {
   BoardTitleSchema,
   CreateBoardInputSchema,
   ListBoardsQuerySchema,
+  SearchCardsQuerySchema,
   UpdateBoardInputSchema,
 } from './boards';
 import { HexColorSchema } from './common';
@@ -43,6 +44,24 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
     expect(ListBoardsQuerySchema.parse({})).toEqual({ archived: false });
     expect(ListBoardsQuerySchema.parse({ archived: 'true' })).toEqual({ archived: true });
     expect(ListBoardsQuerySchema.safeParse({ archived: 'yes' }).success).toBe(false);
+  });
+
+  it('search: every filter optional; q trimmed and 1–100 characters; due one of three', () => {
+    const labelId = data.boardDto.id;
+    expect(SearchCardsQuerySchema.parse({})).toEqual({});
+    expect(SearchCardsQuerySchema.parse({ q: ' login ', labelId, due: 'week' })).toEqual({
+      q: 'login',
+      labelId,
+      due: 'week',
+    });
+    for (const query of [
+      { q: '  ' },
+      { q: 'x'.repeat(101) },
+      { labelId: 'nope' },
+      { due: 'soon' },
+    ]) {
+      expect(SearchCardsQuerySchema.safeParse(query).success).toBe(false);
+    }
   });
 
   it('parses a board', () => {

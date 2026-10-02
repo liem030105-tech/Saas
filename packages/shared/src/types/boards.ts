@@ -4,6 +4,7 @@ import type {
   UpdateBoardInputSchema,
   CreateBoardInputSchema,
   ListBoardsQuerySchema,
+  SearchCardsQuerySchema,
 } from '../schemas/boards';
 import type { LabelDtoSchema } from '../schemas/labels';
 import type { z } from 'zod';
@@ -12,6 +13,7 @@ import type { z } from 'zod';
 export type CreateBoardInput = z.input<typeof CreateBoardInputSchema>;
 export type CreateBoardData = z.output<typeof CreateBoardInputSchema>;
 export type ListBoardsQuery = z.output<typeof ListBoardsQuerySchema>;
+export type SearchCardsQuery = z.output<typeof SearchCardsQuerySchema>;
 export type BoardDto = z.infer<typeof BoardDtoSchema>;
 export type UpdateBoardInput = z.input<typeof UpdateBoardInputSchema>;
 export type UpdateBoardData = z.output<typeof UpdateBoardInputSchema>;
