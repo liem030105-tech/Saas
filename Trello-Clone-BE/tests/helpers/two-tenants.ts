@@ -2,6 +2,7 @@ import request from 'supertest';
 
 import { testPrisma } from './db';
 import { bearer, createUserWithToken } from './users';
+import { attachmentData } from '../data/attachments';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
@@ -84,6 +85,11 @@ async function tenant(
     .set(bearer(member.token))
     .send({ content: cardTitle })
     .expect(201);
+  const attachment = await request(app)
+    .post(`${paths.cards}/${cardId}/attachments`)
+    .set(bearer(owner.token))
+    .attach('file', attachmentData.png.bytes, attachmentData.png.name)
+    .expect(201);
   const activity = await testPrisma.activity.findFirstOrThrow({ where: { boardId } });
   return {
     owner,
@@ -96,6 +102,7 @@ async function tenant(
     checklistId,
     itemId: item.body.data.id as string,
     commentId: comment.body.data.id as string,
+    attachmentId: attachment.body.data.id as string,
     activityId: activity.id,
     slug: created.body.data.slug as string,
     inviteId: invite.body.data.id as string,
@@ -143,6 +150,7 @@ export async function snapshotWorkspace(workspaceId: string) {
     checklists,
     checklistItems,
     comments,
+    attachments,
   ] = await Promise.all([
     testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
     testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
@@ -172,6 +180,10 @@ export async function snapshotWorkspace(workspaceId: string) {
       where: { card: { board: { workspaceId } } },
       orderBy: { id: 'asc' },
     }),
+    testPrisma.attachment.findMany({
+      where: { card: { board: { workspaceId } } },
+      orderBy: { id: 'asc' },
+    }),
   ]);
   return {
     workspace,
@@ -187,5 +199,6 @@ export async function snapshotWorkspace(workspaceId: string) {
     checklists,
     checklistItems,
     comments,
+    attachments,
   };
 }

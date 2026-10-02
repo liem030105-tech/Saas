@@ -28,6 +28,7 @@ model User {
   activities    Activity[]
   cards         CardMember[]
   comments      Comment[]
+  attachments   Attachment[]
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -135,6 +136,7 @@ enum ActivityType {
   CHECKLIST_ADDED
   CHECKLIST_REMOVED
   CHECKLIST_ITEM_CHECKED
+  ATTACHMENT_ADDED
 }
 
 /// A Kanban board inside a workspace. BOARD-001.
@@ -175,27 +177,29 @@ model List {
 /// A card in a list, ordered by `position ASC, id ASC`. `boardId` always equals the list's
 /// (invariant I1): it is denormalized for one-query authorization and board-wide queries. CARD-001.
 model Card {
-  id          String       @id @default(cuid())
-  boardId     String
-  listId      String
-  title       String
+  id                String       @id @default(cuid())
+  boardId           String
+  listId            String
+  title             String
   /// Raw markdown (CARD-002).
-  description String?
-  position    Float
-  dueDate     DateTime?
-  completed   Boolean      @default(false)
-  /// Unused until ATTACHMENTS-001.
-  coverUrl    String?
-  archived    Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  list        List         @relation(fields: [listId], references: [id], onDelete: Cascade)
-  activities  Activity[]
-  labels      CardLabel[]
-  members     CardMember[]
-  checklists  Checklist[]
-  comments    Comment[]
+  description       String?
+  position          Float
+  dueDate           DateTime?
+  completed         Boolean      @default(false)
+  /// The cover image: one of the card's own image attachments (ATTACHMENTS-001).
+  coverAttachmentId String?      @unique
+  archived          Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  board             Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list              List         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  activities        Activity[]
+  labels            CardLabel[]
+  members           CardMember[]
+  checklists        Checklist[]
+  comments          Comment[]
+  attachments       Attachment[] @relation("CardAttachments")
+  coverAttachment   Attachment?  @relation("CardCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
 
   @@index([listId, position])
   @@index([boardId])
@@ -298,5 +302,26 @@ model Activity {
   user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([boardId, createdAt])
+  @@index([cardId, createdAt])
+}
+
+/// A file attached to a card (ATTACHMENTS-001), stored in S3 under `storageKey` (ADR-020).
+model Attachment {
+  id         String   @id @default(cuid())
+  cardId     String
+  uploaderId String
+  /// `<workspaceId>/<cardId>/<uuid>`; signed URLs are made from it on every read (no URL is stored).
+  storageKey String   @unique
+  /// Sanitized original name.
+  fileName   String
+  /// Verified from the file's bytes (D-19).
+  mimeType   String
+  /// Bytes.
+  size       Int
+  createdAt  DateTime @default(now())
+  card       Card     @relation("CardAttachments", fields: [cardId], references: [id], onDelete: Cascade)
+  uploader   User     @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  coverOf    Card?    @relation("CardCover")
+
   @@index([cardId, createdAt])
 }

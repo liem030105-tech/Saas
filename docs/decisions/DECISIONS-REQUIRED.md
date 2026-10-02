@@ -136,6 +136,11 @@
 - **Options were:** AWS S3 · Cloudinary.
 - **Affects:** ATTACHMENTS-001, env vars. **Blocking:** was yes (ATTACHMENTS-001).
 
+### D-27 Signed file URL lifetime
+- **Question:** how long a signed attachment or cover URL works ([ADR-020](README.md#adr-020-attachments-in-aws-s3-d-20)).
+- **Proposed default:** 1 hour (a page open longer refetches the card or board for fresh URLs).
+- **Affects:** ATTACHMENTS-001. **Blocking:** no.
+
 ## Deployment & operations
 
 ### D-21 Hosting

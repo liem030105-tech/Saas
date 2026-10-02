@@ -1,5 +1,6 @@
 import type { Card, Checklist, ChecklistItem } from '../../generated/prisma/client';
 import type {
+  AttachmentDto,
   CardDetailDto,
   CardSummaryDto,
   ChecklistDto,
@@ -11,7 +12,7 @@ import type {
 /**
  * docs/api/cards.md → CardDetailDto: the board's CardSummaryDto (owned by the boards module) plus
  * the card's own fields, its labels (mapped by the boards module, which owns LabelDto), members
- * and checklists. Attachments arrive with ATTACHMENTS-001; until then that array is empty.
+ * checklists and attachments (ATTACHMENTS-001).
  */
 export function toCardDetailDto(
   card: Card,
@@ -20,7 +21,13 @@ export function toCardDetailDto(
     labels,
     members,
     checklists,
-  }: { labels: LabelDto[]; members: UserSummary[]; checklists: ChecklistDto[] },
+    attachments,
+  }: {
+    labels: LabelDto[];
+    members: UserSummary[];
+    checklists: ChecklistDto[];
+    attachments: AttachmentDto[];
+  },
 ): CardDetailDto {
   return {
     ...summary,
@@ -32,7 +39,7 @@ export function toCardDetailDto(
     members,
     labels,
     checklists,
-    attachments: [],
+    attachments,
   };
 }
 

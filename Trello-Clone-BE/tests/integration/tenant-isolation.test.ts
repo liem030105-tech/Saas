@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { attachmentData } from '../data/attachments';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
@@ -492,6 +493,28 @@ const cases: IsolationCase[] = [
     },
   },
   {
+    route: 'POST /cards/:cardId/attachments',
+    attempt: "attach a file to B's card",
+    request: (a, b) =>
+      request(app)
+        .post(`${card(b.cardId)}/attachments`)
+        .set(bearer(a.owner.token))
+        .attach('file', attachmentData.png.bytes, attachmentData.png.name),
+    missing: (a) =>
+      request(app)
+        .post(`${card(missingId)}/attachments`)
+        .set(bearer(a.owner.token))
+        .attach('file', attachmentData.png.bytes, attachmentData.png.name),
+  },
+  {
+    route: 'DELETE /attachments/:attachmentId',
+    attempt: "delete B's attachment",
+    request: (a, b) =>
+      request(app).delete(`${paths.attachments}/${b.attachmentId}`).set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app).delete(`${paths.attachments}/${missingId}`).set(bearer(a.owner.token)),
+  },
+  {
     route: 'GET /boards/:boardId/labels',
     attempt: "list B's labels",
     request: (a, b) =>
@@ -776,10 +799,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/* and /comments/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/*, /comments/* and /attachments/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments)(\/|$)/.test(
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments|attachments)(\/|$)/.test(
         route,
       ),
     );

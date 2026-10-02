@@ -103,6 +103,8 @@ export function describeActivity(activity: ActivityDto, names: ActivityNames): s
       return data.done === false
         ? `marked ${text(data.content) ?? 'an item'} incomplete on ${card}`
         : `completed ${text(data.content) ?? 'an item'} on ${card}`;
+    case 'ATTACHMENT_ADDED':
+      return `attached ${text(data.fileName) ?? 'a file'} to ${card}`;
   }
 }
 

@@ -124,6 +124,12 @@ describe('describeActivity', () => {
       card,
       'marked Ship it incomplete on Fix login',
     ],
+    [
+      'ATTACHMENT_ADDED',
+      { attachmentId: 'a', fileName: 'screenshot.png' },
+      card,
+      'attached screenshot.png to Fix login',
+    ],
   ] as const)('%s %j reads "%s"', (type, data, cardId, expected) => {
     expect(describeActivity(entry(type, data, cardId), names)).toBe(expected);
   });

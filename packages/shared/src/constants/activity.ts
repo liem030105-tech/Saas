@@ -19,6 +19,7 @@ export const ACTIVITY_TYPES = [
   'CHECKLIST_ADDED',
   'CHECKLIST_REMOVED',
   'CHECKLIST_ITEM_CHECKED',
+  'ATTACHMENT_ADDED',
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
