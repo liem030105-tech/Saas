@@ -88,7 +88,7 @@ export function toCardSummaryDto(card: CardSummaryRow): CardSummaryDto {
     position: card.position,
     dueDate: card.dueDate?.toISOString() ?? null,
     completed: card.completed,
-    coverUrl: card.coverUrl,
+    coverUrl: null, // the cover's signed URL arrives with ATTACHMENTS-001b
     labelIds: card.labels.map((label) => label.labelId),
     memberIds: card.members.map((member) => member.userId),
     checklist: card.checklist,

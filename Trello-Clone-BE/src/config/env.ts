@@ -14,6 +14,13 @@ const EnvSchema = z.object({
     .regex(/^\d+[smhd]$/, 'must look like 15m, 1h, …')
     .default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // Attachments (ATTACHMENTS-001, ADR-020). Optional: without a bucket, uploads fail (logged).
+  S3_BUCKET: z.string().min(1).optional(),
+  S3_REGION: z.string().min(1).optional(),
+  /** An S3-compatible endpoint (MinIO for local development); path-style addressing then. */
+  S3_ENDPOINT: z.url().optional(),
+  /** How long a signed file URL works, in seconds (D-27, proposed default 1 hour). */
+  S3_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(3600),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

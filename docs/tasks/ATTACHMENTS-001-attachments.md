@@ -16,7 +16,7 @@ Specs: [attachments](../api/cards.md#attachments-post-mvp-attachments-001), [Att
 # Requirements
 1. Model `Attachment`; `ActivityType` += `ATTACHMENT_ADDED`; migration `add_attachments`.
 2. Upload (Multer memory → provider; magic-byte MIME check; size limit per plan D-10 – until BILLING-001, use the Free value for all), list in `CardDetailDto`, delete (uploader or ADMIN+); file deletion after commit, including the cascades from card/list/board/workspace deletion.
-3. `PATCH /cards/:cardId` accepts `coverUrl` (must be the URL of an image attachment of the same card, or `null`).
+3. `PATCH /cards/:cardId` accepts `coverAttachmentId` (an image attachment of the same card, or `null`); card summaries carry the cover's signed URL as `coverUrl` (ADR-020: private bucket, signed URLs, D-27).
 4. Emit `card:updated` after attachment changes.
 5. FE: attachment section in the modal (upload with progress, list, delete, "make cover"); covers on card items.
 
@@ -30,10 +30,10 @@ Image resizing/thumbnails; per-plan limits beyond size (BILLING-001).
 `modules/cards/attachments.*`, `lib/storage.ts` (AWS S3 adapter, ADR-020).
 
 # Database Changes
-Model `Attachment`; migration `add_attachments`.
+Model `Attachment`; `Card.coverUrl` replaced by `coverAttachmentId`; migration `add_attachments`.
 
 # API Changes
-`POST /api/v1/cards/:cardId/attachments`, `DELETE /api/v1/attachments/:attachmentId`, `coverUrl` in `PATCH /api/v1/cards/:cardId`.
+`POST /api/v1/cards/:cardId/attachments`, `DELETE /api/v1/attachments/:attachmentId`, `coverAttachmentId` in `PATCH /api/v1/cards/:cardId`.
 
 # Realtime Changes
 `card:updated` on attachment add/remove/cover change.

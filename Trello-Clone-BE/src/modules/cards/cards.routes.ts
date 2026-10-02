@@ -9,10 +9,12 @@ import {
 } from '@trello-clone/shared';
 import { Router } from 'express';
 
+import * as attachments from './attachments.controller';
 import * as controller from './cards.controller';
 import * as checklists from './checklists.controller';
 import { authenticate } from '../../middlewares/authenticate';
 import { apiRateLimit } from '../../middlewares/rate-limit';
+import { uploadFile } from '../../middlewares/upload';
 import { validate } from '../../middlewares/validate';
 
 export const cardsRouter = Router();
@@ -88,3 +90,7 @@ cardsRouter.patch(
   checklists.updateItem,
 );
 cardsRouter.delete(ITEM, authenticate, apiRateLimit, checklists.removeItem);
+
+// Attachments (ATTACHMENTS-001): one multipart file in memory, then the service authorizes.
+cardsRouter.post(`${CARD}/attachments`, authenticate, apiRateLimit, uploadFile, attachments.upload);
+cardsRouter.delete('/attachments/:attachmentId', authenticate, apiRateLimit, attachments.remove);

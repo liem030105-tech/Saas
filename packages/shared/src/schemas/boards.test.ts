@@ -88,6 +88,7 @@ describe('CreateBoardInputSchema / ListBoardsQuerySchema / BoardDtoSchema', () =
       'CHECKLIST_ADDED',
       'CHECKLIST_REMOVED',
       'CHECKLIST_ITEM_CHECKED',
+      'ATTACHMENT_ADDED',
     ]);
   });
 });

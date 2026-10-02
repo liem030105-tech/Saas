@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { attachmentData } from '../data/attachments';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
@@ -513,5 +514,35 @@ describeRoleMatrix(getApp, {
   name: "DELETE /comments/:commentId (the OWNER's comment)",
   setup: addComment,
   request: (ctx) => request(ctx.app).delete(commentPath(ctx)).set(as(ctx)),
+  expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+// Attachments (ATTACHMENTS-001): upload ≥ MEMBER; delete their own (≥ MEMBER) or anyone's (≥ ADMIN).
+describeRoleMatrix(getApp, {
+  name: 'POST /cards/:cardId/attachments',
+  setup: addCard,
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${cardPath(ctx)}/attachments`)
+      .set(as(ctx))
+      .attach('file', attachmentData.png.bytes, attachmentData.png.name),
+  expected: { OWNER: 201, ADMIN: 201, MEMBER: 201, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+async function addAttachment(ctx: Omit<MatrixContext, 'caller' | 'fixture'>) {
+  const fixture = await addCard(ctx);
+  const res = await request(ctx.app)
+    .post(`${paths.cards}/${fixture.cardId}/attachments`)
+    .set(bearer(ctx.owner.token))
+    .attach('file', attachmentData.png.bytes, attachmentData.png.name)
+    .expect(201);
+  return { ...fixture, attachmentId: res.body.data.id as string };
+}
+
+describeRoleMatrix(getApp, {
+  name: "DELETE /attachments/:attachmentId (the OWNER's attachment)",
+  setup: addAttachment,
+  request: (ctx) =>
+    request(ctx.app).delete(`${paths.attachments}/${ctx.fixture.attachmentId}`).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
 });

@@ -1,3 +1,4 @@
+import { toAttachmentDto, UPLOADER } from './attachments.mapper';
 import { toCardDetailDto, toChecklistDto } from './cards.mapper';
 import * as cardsRepository from './cards.repository';
 import { logger } from '../../config/logger';
@@ -61,11 +62,13 @@ const DETAIL = {
     include: { items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } },
   },
   _count: { select: { comments: true } },
+  attachments: { include: UPLOADER, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] },
 } satisfies Prisma.CardInclude;
 
 type CardDetailRow = Prisma.CardGetPayload<{ include: typeof DETAIL }>;
 
-const toDetail = (card: CardDetailRow) =>
+/** The card as the modal shows it; its attachments (newest first) with fresh signed URLs. */
+const toDetail = async (card: CardDetailRow) =>
   toCardDetailDto(
     card,
     toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) }),
@@ -73,6 +76,7 @@ const toDetail = (card: CardDetailRow) =>
       labels: card.labels.map(({ label }) => toLabelDto(label)),
       members: card.members.map(({ user }) => user),
       checklists: card.checklists.map(toChecklistDto),
+      attachments: await Promise.all(card.attachments.map(toAttachmentDto)),
     },
   );
 
@@ -224,7 +228,7 @@ export async function update(
     if (isMissingCard(error)) throw AppError.notFound();
     throw error;
   }
-  const detail = toDetail(card);
+  const detail = await toDetail(card);
   const tile = toCardSummaryDto({ ...card, checklist: checklistProgress(card.checklists) });
   // The board the card is on now (a move may have committed since the access check).
   cardUpdated(

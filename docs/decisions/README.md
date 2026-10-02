@@ -132,9 +132,9 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 
 ### ADR-020: Attachments in AWS S3 (D-20)
 - **Context:** ATTACHMENTS-001 needs file storage; D-20 offered AWS S3 or Cloudinary.
-- **Decision:** AWS S3. Files go through the API (Multer memory storage, then `lib/storage.ts`), nothing is written to server disk, and downloads use short-lived signed URLs. The adapter speaks the S3 API only, so an S3-compatible store (MinIO locally) works unchanged.
+- **Decision:** AWS S3, in a **private** bucket. Uploads go through the API (Multer memory storage, then `lib/storage.ts`); nothing is written to server disk. The API stores each file's object key, never a URL: every response that shows a file (an attachment, a card cover) carries a fresh signed GET URL that expires (lifetime D-27), so someone removed from a workspace loses access once their URLs expire. A card cover is therefore stored as the attachment's id (`coverAttachmentId`), not as a URL. The adapter speaks the S3 API only, so an S3-compatible store (MinIO locally) works unchanged.
 - **Rationale:** plain object storage with no vendor-specific processing; the S3 API is the common standard, cheap at demo scale, and easy to run locally.
-- **Trade-offs:** no built-in image transformations (thumbnails, if wanted, are a later change); AWS credentials to manage per environment.
+- **Trade-offs:** no built-in image transformations (thumbnails, if wanted, are a later change); AWS credentials to manage per environment; links shared outside the app stop working after the URL lifetime (chosen by the owner over permanent public links).
 - **Status:** Accepted
 
 ### ADR-021: In-app notifications only (D-09)

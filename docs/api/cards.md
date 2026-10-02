@@ -8,7 +8,7 @@
 - `UserSummary = { id, name, avatarUrl }`
 - `ChecklistDto = { id, title, position, items: ChecklistItemDto[] }` · `ChecklistItemDto = { id, content, done, position }`
 - `CommentDto = { id, cardId, content, createdAt, updatedAt, author: UserSummary }`
-- `AttachmentDto = { id, fileName, mimeType, size, url, createdAt, uploader: UserSummary }`
+- `AttachmentDto = { id, fileName, mimeType, size, url, createdAt, uploader: UserSummary }`. `url` is a signed URL that expires (D-27, ADR-020): refetch the card for a fresh one.
 
 ---
 
@@ -41,7 +41,7 @@
 | Task | CARD-002 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ MEMBER (`assertBoardAccess(…, 'card.edit')` on the card's stored board) |
-| Body | `{ title?, description?, dueDate?, completed?, archived? }`, at least one. `description` and `dueDate` accept `null` to clear them; `dueDate` is an ISO 8601 datetime with `Z` or an offset. `coverUrl` is added by ATTACHMENTS-001 |
+| Body | `{ title?, description?, dueDate?, completed?, archived? }`, at least one. `description` and `dueDate` accept `null` to clear them; `dueDate` is an ISO 8601 datetime with `Z` or an offset. Since ATTACHMENTS-001 also `coverAttachmentId`: one of this card's image attachments, or `null` to remove the cover (another card's attachment or a non-image → `422 BUSINESS_RULE_VIOLATION`, rule `COVER_NOT_IMAGE_OF_CARD`) |
 | Success | `200 { data: CardDetailDto }` · logs `CARD_ARCHIVED` when archiving, otherwise `CARD_UPDATED`, with the changed fields in `data` (a changed description only as `description: true`, so the log never copies long text) |
 | Errors | `400` · `401` · `403` · `404` · `429 RATE_LIMITED` |
 
@@ -120,7 +120,7 @@ Since CARD-005d. `content` is trimmed, 1–5000 characters (`CommentContentSchem
 | POST | `/cards/:cardId/attachments` | ≥ MEMBER | `multipart/form-data`, field `file` → `201 { data: AttachmentDto }` · logs `ATTACHMENT_ADDED` | `413` · `415` · `403` · `404` |
 | DELETE | `/attachments/:attachmentId` | Uploader (≥ MEMBER) or ≥ ADMIN | → `204` (file deleted after commit) | `403` · `404` |
 
-Limits: D-10 (size), D-19 (MIME allowlist).
+Logs `ATTACHMENT_ADDED` with `data: { attachmentId, fileName }`; a delete logs nothing. The card's attachments come with `GET /cards/:cardId`, newest first. Limits: D-10 (size; the Free value for every workspace until BILLING-001), D-19 (MIME allowlist, checked by the file's bytes, not its name). The file is stored in S3 (ADR-020) before the row is written; if the write fails, the object is deleted again. Deleting an attachment that is the card's cover clears the cover. Every attachment change sends `card:updated`.
 
 ## Realtime (Post-MVP, REALTIME-001)
 `card:created|updated|moved|deleted|reordered` and `comment:created|updated|deleted` → room `board:{boardId}`. See [realtime.md](../architecture/realtime.md#events). **MVP tasks do not emit.**

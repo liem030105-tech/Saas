@@ -128,7 +128,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | position | Float | | | | |
 | dueDate | DateTime | ✓ | | | |
 | completed | Boolean | | false | | |
-| coverUrl | String | ✓ | | | **Unused until ATTACHMENTS-001** (kept from the original plan's card-cover feature) |
+| coverAttachmentId | String | ✓ | | FK → Attachment (SetNull), UQ | The cover image (ATTACHMENTS-001): one of the card's own image attachments; deleting it clears the cover |
 | archived | Boolean | | false | | |
 | createdAt / updatedAt | DateTime | | | | |
 
@@ -184,8 +184,7 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | id | String | | cuid | PK | |
 | cardId | String | | | FK → Card (Cascade), IX | |
 | uploaderId | String | | | FK → User (Restrict) | Needed for "uploader may delete" |
-| url | String | | | | Public/serving URL returned by the storage provider |
-| storageKey | String | | | | Provider object key; **needed to delete the file** |
+| storageKey | String | | | UQ | S3 object key `<workspaceId>/<cardId>/<uuid>` (ADR-020); signed URLs are made from it on every read, so no URL is stored |
 | fileName | String | | | | Sanitized original name |
 | mimeType | String | | | | Verified MIME; needed for rendering and allowlist |
 | size | Int | | | | Bytes; needed for plan limits |
@@ -362,7 +361,7 @@ model Card {
   position    Float
   dueDate     DateTime?
   completed   Boolean   @default(false)
-  coverUrl    String?
+  coverAttachmentId String? @unique
   archived    Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -443,15 +442,15 @@ model Attachment {
   id         String   @id @default(cuid())
   cardId     String
   uploaderId String
-  url        String
-  storageKey String
+  storageKey String   @unique
   fileName   String
   mimeType   String
   size       Int
   createdAt  DateTime @default(now())
-  card       Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  card       Card     @relation("CardAttachments", fields: [cardId], references: [id], onDelete: Cascade)
   uploader   User     @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
-  @@index([cardId])
+  coverOf    Card?    @relation("CardCover")
+  @@index([cardId, createdAt])
 }
 
 model Activity {
@@ -502,3 +501,4 @@ model Subscription {
 | `20261001065625_add_checklists` | CARD-005c | `Checklist` (FK → `Card` cascade, index `(cardId, position)`); `ChecklistItem` (FK → `Checklist` cascade, index `(checklistId, position)`) |
 | `20261001103116_add_comments` | CARD-005d | `ActivityType` += `COMMENT_ADDED`; `Comment` (FKs → `Card` cascade and `User` restrict, indexes `(cardId, createdAt)` and `(authorId)`) |
 | `20261001115753_add_label_checklist_activity` | CARD-005 (D-25) | `ActivityType` += `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED` |
+| `20261002230000_add_attachments` | ATTACHMENTS-001 | `ActivityType` += `ATTACHMENT_ADDED`; `Attachment` (FKs → `Card` cascade and `User` restrict, unique `storageKey`, index `(cardId, createdAt)`); `Card.coverUrl` (never used) replaced by `coverAttachmentId` (unique, FK → `Attachment` set null) |
