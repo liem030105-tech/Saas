@@ -1,3 +1,5 @@
+import { File as NodeFile } from 'node:buffer';
+
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MAX_ATTACHMENT_BYTES } from '@trello-clone/shared';
 import { http as mswHttp, HttpResponse } from 'msw';
@@ -74,7 +76,8 @@ function signedInAs(
     ),
     mswHttp.get(apiUrl('/cards/:cardId'), () => HttpResponse.json({ data: state.card })),
     mswHttp.post(apiUrl('/cards/:cardId/attachments'), async ({ request }) => {
-      const file = (await request.formData()).get('file') as File;
+      // The raw multipart body: parsing it would need Node's global File, which is jsdom's here.
+      const file = { name: /filename="([^"]+)"/.exec(await request.text())?.[1] };
       state.calls.push(`POST ${file.name}`);
       await uploadAnswered;
       if (options.failUpload) return HttpResponse.json(unsupportedFileError, { status: 415 });
@@ -118,27 +121,27 @@ const attach = (section: HTMLElement, file: File) =>
   });
 
 /**
- * A PNG as a Node File (see the FormData note below): Node's Response makes a Node Blob, and
- * Node's FormData turns it into a named File.
+ * Uploads go through Node's FormData and File: Vitest's jsdom `Request` cannot send a jsdom
+ * FormData with a file (it reads a jsdom internal, jsdom 30, and drops the file name), so MSW
+ * would never see the upload. Node's FormData comes from its own Request (the class Vitest's
+ * extends), its File from `node:buffer` (Node 24's parser looks up the global File, jsdom's here).
  */
-let nodeFormData: typeof FormData;
-
-async function png(name: string) {
-  const bytes = new Response(new Uint8Array([137, 80, 78, 71]), {
-    headers: { 'content-type': 'image/png' },
-  });
-  const form = new nodeFormData();
-  form.append('file', await bytes.blob(), name);
-  return form.get('file') as File;
+async function nodeFormData() {
+  const NodeRequest = Object.getPrototypeOf(Request) as typeof Request;
+  const form = await new NodeRequest('http://localhost/', {
+    method: 'POST',
+    body: new URLSearchParams('a=1'),
+  }).formData();
+  return form.constructor as typeof FormData;
 }
 
+const png = (name: string) =>
+  new NodeFile([new Uint8Array([137, 80, 78, 71])], name, { type: 'image/png' });
+
 describe('card attachments (ATTACHMENTS-001)', () => {
-  // Uploads use Node's FormData and File: Vitest's jsdom Request cannot read a jsdom FormData
-  // holding a file (makeCompatBlob, jsdom 30), so MSW would never see the request.
+  // Node's FormData for the uploads (see nodeFormData).
   beforeEach(async () => {
-    nodeFormData = (await new Response(new URLSearchParams('a=1')).formData())
-      .constructor as typeof FormData;
-    vi.stubGlobal('FormData', nodeFormData);
+    vi.stubGlobal('FormData', await nodeFormData());
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -160,7 +163,7 @@ describe('card attachments (ATTACHMENTS-001)', () => {
   it('a MEMBER uploads an image and makes it the cover: the tile shows it at once', async () => {
     const { state, section } = await openCard('MEMBER', { holdUpload: true, holdCover: true });
 
-    attach(section, await png('photo.png'));
+    attach(section, png('photo.png'));
 
     // The progress shows until the server has the file; "Add attachment" waits for it.
     expect(await within(section).findByRole('status')).toHaveTextContent('Uploading photo.png…');
@@ -219,11 +222,11 @@ describe('card attachments (ATTACHMENTS-001)', () => {
   it("a refused upload shows the API's message; a file over the limit is never sent", async () => {
     const { state, section } = await openCard('MEMBER', { failUpload: true });
 
-    attach(section, await png('cat.png'));
+    attach(section, png('cat.png'));
     expect(await screen.findByText(unsupportedFileError.error.message)).toBeVisible();
     expect(within(section).queryByRole('link', { name: 'cat.png' })).toBeNull();
 
-    const big = await png('big.png');
+    const big = png('big.png');
     Object.defineProperty(big, 'size', { value: MAX_ATTACHMENT_BYTES + 1 });
     attach(section, big);
     expect(await screen.findByText('Files can be at most 10 MB.')).toBeVisible();
