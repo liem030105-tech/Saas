@@ -23,8 +23,10 @@ import { ActivityFeed, type ActivityNames } from '@/features/boards';
 import { CommentSection, type CommentAccess } from '@/features/comments';
 
 import { dueDateFromInput, dueDateInputValue } from '../dates';
+import { AttachmentsSection } from './AttachmentsSection';
 import { AddChecklistButton, ChecklistSection } from './ChecklistSection';
 import { LabelChip, LabelPicker } from './LabelPicker';
+import { useAttachments } from '../hooks/useAttachments';
 import { useCardSocket } from '../hooks/useCardSocket';
 import { useChecklists } from '../hooks/useChecklists';
 import { useDeleteCard, useForgetCard, useUpdateCard } from '../queries';
@@ -42,6 +44,8 @@ interface CardDetailModalProps {
   workspaceMembers: WorkspaceMembers;
   /** Edit, archive, delete (≥ MEMBER, board not archived; UX only, the API re-checks). */
   canEdit: boolean;
+  /** Delete anyone's attachment (≥ ADMIN, board not archived); one's own needs only `canEdit`. */
+  canDeleteAnyAttachment: boolean;
   /** Names of the board's lists and cards and the workspace's members, for the activity entries. */
   activityNames: ActivityNames;
   /** Who is looking and what they may do with comments. */
@@ -53,7 +57,8 @@ interface CardDetailModalProps {
  * The card modal over the board (docs/design/ui.md → Card modal), at `/b/:boardId/c/:cardId`:
  * title, description (markdown), due date, completed, archive, delete. A VIEWER sees the same card
  * read-only. Labels since CARD-005a, members since CARD-005b, checklists since CARD-005c, comments
- * since CARD-005d, and the card's activity ("Show details") since CARD-005e.
+ * since CARD-005d, the card's activity ("Show details") since CARD-005e, and attachments with the
+ * cover since ATTACHMENTS-001.
  */
 export function CardDetailModal({
   card,
@@ -61,6 +66,7 @@ export function CardDetailModal({
   boardLabels,
   workspaceMembers,
   canEdit,
+  canDeleteAnyAttachment,
   activityNames,
   commentAccess,
   onClose,
@@ -71,6 +77,7 @@ export function CardDetailModal({
   const deleteCard = useDeleteCard(card.boardId, card.id);
   const forgetCard = useForgetCard();
   const checklists = useChecklists(card.boardId, card.id);
+  const attachments = useAttachments(card.boardId, card.id);
   const save = (input: UpdateCardInput) => updateCard.mutate(input);
 
   return (
@@ -160,6 +167,15 @@ export function CardDetailModal({
               onSave={save}
             />
             <Description card={card} canEdit={canEdit} onSave={save} />
+            <AttachmentsSection
+              card={card}
+              attachments={attachments}
+              canEdit={canEdit}
+              canDelete={(file) =>
+                canDeleteAnyAttachment || (canEdit && file.uploader.id === commentAccess.user?.id)
+              }
+              onSetCover={(coverAttachmentId) => save({ coverAttachmentId })}
+            />
             {card.checklists.map((checklist) => (
               <ChecklistSection
                 key={checklist.id}

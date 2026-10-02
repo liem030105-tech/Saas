@@ -88,6 +88,8 @@ export const CardDetailDtoSchema = CardSummaryDtoSchema.extend({
   boardId: CuidSchema,
   description: z.string().nullable(),
   archived: z.boolean(),
+  /** Which attachment is the cover (ATTACHMENTS-001); its signed URL is `coverUrl`. */
+  coverAttachmentId: CuidSchema.nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   members: z.array(UserSummarySchema),

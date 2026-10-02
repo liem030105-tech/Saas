@@ -1,0 +1,217 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MAX_ATTACHMENT_BYTES } from '@trello-clone/shared';
+import { delay, http as mswHttp, HttpResponse } from 'msw';
+import { toast } from 'sonner';
+
+import { setAccessToken } from '@/api/token-store';
+import { apiUrl } from '@/testing/data/api';
+import {
+  adasSpec,
+  myScreenshot,
+  unsupportedFileError,
+  uploadedPhoto,
+} from '@/testing/data/attachments';
+import { currentUser, freshAccessToken } from '@/testing/data/auth';
+import { boardPathFor, roadmapBoard } from '@/testing/data/boards';
+import { loginCard, loginCardDetail, roadmapWithCards } from '@/testing/data/cards';
+import { acmeAs } from '@/testing/data/workspaces';
+import { server } from '@/testing/mocks/server';
+import { renderApp } from '@/testing/render';
+
+import type { BoardDetailDto, CardDetailDto, Role } from '@trello-clone/shared';
+
+// ATTACHMENTS-001c: the card modal's attachments and the tile's cover.
+
+/** Signed in with `role`; "Fix login" has my screenshot and Ada's spec. */
+function signedInAs(
+  role: Role,
+  options: { cover?: boolean; failUpload?: boolean; failDelete?: boolean } = {},
+) {
+  const state = {
+    board: structuredClone(roadmapWithCards) as BoardDetailDto,
+    card: {
+      ...structuredClone(loginCardDetail),
+      attachments: [structuredClone(myScreenshot), structuredClone(adasSpec)],
+    } as CardDetailDto,
+    calls: [] as string[],
+  };
+  const setCover = (id: string | null) => {
+    const url = state.card.attachments.find((file) => file.id === id)?.url ?? null;
+    state.card.coverAttachmentId = id;
+    state.card.coverUrl = url;
+    state.board.lists[0]!.cards[0]!.coverUrl = url;
+  };
+  if (options.cover) setCover(myScreenshot.id);
+  server.use(
+    mswHttp.post(apiUrl('/auth/refresh'), () =>
+      HttpResponse.json({ data: { accessToken: freshAccessToken } }),
+    ),
+    mswHttp.get(apiUrl('/auth/me'), () => HttpResponse.json({ data: currentUser })),
+    mswHttp.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: [acmeAs(role)] })),
+    mswHttp.get(apiUrl(`/boards/${roadmapBoard.id}`), () =>
+      HttpResponse.json({ data: state.board }),
+    ),
+    mswHttp.get(apiUrl('/cards/:cardId'), () => HttpResponse.json({ data: state.card })),
+    mswHttp.post(apiUrl('/cards/:cardId/attachments'), async ({ request }) => {
+      const file = (await request.formData()).get('file') as File;
+      state.calls.push(`POST ${file.name}`);
+      await delay(50);
+      if (options.failUpload) return HttpResponse.json(unsupportedFileError, { status: 415 });
+      state.card.attachments.unshift(structuredClone(uploadedPhoto));
+      return HttpResponse.json({ data: uploadedPhoto }, { status: 201 });
+    }),
+    mswHttp.patch(apiUrl('/cards/:cardId'), async ({ request }) => {
+      const body = (await request.json()) as { coverAttachmentId: string | null };
+      state.calls.push(`PATCH cover ${body.coverAttachmentId}`);
+      setCover(body.coverAttachmentId);
+      return HttpResponse.json({ data: state.card });
+    }),
+    mswHttp.delete(apiUrl('/attachments/:attachmentId'), ({ params }) => {
+      state.calls.push(`DELETE ${String(params.attachmentId)}`);
+      if (options.failDelete) {
+        return HttpResponse.json(unsupportedFileError, { status: 500 });
+      }
+      if (state.card.coverAttachmentId === params.attachmentId) setCover(null);
+      state.card.attachments = state.card.attachments.filter((f) => f.id !== params.attachmentId);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return state;
+}
+
+const tileOf = () => screen.getByRole('link', { name: /Fix login/, hidden: true });
+const coverOf = () => tileOf().querySelector('img')?.getAttribute('src') ?? null;
+
+async function openCard(role: Role, options?: Parameters<typeof signedInAs>[1]) {
+  const state = signedInAs(role, options);
+  renderApp(`${boardPathFor(roadmapBoard)}/c/${loginCard.id}`);
+  const dialog = await screen.findByRole('dialog', { name: loginCard.title });
+  const section = await within(dialog).findByRole('region', { name: 'Attachments' });
+  return { state, dialog, section };
+}
+
+const attach = (section: HTMLElement, file: File) =>
+  fireEvent.change(within(section).getByLabelText('Attach a file'), {
+    target: { files: [file] },
+  });
+
+/**
+ * A PNG as a Node File (see the FormData note below): Node's Response makes a Node Blob, and
+ * Node's FormData turns it into a named File.
+ */
+let nodeFormData: typeof FormData;
+
+async function png(name: string) {
+  const bytes = new Response(new Uint8Array([137, 80, 78, 71]), {
+    headers: { 'content-type': 'image/png' },
+  });
+  const form = new nodeFormData();
+  form.append('file', await bytes.blob(), name);
+  return form.get('file') as File;
+}
+
+describe('card attachments (ATTACHMENTS-001)', () => {
+  // Uploads use Node's FormData and File: Vitest's jsdom Request cannot read a jsdom FormData
+  // holding a file (makeCompatBlob, jsdom 30), so MSW would never see the request.
+  beforeEach(async () => {
+    nodeFormData = (await new Response(new URLSearchParams('a=1')).formData())
+      .constructor as typeof FormData;
+    vi.stubGlobal('FormData', nodeFormData);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setAccessToken(null);
+    toast.dismiss();
+  });
+
+  it('a VIEWER sees the files as links, with nothing to change', async () => {
+    const { section } = await openCard('VIEWER');
+
+    const link = within(section).getByRole('link', { name: 'spec.pdf' });
+    expect(link).toHaveAttribute('href', adasSpec.url);
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(within(section).queryByRole('button', { name: 'Add attachment' })).toBeNull();
+    expect(within(section).queryByRole('button', { name: /Make cover/ })).toBeNull();
+    expect(within(section).queryByRole('button', { name: /Delete attachment/ })).toBeNull();
+  });
+
+  it('a MEMBER uploads an image and makes it the cover: the tile shows it at once', async () => {
+    const { state, section } = await openCard('MEMBER');
+
+    attach(section, await png('photo.png'));
+
+    // The progress shows until the server has the file; "Add attachment" waits for it.
+    expect(await within(section).findByRole('status')).toHaveTextContent(/Uploading… \d+%/);
+    expect(within(section).getByRole('button', { name: 'Add attachment' })).toBeDisabled();
+    expect(await within(section).findByRole('link', { name: 'photo.png' })).toBeVisible();
+    expect(within(section).queryByRole('status')).toBeNull();
+    expect(state.calls).toEqual(['POST photo.png']);
+    expect(coverOf()).toBeNull();
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Make cover: photo.png' }));
+
+    await waitFor(() => expect(coverOf()).toBe(uploadedPhoto.url));
+    await waitFor(() => expect(state.calls).toContain(`PATCH cover ${uploadedPhoto.id}`));
+    expect(
+      await within(section).findByRole('button', { name: 'Remove cover: photo.png' }),
+    ).toBeVisible();
+    // Only images can be a cover.
+    expect(within(section).queryByRole('button', { name: /cover: spec\.pdf/ })).toBeNull();
+  });
+
+  it('removing the cover sends null and clears the tile', async () => {
+    const { state, section } = await openCard('MEMBER', { cover: true });
+    await waitFor(() => expect(coverOf()).toBe(myScreenshot.url));
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Remove cover: screenshot.png' }));
+
+    await waitFor(() => expect(coverOf()).toBeNull());
+    await waitFor(() => expect(state.calls).toEqual(['PATCH cover null']));
+  });
+
+  it("a refused upload shows the API's message; a file over the limit is never sent", async () => {
+    const { state, section } = await openCard('MEMBER', { failUpload: true });
+
+    attach(section, await png('cat.png'));
+    expect(await screen.findByText(unsupportedFileError.error.message)).toBeVisible();
+    expect(within(section).queryByRole('link', { name: 'cat.png' })).toBeNull();
+
+    const big = await png('big.png');
+    Object.defineProperty(big, 'size', { value: MAX_ATTACHMENT_BYTES + 1 });
+    attach(section, big);
+    expect(await screen.findByText('Files can be at most 10 MB.')).toBeVisible();
+    expect(state.calls).toEqual(['POST cat.png']);
+  });
+
+  it("a MEMBER deletes their own file but not someone else's; deleting the cover clears it", async () => {
+    const { state, section } = await openCard('MEMBER', { cover: true });
+    await waitFor(() => expect(coverOf()).toBe(myScreenshot.url));
+    expect(
+      within(section).queryByRole('button', { name: 'Delete attachment spec.pdf' }),
+    ).toBeNull();
+
+    fireEvent.click(
+      within(section).getByRole('button', { name: 'Delete attachment screenshot.png' }),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete attachment' }));
+
+    await waitFor(() =>
+      expect(within(section).queryByRole('link', { name: 'screenshot.png' })).toBeNull(),
+    );
+    expect(state.calls).toEqual([`DELETE ${myScreenshot.id}`]);
+    await waitFor(() => expect(coverOf()).toBeNull());
+  });
+
+  it('an ADMIN deletes anyone’s file; a failure stays in the dialog', async () => {
+    const { section } = await openCard('ADMIN', { failDelete: true });
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Delete attachment spec.pdf' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete attachment' }));
+
+    const alert = await screen.findByRole('alertdialog');
+    expect(await within(alert).findByText(unsupportedFileError.error.message)).toBeVisible();
+    expect(
+      within(section).getByRole('link', { name: 'spec.pdf', hidden: true }),
+    ).toBeInTheDocument();
+  });
+});
