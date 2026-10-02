@@ -159,7 +159,7 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
         </span>
       )}
       {pending ? (
-        <div className={cn(tile, 'opacity-70')}>{body}</div>
+        <div className={cn(tile, !(filtered && !match) && 'opacity-70')}>{body}</div>
       ) : (
         <Link
           {...dragProps}

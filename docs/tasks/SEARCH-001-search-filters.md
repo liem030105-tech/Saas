@@ -33,7 +33,7 @@ None (add an index only if profiling shows the need).
 `GET /api/v1/boards/:boardId/search`.
 
 # Realtime Changes
-None (results are recomputed from the cache after events).
+None (each change to the cached board, an event included, runs the search again, debounced).
 
 # Security Considerations
 Scoped to one board via `assertBoardAccess`; parameterized `ILIKE` (escape `%` and `_`).

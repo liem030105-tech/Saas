@@ -31,7 +31,7 @@ import { NotFoundPage } from './NotFoundPage';
 export function BoardPage() {
   const { boardId = '', cardId } = useParams();
   const navigate = useNavigate();
-  const { data: board, isPending, error, refetch } = useBoard(boardId);
+  const { data: board, dataUpdatedAt, isPending, error, refetch } = useBoard(boardId);
   const { data: workspaces, isPending: workspacesPending } = useWorkspaces();
   const card = useCard(cardId);
   const currentUser = useCurrentUser(); // the author of their own comments (CARD-005d)
@@ -45,7 +45,7 @@ export function BoardPage() {
     [members.data],
   );
   // The board's filters (SEARCH-001): matching cards are highlighted, the others dimmed.
-  const search = useBoardSearch(boardId, board);
+  const search = useBoardSearch(boardId, dataUpdatedAt);
   const { matches } = search;
   const tileData = useMemo(
     () => ({ labels: board?.labels ?? [], members: workspaceMembers ?? [], matches }),

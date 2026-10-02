@@ -8,6 +8,8 @@ export const searchFilters = {
   text: { typed: '  login ', sent: 'login' },
   label: { option: 'Urgent', sent: urgentLabel.id },
   due: { option: 'Overdue', sent: 'overdue' },
+  /** Typed one key at a time: only the last is searched. */
+  keystrokes: ['l', 'lo', 'log', 'login'],
 };
 
 /** GET /boards/:boardId/search answers: login matches the text and the label; nothing is overdue. */

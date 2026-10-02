@@ -43,9 +43,15 @@ function signedIn(answer: () => CardSummaryDto[] | Response = () => searchResult
   return searches;
 }
 
+/** The board page, once its realtime join (which refetches the board) has settled. */
 async function openBoard() {
-  renderApp(boardPathFor(roadmapBoard));
+  const { queryClient } = renderApp(boardPathFor(roadmapBoard));
   await screen.findByRole('heading', { name: 'To do', level: 2 });
+  await waitFor(() =>
+    expect(realtime().sent).toContain(`board:join {"boardId":"${roadmapBoard.id}"}`),
+  );
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+  await new Promise((resolve) => setTimeout(resolve, 350)); // past the re-search pause
 }
 
 const tile = (title: string) => screen.getByRole('article', { name: title });
@@ -83,8 +89,10 @@ describe('board search and filters (SEARCH-001)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
 
-    await waitFor(() => expect(tile(signupCard.title)).not.toHaveAccessibleDescription());
+    // At once, not after the typing pause.
+    expect(tile(signupCard.title)).not.toHaveAccessibleDescription();
     expect(tile(loginCard.title)).not.toHaveAccessibleDescription();
+    expect(screen.queryByText(/cards? match/)).toBeNull();
     expect(screen.getByRole('searchbox', { name: 'Search cards' })).toHaveValue('');
     expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
@@ -121,7 +129,8 @@ describe('board search and filters (SEARCH-001)', () => {
     });
 
     expect(await screen.findByText('2 cards match.')).toBeVisible();
-    expect(searches.length).toBeGreaterThanOrEqual(2);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(searches).toHaveLength(2); // one more search for the change, not one per render
   });
 
   it('a failed search says so and can be retried', async () => {
@@ -139,6 +148,56 @@ describe('board search and filters (SEARCH-001)', () => {
     fail = false;
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
 
+    expect(await screen.findByText('1 card matches.')).toBeVisible();
+  });
+
+  it('typing searches once it pauses; the member filter is sent', async () => {
+    const searches = signedIn();
+    await openBoard();
+    const box = screen.getByRole('searchbox', { name: 'Search cards' });
+
+    for (const value of searchFilters.keystrokes) fireEvent.change(box, { target: { value } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Member' }), {
+      target: { value: ownerMember.user.id },
+    });
+
+    await screen.findByText('1 card matches.');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    // Every search carries the member; the text only once typing paused, never half-typed. (The
+    // board's own refetch when it joins its realtime room may search once more.)
+    expect(searches.every((params) => params.get('memberId') === ownerMember.user.id)).toBe(true);
+    expect(new Set(searches.map((params) => params.get('q')))).toEqual(
+      new Set([null, searchFilters.keystrokes.at(-1)]),
+    );
+    expect(searches.at(-1)!.get('q')).toBe(searchFilters.keystrokes.at(-1));
+  });
+
+  it('after Clear, a new filter never shows the old matches while it searches', async () => {
+    let release!: () => void;
+    let gate: Promise<void> | null = null;
+    const searches = signedIn();
+    server.use(
+      mswHttp.get(apiUrl(`/boards/${roadmapBoard.id}/search`), async ({ request }) => {
+        searches.push(new URL(request.url).searchParams);
+        if (gate) await gate;
+        return HttpResponse.json({ data: searchResults.login });
+      }),
+    );
+    await openBoard();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Label' }), {
+      target: { value: searchFilters.label.sent },
+    });
+    await screen.findByText('1 card matches.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    gate = new Promise((resolve) => (release = resolve));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Due date' }), {
+      target: { value: searchFilters.due.sent },
+    });
+
+    expect(await screen.findByText('Searching…')).toBeVisible();
+    expect(tile(loginCard.title)).not.toHaveAccessibleDescription();
+    release();
     expect(await screen.findByText('1 card matches.')).toBeVisible();
   });
 });

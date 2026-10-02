@@ -47,6 +47,14 @@ export function BoardFilterBar({ boardId, labels, members, result }: BoardFilter
   const change = useBoardFiltersStore((state) => state.change);
   const clear = useBoardFiltersStore((state) => state.clear);
   const set = (patch: Partial<BoardFilters>) => change(boardId, patch);
+  const status =
+    !result.active || result.failed
+      ? ''
+      : result.searching
+        ? 'Searching…'
+        : result.count === 0
+          ? 'No cards match.'
+          : `${result.count}${result.capped ? '+' : ''} ${result.count === 1 ? 'card matches' : 'cards match'}.`;
 
   return (
     <search aria-label="Filter cards" className="mx-4 mb-2 flex flex-wrap items-center gap-2">
@@ -103,29 +111,26 @@ export function BoardFilterBar({ boardId, labels, members, result }: BoardFilter
           Clear filters
         </Button>
       )}
-      {result.active &&
-        (result.failed ? (
-          <p
-            role="alert"
-            className="flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-sm text-foreground"
-          >
-            Couldn&apos;t search the cards.
-            <Button variant="secondary" size="sm" onClick={result.retry}>
-              Try again
-            </Button>
-          </p>
-        ) : (
-          <p
-            role="status"
-            className="rounded-md bg-background/90 px-2 py-1 text-sm text-foreground"
-          >
-            {result.searching
-              ? 'Searching…'
-              : result.count === 0
-                ? 'No cards match.'
-                : `${result.count}${result.capped ? '+' : ''} ${result.count === 1 ? 'card matches' : 'cards match'}.`}
-          </p>
-        ))}
+      {result.active && result.failed && (
+        <p
+          role="alert"
+          className="flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-sm text-foreground"
+        >
+          Couldn&apos;t search the cards.
+          <Button variant="secondary" size="sm" onClick={result.retry}>
+            Try again
+          </Button>
+        </p>
+      )}
+      {/* Always in the page (empty when unused), so screen readers announce what it says. */}
+      <p
+        role="status"
+        className={
+          status ? 'rounded-md bg-background/90 px-2 py-1 text-sm text-foreground' : 'sr-only'
+        }
+      >
+        {status}
+      </p>
     </search>
   );
 }
