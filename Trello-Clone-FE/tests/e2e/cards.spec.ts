@@ -9,6 +9,7 @@ import { boardWithLists, dragCard } from './helpers/board';
 // (keyboard-driven, as pointer drags are flaky in CI).
 // CARD-005a/b/c/d: a label, a member, a checklist and a comment put on a card persist.
 // CARD-005e (scenario 5): the card's activity and the board's activity feed show them.
+// SEARCH-001: the board's filters highlight the matching card and dim the others.
 // (A non-member opening the URL gets the board's "Page not found", covered in boards.spec.ts; the
 // suite stays within the auth rate limit, see docs/development/testing.md → E2E.)
 
@@ -185,4 +186,20 @@ test('board → list → cards in order; the card modal edits a card at a sharea
     .getByRole('list', { name: 'Activity' });
   await expect(feed).toContainText('commented on Sign-up form');
   await expect(feed.getByRole('listitem').first()).toContainText('commented on Sign-up form');
+  await page.keyboard.press('Escape');
+
+  // SEARCH-001: filtering by label and text highlights the matching card and dims the others;
+  // clearing restores the board.
+  const article = (title: string) => page.getByRole('article', { name: exact(title) });
+  await page.getByRole('combobox', { name: 'Label' }).selectOption({ label: 'Green label' });
+  await page.getByRole('searchbox', { name: 'Search cards' }).fill('sign');
+  await expect(page.getByText('1 card matches.')).toBeVisible();
+  await expect(article('Sign-up form')).toHaveAccessibleDescription('Matches the filters');
+  for (const title of ['Write tests', 'Fix login']) {
+    await expect(article(title)).toHaveAccessibleDescription("Doesn't match the filters");
+  }
+  await page.getByRole('button', { name: 'Clear filters' }).click();
+  for (const title of ['Write tests', 'Fix login', 'Sign-up form']) {
+    await expect(article(title)).toHaveAccessibleDescription('');
+  }
 });

@@ -1,4 +1,5 @@
 import { CheckIcon, ClockIcon, ListChecksIcon, MessageSquareIcon } from 'lucide-react';
+import { useId } from 'react';
 import { Link } from 'react-router';
 
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -130,7 +131,14 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
       )}
     </>
   );
-  const tile = 'block rounded-md bg-card px-3 py-2 text-sm text-card-foreground shadow-sm';
+  // The board's filters (SEARCH-001): matching tiles are outlined, the others dimmed.
+  const filtered = overlay ? null : (tileData.matches ?? null);
+  const filterNoteId = useId();
+  const match = filtered?.has(card.id) ?? false;
+  const tile = cn(
+    'block rounded-md bg-card px-3 py-2 text-sm text-card-foreground shadow-sm transition-opacity',
+    filtered && (match ? 'ring-2 ring-amber-400' : 'opacity-40'),
+  );
 
   if (overlay) {
     return (
@@ -140,9 +148,18 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
     );
   }
   return (
-    <article aria-label={card.title} aria-busy={pending || undefined}>
+    <article
+      aria-label={card.title}
+      aria-busy={pending || undefined}
+      aria-describedby={filtered ? filterNoteId : undefined}
+    >
+      {filtered && (
+        <span id={filterNoteId} className="sr-only">
+          {match ? 'Matches the filters' : "Doesn't match the filters"}
+        </span>
+      )}
       {pending ? (
-        <div className={cn(tile, 'opacity-70')}>{body}</div>
+        <div className={cn(tile, !(filtered && !match) && 'opacity-70')}>{body}</div>
       ) : (
         <Link
           {...dragProps}

@@ -3,7 +3,15 @@ import { useNavigate, useParams } from 'react-router';
 
 import { ApiError } from '@/api/client';
 import { useCurrentUser } from '@/features/auth';
-import { BoardView, boardPath, namesOf, useBoard, useBoardSocket } from '@/features/boards';
+import {
+  BoardFilterBar,
+  BoardView,
+  boardPath,
+  namesOf,
+  useBoard,
+  useBoardSearch,
+  useBoardSocket,
+} from '@/features/boards';
 import {
   CardDetailModal,
   CardModalStatus,
@@ -23,7 +31,7 @@ import { NotFoundPage } from './NotFoundPage';
 export function BoardPage() {
   const { boardId = '', cardId } = useParams();
   const navigate = useNavigate();
-  const { data: board, isPending, error, refetch } = useBoard(boardId);
+  const { data: board, dataUpdatedAt, isPending, error, refetch } = useBoard(boardId);
   const { data: workspaces, isPending: workspacesPending } = useWorkspaces();
   const card = useCard(cardId);
   const currentUser = useCurrentUser(); // the author of their own comments (CARD-005d)
@@ -36,9 +44,12 @@ export function BoardPage() {
     () => members.data?.map(({ user: { id, name, avatarUrl } }) => ({ id, name, avatarUrl })),
     [members.data],
   );
+  // The board's filters (SEARCH-001): matching cards are highlighted, the others dimmed.
+  const search = useBoardSearch(boardId, dataUpdatedAt);
+  const { matches } = search;
   const tileData = useMemo(
-    () => ({ labels: board?.labels ?? [], members: workspaceMembers ?? [] }),
-    [board?.labels, workspaceMembers],
+    () => ({ labels: board?.labels ?? [], members: workspaceMembers ?? [], matches }),
+    [board?.labels, workspaceMembers, matches],
   );
   // Who and what activity entries name (CARD-005e): the board's lists, cards and labels.
   const activityNames = useMemo(
@@ -91,6 +102,12 @@ export function BoardPage() {
       onDeleted={() => void navigate(workspace ? workspacePath(workspace.slug) : '/')}
       activityNames={activityNames}
     >
+      <BoardFilterBar
+        boardId={board.id}
+        labels={board.labels.map((label) => ({ id: label.id, name: labelText(label) }))}
+        members={(workspaceMembers ?? []).map((user) => ({ id: user.id, name: user.name }))}
+        result={search}
+      />
       {/* An archived board is read-only (docs/design/ui.md → Board). */}
       <CardTileProvider value={tileData}>
         <BoardLists

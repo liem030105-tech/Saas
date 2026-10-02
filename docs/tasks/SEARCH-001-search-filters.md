@@ -24,7 +24,7 @@ Cross-board or workspace-wide search; full-text ranking (`pg_trgm` only if neede
 `features/boards/components/BoardFilterBar.tsx`, `features/boards/store.ts`.
 
 # Backend Changes
-`boards.repository.search`.
+`boards.repository.searchCards`.
 
 # Database Changes
 None (add an index only if profiling shows the need).
@@ -33,7 +33,7 @@ None (add an index only if profiling shows the need).
 `GET /api/v1/boards/:boardId/search`.
 
 # Realtime Changes
-None (results are recomputed from the cache after events).
+None (each change to the cached board, an event included, runs the search again, debounced).
 
 # Security Considerations
 Scoped to one board via `assertBoardAccess`; parameterized `ILIKE` (escape `%` and `_`).
