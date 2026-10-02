@@ -23,6 +23,8 @@ import type {
   LabelDto,
   ListActivitiesQuery,
   ListBoardsQuery,
+  SearchCardsQuery,
+  CardSummaryDto,
   UpdateBoardData,
   UpdateLabelData,
 } from '@trello-clone/shared';
@@ -178,6 +180,25 @@ async function assertLabelAccess(userId: string, labelId: string, action: Worksp
 }
 
 const ACTOR = { user: { select: { id: true, name: true, avatarUrl: true } } } as const;
+
+/**
+ * GET /boards/:boardId/search (≥ VIEWER, SEARCH-001): the board's open cards matching every given
+ * filter (boards.repository.searchCards), as the board shows them.
+ */
+export async function search(
+  userId: string,
+  boardId: string,
+  query: SearchCardsQuery,
+): Promise<CardSummaryDto[]> {
+  await assertBoardAccess(userId, boardId, 'board.view');
+  const [cards, progress] = await Promise.all([
+    boardsRepository.searchCards(boardId, query, new Date()),
+    boardsRepository.findChecklistProgress(boardId),
+  ]);
+  return cards.map((card) =>
+    toCardSummaryDto({ ...card, checklist: progress.get(card.id) ?? NO_CHECKLIST }),
+  );
+}
 
 /**
  * GET /boards/:boardId/activities (≥ VIEWER): the board's activity, newest first (`id` breaks

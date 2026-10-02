@@ -27,6 +27,26 @@ export const ListBoardsQuerySchema = z.object({
     .transform((value) => value === 'true'),
 });
 
+/**
+ * GET /boards/:boardId/search `due` filter (SEARCH-001). Meanings are the proposed default of D-26
+ * (docs/decisions/DECISIONS-REQUIRED.md): `overdue` = due date passed and not completed; `week` =
+ * due in the next 7 days and not completed; `none` = no due date.
+ */
+export const SEARCH_DUE_FILTERS = ['overdue', 'week', 'none'] as const;
+
+/** GET /boards/:boardId/search query (SEARCH-001): every given filter must match. */
+export const SearchCardsQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(1, 'Enter something to search for')
+    .max(100, 'Search must be at most 100 characters')
+    .optional(),
+  labelId: CuidSchema.optional(),
+  memberId: CuidSchema.optional(),
+  due: z.enum(SEARCH_DUE_FILTERS, { error: 'Use due=overdue, due=week or due=none' }).optional(),
+});
+
 /** A board as the API returns it (docs/api/boards.md → BoardDto). */
 export const BoardDtoSchema = z.object({
   id: CuidSchema,

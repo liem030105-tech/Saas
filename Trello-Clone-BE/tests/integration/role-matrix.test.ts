@@ -314,6 +314,17 @@ describeRoleMatrix(getApp, {
 });
 
 describeRoleMatrix(getApp, {
+  name: 'GET /boards/:boardId/search',
+  setup: addBoard,
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${boardPath(ctx)}/search`)
+      .query({ q: 'x' })
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 200, VIEWER: 200, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
   name: 'GET /boards/:boardId/labels',
   setup: addBoard,
   request: (ctx) =>

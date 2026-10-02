@@ -1,4 +1,8 @@
+import { PAGINATION, type SearchCardsQuery } from '@trello-clone/shared';
+
 import { prisma } from '../../config/prisma';
+
+import type { Prisma } from '../../generated/prisma/client';
 
 // Board queries reused by every board-scoped check (backend.md → Repository).
 
@@ -84,4 +88,39 @@ export async function findCardSummary(cardId: string) {
       WHERE cl."cardId" = ${cardId}`,
   ]);
   return card && { card, checklist: progress[0] ?? { done: 0, total: 0 } };
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * GET /boards/:boardId/search (SEARCH-001): the board's open cards in open lists that match every
+ * given filter, in board order (list, then card position), at most PAGINATION.maxLimit (D-14). `q` matches the
+ * title or description case-insensitively, as typed (`%`, `_` and `\` are not wildcards). `now`
+ * is when "overdue" and "this week" are measured from.
+ */
+export function searchCards(boardId: string, query: SearchCardsQuery, now: Date) {
+  const where: Prisma.CardWhereInput[] = [{ boardId, archived: false, list: { archived: false } }];
+  if (query.q) {
+    // Prisma's `contains` sends the text as a LIKE pattern as is: escape its wildcards.
+    const pattern = query.q.replace(/[\\%_]/g, (char) => `\\${char}`);
+    where.push({
+      OR: [
+        { title: { contains: pattern, mode: 'insensitive' } },
+        { description: { contains: pattern, mode: 'insensitive' } },
+      ],
+    });
+  }
+  if (query.labelId) where.push({ labels: { some: { labelId: query.labelId } } });
+  if (query.memberId) where.push({ members: { some: { userId: query.memberId } } });
+  if (query.due === 'none') where.push({ dueDate: null });
+  if (query.due === 'overdue') where.push({ completed: false, dueDate: { lt: now } });
+  if (query.due === 'week') {
+    where.push({ completed: false, dueDate: { gte: now, lt: new Date(now.getTime() + WEEK_MS) } });
+  }
+  return prisma.card.findMany({
+    where: { AND: where },
+    orderBy: [{ list: { position: 'asc' } }, { listId: 'asc' }, ...BY_POSITION],
+    take: PAGINATION.maxLimit, // D-14
+    include: CARD_SUMMARY_IDS,
+  });
 }

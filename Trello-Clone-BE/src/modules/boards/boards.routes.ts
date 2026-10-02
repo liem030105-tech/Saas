@@ -3,6 +3,7 @@ import {
   CreateLabelInputSchema,
   ListActivitiesQuerySchema,
   ListBoardsQuerySchema,
+  SearchCardsQuerySchema,
   UpdateBoardInputSchema,
   UpdateLabelInputSchema,
 } from '@trello-clone/shared';
@@ -55,6 +56,15 @@ boardsRouter.get(
   apiRateLimit,
   validate({ query: ListActivitiesQuerySchema }),
   controller.listActivities,
+);
+
+// Card search (SEARCH-001): authorized in the service, like the board-scoped routes above.
+boardsRouter.get(
+  `${BOARD}/search`,
+  authenticate,
+  apiRateLimit,
+  validate({ query: SearchCardsQuerySchema }),
+  controller.search,
 );
 
 // Labels (CARD-005): authorized in the service, like the board-scoped routes above.

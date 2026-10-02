@@ -109,6 +109,11 @@
 - **Recommendation:** keep `domain:verb` (common Socket.IO style, already documented).
 - **Affects:** `architecture/realtime.md`, REALTIME-001. **Blocking:** no (until REALTIME-001).
 
+### D-26 Search `due` filter meanings
+- **Question:** what `due=overdue|week|none` on `GET /boards/:boardId/search` selects (SEARCH-001).
+- **Proposed default:** `overdue` = due date passed and not completed (as the card badge's "overdue" already is); `week` = due within the next 7 days (rolling, not the calendar week) and not completed; `none` = no due date (completed or not).
+- **Affects:** [api/boards.md → Search](../api/boards.md#search-post-mvp-search-001), SEARCH-001. **Blocking:** no.
+
 ## Invitations & email
 
 ### D-17 Invite expiry
