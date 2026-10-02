@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { boardWithLists } from './helpers/board';
+import { boardWithLists, dragCard } from './helpers/board';
 
 // Scenario 3 (docs/development/testing.md), CARD-001 acceptance: create board → list → card;
 // cards appear in creation order and persist after reload.
@@ -15,37 +15,6 @@ import { boardWithLists } from './helpers/board';
 const CARD_TITLES = ['Fix login', 'Sign-up form', 'Write tests'];
 /** A tile's text starts with its title (the due-date badge follows it). */
 const exact = (title: string) => new RegExp(`^${title}`);
-
-/**
- * Drags the card `title` with the keyboard: Space picks it up, each key in `keys` moves it (each
- * waits for the screen-reader announcement), Space drops it. Resolves once the server stored the
- * move and the board was refetched.
- */
-async function dragCard(page: Page, title: string, keys: string[], expected: string[]) {
-  const announcement = page.locator('[id^="DndLiveRegion"]');
-  const moved = page.waitForResponse(
-    (res) => res.request().method() === 'PATCH' && res.url().endsWith('/move') && res.ok(),
-  );
-  const refetched = page.waitForResponse(
-    (res) => res.request().method() === 'GET' && /\/boards\/[^/]+$/.test(res.url()) && res.ok(),
-  );
-  await page.getByRole('link', { name: new RegExp(`^${title}`) }).focus();
-  await page.keyboard.press('Space');
-  // The pickup announcement is replaced at once by where the card is.
-  await expect(announcement).toContainText(`Card ${title} is at position`);
-  // dnd-kit measures the droppables in the frames right after a pickup (see lists.spec.ts).
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
-  for (const [i, key] of keys.entries()) {
-    await page.keyboard.press(key);
-    await expect(announcement).toContainText(`Card ${title} is ${expected[i]!}.`);
-  }
-  await page.keyboard.press('Space');
-  await expect(announcement).toContainText(`Card ${title} was dropped`);
-  await moved;
-  await refetched;
-}
 
 test('board → list → cards in order; the card modal edits a card at a shareable URL; cards drag', async ({
   page,

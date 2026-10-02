@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { pageCases } from '../../../src/testing/data/routes';
 import { buildE2eUser } from '../data/users';
@@ -29,4 +29,35 @@ export async function boardWithLists(page: Page, titles: string[]) {
   }
   await titleField.press('Escape');
   return page.getByRole('list', { name: 'Lists' }).getByRole('heading', { level: 2 });
+}
+
+/**
+ * Drags the card `title` with the keyboard: Space picks it up, each key in `keys` moves it (each
+ * waits for the screen-reader announcement), Space drops it. Resolves once the server stored the
+ * move and the board was refetched.
+ */
+export async function dragCard(page: Page, title: string, keys: string[], expected: string[]) {
+  const announcement = page.locator('[id^="DndLiveRegion"]');
+  const moved = page.waitForResponse(
+    (res) => res.request().method() === 'PATCH' && res.url().endsWith('/move') && res.ok(),
+  );
+  const refetched = page.waitForResponse(
+    (res) => res.request().method() === 'GET' && /\/boards\/[^/]+$/.test(res.url()) && res.ok(),
+  );
+  await page.getByRole('link', { name: new RegExp(`^${title}`) }).focus();
+  await page.keyboard.press('Space');
+  // The pickup announcement is replaced at once by where the card is.
+  await expect(announcement).toContainText(`Card ${title} is at position`);
+  // dnd-kit measures the droppables in the frames right after a pickup (see lists.spec.ts).
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  for (const [i, key] of keys.entries()) {
+    await page.keyboard.press(key);
+    await expect(announcement).toContainText(`Card ${title} is ${expected[i]!}.`);
+  }
+  await page.keyboard.press('Space');
+  await expect(announcement).toContainText(`Card ${title} was dropped`);
+  await moved;
+  await refetched;
 }

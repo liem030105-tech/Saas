@@ -16,9 +16,10 @@ import type { BoardDetailDto } from '@trello-clone/shared';
  * - repeats (by `eventId`);
  * - while one of this tab's own changes to the board is pending (`ownBoardChangePending`): that
  *   change refetches the board when it settles, which brings this event along;
- * When the caller is removed from the board's workspace, `onRemoved` runs (the page leaves).
- * It refetches the board (and its activity) each time it joins the room, the first time and after
- * a reconnect, as changes made before that sent it no event.
+ * - while the board is being fetched: it is fetched again instead, as that answer may predate it.
+ * It also refetches the board (and its activity) each time it joins the room, the first time and
+ * after a reconnect, as changes made before that sent it no event. When the caller is removed from
+ * the board's workspace, `onRemoved` runs (the page leaves).
  */
 export function useBoardSocket(boardId: string, userId: string | undefined, onRemoved: () => void) {
   const queryClient = useQueryClient();
@@ -50,6 +51,12 @@ export function useBoardSocket(boardId: string, userId: string | undefined, onRe
         if (ownBoardChangePending(queryClient, boardId)) return;
         const board = queryClient.getQueryData<BoardDetailDto>(key);
         if (!board) return;
+        // A fetch of the board is under way: its answer may predate this change and would replace
+        // the patch, so fetch again instead (this cancels that one).
+        if (queryClient.isFetching({ queryKey: key }) > 0) {
+          void queryClient.invalidateQueries({ queryKey: key });
+          return;
+        }
         const next = applyBoardEvent(board, event);
         if (next === 'refetch') void queryClient.invalidateQueries({ queryKey: key });
         else if (next !== board) queryClient.setQueryData(key, next);
