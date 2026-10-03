@@ -1,6 +1,7 @@
 import { ZodError } from 'zod';
 
 import { AppError } from '../lib/app-error';
+import { reportError } from '../lib/error-tracking';
 
 import type { ErrorResponse } from '@trello-clone/shared';
 import type { NextFunction, Request, Response } from 'express';
@@ -67,7 +68,11 @@ export function errorHandler(error: unknown, req: Request, res: Response, next: 
     return;
   }
   const { status, body } = toErrorResponse(error);
-  if (status >= 500) req.log.error({ err: error }, 'Unhandled error');
-  const payload: ErrorResponse = { error: { ...body, requestId: res.locals.requestId as string } };
+  const requestId = res.locals.requestId as string;
+  if (status >= 500) {
+    req.log.error({ err: error }, 'Unhandled error');
+    reportError(error, requestId);
+  }
+  const payload: ErrorResponse = { error: { ...body, requestId } };
   res.status(status).json(payload);
 }

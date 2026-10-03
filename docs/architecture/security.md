@@ -86,3 +86,4 @@
 ## Error handling and logging
 - Never return stack traces or raw Prisma errors.
 - Logs include `requestId` and `userId`. Pino `redact` removes `password`, `token`, `authorization`, `cookie`, and `set-cookie`.
+- Error tracking (Sentry, [ADR-024](../decisions/README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)) receives no personal data: no user, cookies, headers, bodies, query strings or local variables. API events keep the request method, path and `requestId`; FE events keep the page URL with invite tokens redacted (`lib/error-tracking.ts` on each side).

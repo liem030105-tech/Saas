@@ -33,6 +33,7 @@ export const invalidEnvs = {
     CLIENT_URL: 'http://app.example.com',
   },
   negativeTrustProxy: { ...testEnv, TRUST_PROXY: '-1' },
+  sentryDsnNotAUrl: { ...testEnv, SENTRY_DSN: 'not-a-dsn' },
 } satisfies Record<string, Record<string, string | undefined>>;
 
 /** Only the required variables; everything else takes its documented default. */

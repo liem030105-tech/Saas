@@ -90,6 +90,7 @@ The activity writer `logActivity(tx, …)` lives in `modules/boards/activity.ts`
 
 ## Error handling
 - Services throw `AppError(code, httpStatus, message, details?)`; `errorHandler` maps it to the common format (see [api/README.md](../api/README.md)).
+- `errorHandler` logs every 5xx and reports it to Sentry with its `requestId` (`lib/error-tracking.ts`, [ADR-024](../decisions/README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)); 4xx are not reported.
 - Zod errors → `400 VALIDATION_ERROR`; Prisma `P2025` → `404 NOT_FOUND`; anything unexpected → `500 INTERNAL_ERROR`, fully logged, no stack trace sent to the client.
 
 ## Realtime emits (Post-MVP, REALTIME-001)

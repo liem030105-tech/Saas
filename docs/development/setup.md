@@ -46,12 +46,14 @@ pnpm dev                                     # FE :5173, BE :4000
 | `S3_BUCKET`, `S3_REGION` | Attachments (ATTACHMENTS-001, ADR-020). Without them uploads answer `500` and are logged; everything else works |
 | `S3_ENDPOINT` | Optional: an S3-compatible endpoint (e.g. MinIO `http://localhost:9000` for local development); path-style addressing is used then |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 credentials (the AWS SDK's standard variables). Never commit them |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Error tracking ([ADR-024](../decisions/README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)). Empty locally: nothing is sent. On Render: the API project's DSN and `staging` or `production`. `RENDER_GIT_COMMIT` (set by Render) becomes the release |
 
 `Trello-Clone-FE/.env.example`
 | Variable | Description |
 |----------|-------------|
 | `VITE_API_URL` | e.g. `http://localhost:4000/api/v1` |
 | `VITE_SOCKET_URL` | e.g. `http://localhost:4000` |
+| `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT` | Error tracking ([ADR-024](../decisions/README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)). Empty locally. A DSN only allows sending events, so it may be public. `VITE_VERCEL_GIT_COMMIT_SHA` (set by Vercel) becomes the release |
 
 `VITE_*` variables are exposed to the browser – **never** put secrets there.
 
