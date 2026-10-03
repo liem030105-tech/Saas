@@ -9,12 +9,14 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.include='src/**' --coverage.reporter=text-summary --coverage.reporter=html"
   },
   "dependencies": {
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.11",
     "vitest": "4.1.11"
   }
 }

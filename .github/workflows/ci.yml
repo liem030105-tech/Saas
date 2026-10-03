@@ -1,5 +1,5 @@
 # Quality gates for every PR and for main (FOUNDATION-006, docs/development/testing.md → CI).
-# They block merging once the repository owner adds `ci` and `docs` as required status checks
+# They block merging once the repository owner adds `ci`, `e2e` and `docs` as required status checks
 # in the ruleset (manual step, FOUNDATION-006).
 name: ci
 
@@ -74,11 +74,110 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test
-        run: pnpm test
+      # The same tests as `pnpm test`, with a coverage report (Vitest v8, no threshold; TESTING-001).
+      - name: Test (with coverage)
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            packages/shared/coverage/
+            Trello-Clone-BE/coverage/
+            Trello-Clone-FE/coverage/
+          retention-days: 14
 
       - name: Build
         run: pnpm build
+
+  # The E2E scenarios (docs/development/testing.md → E2E scenarios; TESTING-001): Playwright starts
+  # its own API (on the CI test database) and web app, as it does locally.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trello
+          POSTGRES_PASSWORD: trello # throwaway CI database, not a secret
+          POSTGRES_DB: trello_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trello -d trello_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Test-only values; the API's own E2E settings live in Trello-Clone-FE/tests/e2e/data/env.ts.
+    env:
+      DATABASE_URL_TEST: postgresql://trello:trello@localhost:5432/trello_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @trello-clone/api db:generate
+
+      # Browsers are cached per Playwright version; system libraries are installed every run.
+      # Fails here, rather than with a stale cache, if the version cannot be read.
+      - name: Playwright version
+        id: playwright
+        run: |
+          version=$(pnpm --filter @trello-clone/web exec playwright --version | awk '{print $2}')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Playwright browsers
+        id: playwright-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @trello-clone/web exec playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @trello-clone/web exec playwright install-deps chromium
+
+      # Saved right after installing, so a failing E2E run does not download it again next time.
+      - name: Save Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
+      - name: E2E
+        run: pnpm --filter @trello-clone/web test:e2e
+
+      - name: Upload traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: Trello-Clone-FE/test-results/
+          retention-days: 7
 
   docs:
     name: docs

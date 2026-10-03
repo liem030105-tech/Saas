@@ -20,7 +20,8 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   workers: 1,
-  reporter: process.env.CI ? 'github' : 'list',
+  // In CI: failure annotations on the PR, and each test's progress in the log.
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL: e2eUrls.web,
     trace: 'retain-on-failure',
