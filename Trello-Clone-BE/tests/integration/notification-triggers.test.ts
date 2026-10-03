@@ -1,4 +1,4 @@
-import { NotificationsPageSchema } from '@trello-clone/shared';
+import { formatMention, NotificationsPageSchema } from '@trello-clone/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -126,6 +126,46 @@ describe('CARD_COMMENTED', () => {
     });
     expect(await notificationsOf(t.owner)).toEqual([]); // the author
     expect(await notificationsOf(t.bob)).toEqual([]); // not a member of the card
+  });
+});
+
+describe('CARD_MENTIONED', () => {
+  it('mentioned workspace members hear of it instead of the plain comment; others and edits notify nobody', async () => {
+    const t = await team();
+    const outsider = await createUserWithToken();
+    await assign(t.owner, t.cardId, t.ada).expect(204);
+    await testPrisma.notification.deleteMany();
+    const content = [
+      `Hey ${formatMention('Ada', t.ada.user.id)} and ${formatMention('Bob', t.bob.user.id)}`,
+      `cc ${formatMention('Out', outsider.user.id)} ${formatMention('Me', t.owner.user.id)}`,
+    ].join(' ');
+
+    const comment = await request(app)
+      .post(`${paths.cards}/${t.cardId}/comments`)
+      .set(bearer(t.owner.token))
+      .send({ content })
+      .expect(201);
+
+    // Ada is a member of the card too: one notification, the mention.
+    for (const user of [t.ada, t.bob]) {
+      const [notification, ...rest] = await notificationsOf(user);
+      expect(rest).toEqual([]);
+      expect(notification).toMatchObject({
+        type: 'CARD_MENTIONED',
+        actor: { id: t.owner.user.id },
+        comment: { id: comment.body.data.id },
+      });
+    }
+    expect(await testPrisma.notification.count({ where: { userId: outsider.user.id } })).toBe(0);
+    expect(await notificationsOf(t.owner)).toEqual([]);
+
+    // Editing a comment to add a mention notifies nobody.
+    await request(app)
+      .patch(`${paths.comments}/${comment.body.data.id as string}`)
+      .set(bearer(t.owner.token))
+      .send({ content: `${content} ${formatMention('Bob', t.bob.user.id)}!` })
+      .expect(200);
+    expect(await testPrisma.notification.count()).toBe(2);
   });
 });
 

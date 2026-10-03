@@ -23,3 +23,7 @@ export function describeNotification(notification: NotificationDto): string {
       }`;
   }
 }
+
+/** A comment excerpt as people read it: mentions (D-28) as "@Name", not as their markdown. */
+export const excerptText = (excerpt: string) =>
+  excerpt.replace(/@\[([^\]]*)\]\(mention:[a-z0-9]+\)/g, '@$1');

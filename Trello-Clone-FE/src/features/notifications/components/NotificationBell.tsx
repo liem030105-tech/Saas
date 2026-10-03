@@ -11,7 +11,7 @@ import { workspacePath } from '@/features/workspaces';
 import { formatDateTime } from '@/lib/format-date';
 import { cn } from '@/lib/utils';
 
-import { describeNotification } from '../describe';
+import { describeNotification, excerptText } from '../describe';
 import { useNotificationsSocket } from '../hooks/useNotificationsSocket';
 import {
   useAcceptInvite,
@@ -152,7 +152,7 @@ function NotificationItem({
         <span className={cn('text-sm', !notification.read && 'font-semibold')}>{text}</span>
         {notification.comment && (
           <span className="line-clamp-2 text-xs text-muted-foreground">
-            {notification.comment.excerpt}
+            {excerptText(notification.comment.excerpt)}
           </span>
         )}
         <span className="text-xs text-muted-foreground">
@@ -169,7 +169,7 @@ function NotificationItem({
 
   if (notification.type === 'WORKSPACE_INVITED') {
     return (
-      <li className={cn(row, 'flex-col')}>
+      <li className="flex w-full flex-col items-start gap-2 px-3 py-2">
         <span className="flex w-full items-start gap-2">{body}</span>
         <Button
           size="sm"

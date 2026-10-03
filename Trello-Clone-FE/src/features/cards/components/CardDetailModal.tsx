@@ -188,6 +188,7 @@ export function CardDetailModal({
               boardId={card.boardId}
               cardId={card.id}
               access={commentAccess}
+              mentionable={workspaceMembers.list ?? []}
               headerAction={
                 <Button
                   variant="ghost"
