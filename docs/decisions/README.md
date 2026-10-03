@@ -146,7 +146,7 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 
 ### ADR-022: Landing and pricing pages in BILLING-001; other unphased ideas to the backlog (D-08)
 - **Context:** D-08 listed ideas that earlier plans mentioned but no phase covered: board templates, dark mode, a landing page, a pricing page, board favorites.
-- **Decision:** the landing page (`/` for signed-out visitors) and the pricing page (`/pricing`, public) ship with BILLING-001 (Phase 7, sub-PR 001c). Board templates go to the backlog after Phase 9; dark mode and board favorites (client-side only, if ever done) go to the backlog. No task specs exist for the backlog items.
+- **Decision:** the landing page (`/` for signed-out visitors) and the pricing page (`/pricing`, public) ship with BILLING-001 (Phase 7, sub-PR 001d). Board templates go to the backlog after Phase 9; dark mode and board favorites (client-side only, if ever done) go to the backlog. No task specs exist for the backlog items.
 - **Rationale:** the pricing page explains the Free and Pro plans that BILLING-001 enforces, and a landing page gives signed-out visitors somewhere to start instead of the login form. The other ideas are not needed for the product to work.
 - **Trade-offs:** two more public pages to keep consistent with `PLAN_LIMITS` and the price (D-13). The pricing page reads the limits from the shared constants, so they cannot drift.
 - **Status:** Accepted

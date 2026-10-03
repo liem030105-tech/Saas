@@ -87,6 +87,6 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 - **Activity log:** the model and write helper arrive in BOARD-001 and are used from then on. The feed endpoint and UI arrive in CARD-005.
 - **Plan limits:** not enforced in MVP tasks. BILLING-001 adds them (D-11).
 - **Follow-up after BILLING-001 (D-30, no spec yet):** sync the Pro seat count with joining and leaving members.
-- **BILLING-001** is delivered as sub-PRs: plan limits and the billing summary (001a) → Stripe checkout, portal and webhook (001b) → the billing UI and pricing page (001c), each meeting the DoD.
+- **BILLING-001** is delivered as sub-PRs: plan limits and the billing summary (001a) → Stripe checkout, portal and webhook (001b) → the billing UI and upgrade prompts (001c) → the pricing and landing pages (001d), each meeting the DoD.
 - **Realtime:** MVP tasks never emit. REALTIME-001 adds emits to existing services.
 - **CARD-005** is large; it may be delivered as sub-PRs (labels → members → checklists → comments → activity feed), each meeting the DoD.

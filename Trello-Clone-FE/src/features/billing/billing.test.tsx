@@ -23,8 +23,8 @@ import {
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
-import { OWNER_ONLY_MESSAGE } from './components/BillingSection';
-import { CONFIRM_POLL_MS, REDIRECT_ERROR } from './queries';
+import { CONFIRM_SLOW_MESSAGE, OWNER_ONLY_MESSAGE } from './components/BillingSection';
+import { CONFIRM_MAX_READS, CONFIRM_POLL_MS, REDIRECT_ERROR } from './queries';
 
 import type { BillingDto, Role, WorkspaceDto } from '@trello-clone/shared';
 
@@ -39,16 +39,24 @@ function signedInAs(
   billing: BillingDto = freeBilling,
   plan: WorkspaceDto['plan'] = 'FREE',
 ) {
-  const state = { billing, calls: [] as string[], visited: [] as string[], billingReads: 0 };
+  const state = {
+    billing,
+    plan,
+    calls: [] as string[],
+    visited: [] as string[],
+    billingReads: 0,
+    workspaceReads: 0,
+  };
   setExternalNavigation((url) => state.visited.push(url));
   server.use(
     mswHttp.post(apiUrl('/auth/refresh'), () =>
       HttpResponse.json({ data: { accessToken: freshAccessToken } }),
     ),
     mswHttp.get(apiUrl('/auth/me'), () => HttpResponse.json({ data: currentUser })),
-    mswHttp.get(apiUrl('/workspaces'), () =>
-      HttpResponse.json({ data: [{ ...acmeAs(role), plan }] }),
-    ),
+    mswHttp.get(apiUrl('/workspaces'), () => {
+      state.workspaceReads++;
+      return HttpResponse.json({ data: [{ ...acmeAs(role), plan: state.plan }] });
+    }),
     mswHttp.get(BILLING_URL, () => {
       state.billingReads++;
       return HttpResponse.json({ data: state.billing });
@@ -93,6 +101,8 @@ describe('Plan and billing (workspace settings)', () => {
     fireEvent.click(within(section).getByRole('button', { name: 'Upgrade to Pro' }));
     await waitFor(() => expect(state.visited).toEqual([checkoutUrl]));
     expect(state.calls).toEqual(['checkout']);
+    // The browser is leaving: no second Checkout session from a second click.
+    expect(within(section).getByRole('button', { name: 'Opening checkout…' })).toBeDisabled();
   });
 
   it('an OWNER on Pro sees the renewal date and unlimited usage, and "Manage billing" opens the portal', async () => {
@@ -146,19 +156,35 @@ describe('Plan and billing (workspace settings)', () => {
     expect(member.billingReads).toBe(0);
   });
 
-  it('back from a paid checkout: the plan is read again until the webhook has made it Pro', async () => {
+  it('back from a paid checkout: the plan is read again until the webhook has made it Pro, then the workspace list too', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const state = signedInAs('OWNER');
     renderApp(`${workspaceSettingsPathFor(acmeWorkspace)}?billing=success`);
     const section = await billingSection();
     expect(await within(section).findByText(/payment is being confirmed/)).toBeVisible();
+    const workspaceReads = state.workspaceReads;
 
     state.billing = proBilling; // the webhook arrived
+    state.plan = 'PRO';
     await vi.advanceTimersByTimeAsync(CONFIRM_POLL_MS);
     expect(await within(section).findByText(/on Pro now/)).toBeVisible();
+    // The cached workspace list (its plan sets limits elsewhere, e.g. attachments) is refreshed.
+    await waitFor(() => expect(state.workspaceReads).toBeGreaterThan(workspaceReads));
     const reads = state.billingReads;
     await vi.advanceTimersByTimeAsync(CONFIRM_POLL_MS * 2);
     expect(state.billingReads).toBe(reads); // no more polling once Pro
+  });
+
+  it('when the webhook does not come, polling stops after a while and says to come back later', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const state = signedInAs('OWNER');
+    renderApp(`${workspaceSettingsPathFor(acmeWorkspace)}?billing=success`);
+    const section = await billingSection();
+    await within(section).findByText(/payment is being confirmed/);
+
+    await vi.advanceTimersByTimeAsync(CONFIRM_POLL_MS * (CONFIRM_MAX_READS + 2));
+    expect(await within(section).findByText(CONFIRM_SLOW_MESSAGE)).toBeVisible();
+    expect(state.billingReads).toBe(CONFIRM_MAX_READS);
   });
 
   it('a canceled checkout says the plan has not changed', async () => {

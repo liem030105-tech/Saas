@@ -12,7 +12,6 @@ import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
-import { UpgradeAlert } from '@/components/feedback/UpgradeAlert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -33,8 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/format-date';
 
-import { workspaceBillingPath } from '../paths';
-import { can } from '../permissions';
+import { UpgradePrompt } from './UpgradePrompt';
 import { useCreateInvite } from '../queries';
 import { INVITE_ROLES, ROLE_LABELS } from '../roleLabels';
 
@@ -75,15 +73,7 @@ export function InviteDialog({ workspace }: { workspace: WorkspaceDto }) {
         {created ? (
           <InviteLink invite={created} onAnother={() => setCreated(null)} />
         ) : (
-          <InviteForm
-            workspaceId={workspace.id}
-            upgradeTo={
-              can(workspace.role, 'billing.manage')
-                ? workspaceBillingPath(workspace.slug)
-                : undefined
-            }
-            onCreated={setCreated}
-          />
+          <InviteForm workspaceId={workspace.id} onCreated={setCreated} />
         )}
       </DialogContent>
     </Dialog>
@@ -92,12 +82,9 @@ export function InviteDialog({ workspace }: { workspace: WorkspaceDto }) {
 
 function InviteForm({
   workspaceId,
-  upgradeTo,
   onCreated,
 }: {
   workspaceId: string;
-  /** Where the caller can upgrade when the plan's member limit is reached (OWNER only). */
-  upgradeTo: string | undefined;
   onCreated: (invite: CreatedInviteDto) => void;
 }) {
   const createInvite = useCreateInvite(workspaceId);
@@ -189,7 +176,7 @@ function InviteForm({
       </div>
       {errors.root &&
         (errors.root.type === PLAN_LIMIT ? (
-          <UpgradeAlert message={errors.root.message ?? ''} upgradeTo={upgradeTo} />
+          <UpgradePrompt workspaceId={workspaceId} message={errors.root.message ?? ''} />
         ) : (
           <p role="alert" className="text-sm text-destructive">
             {errors.root.message}

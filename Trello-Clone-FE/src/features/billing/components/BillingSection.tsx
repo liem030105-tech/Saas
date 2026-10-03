@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { PLAN_LIMITS, type BillingDto, type WorkspaceDto } from '@trello-clone/shared';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,11 @@ import { can, workspaceKeys } from '@/features/workspaces';
 import { formatDate } from '@/lib/format-date';
 
 import { PRO_PRICE_LABEL } from '../constants';
-import { useBilling, useBillingRedirect } from '../queries';
+import { billingKeys, stillConfirming, useBilling, useBillingRedirect } from '../queries';
 
 export const OWNER_ONLY_MESSAGE = 'Only a workspace owner can change the plan.';
+export const CONFIRM_SLOW_MESSAGE =
+  "Stripe hasn't confirmed the payment yet. Reload this page in a few minutes.";
 
 const STATUS_TEXT: Record<NonNullable<BillingDto['status']>, string | null> = {
   ACTIVE: 'Active',
@@ -28,9 +30,23 @@ const STATUS_TEXT: Record<NonNullable<BillingDto['status']>, string | null> = {
  * changes once Stripe's webhook arrives, so after a paid checkout the section waits for it.
  */
 export function BillingSection({ workspace }: { workspace: WorkspaceDto }) {
-  const [params] = useSearchParams();
-  const result = params.get('billing');
+  const [params, setParams] = useSearchParams();
+  // The checkout result is read once and taken out of the URL, so a reload or a bookmark does not
+  // show it (or wait for an upgrade) again.
+  const [result] = useState(() => params.get('billing'));
+  useEffect(() => {
+    if (!params.has('billing')) return;
+    setParams(
+      (next) => {
+        next.delete('billing');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [params, setParams]);
   const billing = useBilling(workspace.id, result === 'success');
+  const reads =
+    useQueryClient().getQueryState(billingKeys.summary(workspace.id))?.dataUpdateCount ?? 0;
   const isOwner = can(workspace.role, 'billing.manage');
   const { hash } = useLocation();
   const loaded = billing.isSuccess;
@@ -59,6 +75,7 @@ export function BillingSection({ workspace }: { workspace: WorkspaceDto }) {
           workspace={workspace}
           billing={billing.data}
           result={result}
+          waitedTooLong={result === 'success' && !stillConfirming(billing.data.plan, reads)}
           isOwner={isOwner}
         />
       )}
@@ -70,11 +87,14 @@ function BillingDetails({
   workspace,
   billing,
   result,
+  waitedTooLong,
   isOwner,
 }: {
   workspace: WorkspaceDto;
   billing: BillingDto;
   result: string | null;
+  /** Back from a paid checkout, the webhook has not made the workspace Pro in time. */
+  waitedTooLong: boolean;
   isOwner: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -101,7 +121,9 @@ function BillingDetails({
         <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm">
           {isPro
             ? 'Your workspace is on Pro now. Thank you!'
-            : 'Thanks! Your payment is being confirmed; this takes a few seconds.'}
+            : waitedTooLong
+              ? CONFIRM_SLOW_MESSAGE
+              : 'Thanks! Your payment is being confirmed; this takes a few seconds.'}
         </p>
       )}
       {result === 'canceled' && (
@@ -139,14 +161,21 @@ function BillingDetails({
       {isOwner ? (
         <div className="flex flex-wrap items-center gap-2">
           {!isPro && (
-            <Button disabled={checkout.isPending} onClick={() => checkout.mutate()}>
-              {checkout.isPending ? 'Opening checkout…' : 'Upgrade to Pro'}
+            <Button
+              disabled={checkout.isPending || checkout.isSuccess}
+              onClick={() => checkout.mutate()}
+            >
+              {checkout.isPending || checkout.isSuccess ? 'Opening checkout…' : 'Upgrade to Pro'}
             </Button>
           )}
           {/* A customer exists once a checkout was started (status is then set). */}
           {(isPro || billing.status !== null) && (
-            <Button variant="secondary" disabled={portal.isPending} onClick={() => portal.mutate()}>
-              {portal.isPending ? 'Opening…' : 'Manage billing'}
+            <Button
+              variant="secondary"
+              disabled={portal.isPending || portal.isSuccess}
+              onClick={() => portal.mutate()}
+            >
+              {portal.isPending || portal.isSuccess ? 'Opening…' : 'Manage billing'}
             </Button>
           )}
           {!isPro && (

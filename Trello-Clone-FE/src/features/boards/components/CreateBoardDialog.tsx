@@ -9,7 +9,6 @@ import { useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
-import { UpgradeAlert } from '@/components/feedback/UpgradeAlert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { UpgradePrompt } from '@/features/workspaces';
 import { cn } from '@/lib/utils';
 
 import { BOARD_BACKGROUNDS, DEFAULT_BOARD_BACKGROUND, readableTextColor } from '../colors';
@@ -35,12 +35,10 @@ interface CreateBoardDialogProps {
   workspaceId: string;
   /** The element that opens the dialog (a tile, or the empty-state button). */
   trigger: ReactNode;
-  /** Where the caller can upgrade when the plan's board limit is reached (OWNER only). */
-  upgradeTo?: string;
 }
 
 /** "Create board": title + a background from the presets (docs/design/ui.md → Workspace home). */
-export function CreateBoardDialog({ workspaceId, trigger, upgradeTo }: CreateBoardDialogProps) {
+export function CreateBoardDialog({ workspaceId, trigger }: CreateBoardDialogProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -52,13 +50,7 @@ export function CreateBoardDialog({ workspaceId, trigger, upgradeTo }: CreateBoa
           <DialogDescription>Boards hold your lists and cards.</DialogDescription>
         </DialogHeader>
         {/* Mounted only while open, so each opening starts with an empty form. */}
-        {open && (
-          <CreateBoardForm
-            workspaceId={workspaceId}
-            upgradeTo={upgradeTo}
-            onCreated={() => setOpen(false)}
-          />
-        )}
+        {open && <CreateBoardForm workspaceId={workspaceId} onCreated={() => setOpen(false)} />}
       </DialogContent>
     </Dialog>
   );
@@ -66,11 +58,9 @@ export function CreateBoardDialog({ workspaceId, trigger, upgradeTo }: CreateBoa
 
 function CreateBoardForm({
   workspaceId,
-  upgradeTo,
   onCreated,
 }: {
   workspaceId: string;
-  upgradeTo: string | undefined;
   onCreated: () => void;
 }) {
   const createBoard = useCreateBoard(workspaceId);
@@ -169,7 +159,7 @@ function CreateBoardForm({
 
       {errors.root &&
         (errors.root.type === PLAN_LIMIT ? (
-          <UpgradeAlert message={errors.root.message ?? ''} upgradeTo={upgradeTo} />
+          <UpgradePrompt workspaceId={workspaceId} message={errors.root.message ?? ''} />
         ) : (
           <p role="alert" className="text-sm text-destructive">
             {errors.root.message}

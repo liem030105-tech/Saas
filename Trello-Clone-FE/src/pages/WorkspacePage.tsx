@@ -5,7 +5,6 @@ import { BoardsGrid } from '@/features/boards';
 import {
   can,
   WorkspaceGate,
-  workspaceBillingPath,
   workspaceMembersPath,
   workspacePath,
   workspaceSettingsPath,
@@ -58,11 +57,6 @@ export function WorkspacePage() {
               workspaceId={workspace.id}
               canCreate={can(workspace.role, 'board.edit')}
               archived={showArchived}
-              upgradeTo={
-                can(workspace.role, 'billing.manage')
-                  ? workspaceBillingPath(workspace.slug)
-                  : undefined
-              }
             />
           </section>
         </main>

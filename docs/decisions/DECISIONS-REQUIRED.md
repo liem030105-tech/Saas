@@ -109,7 +109,7 @@
 - **Affects:** BILLING-001, pricing page. **Blocking:** was yes (BILLING-001).
 
 ### D-30 Pro seat count after checkout: **Resolved** (sync in a follow-up)
-- **Decision:** BILLING-001 keeps setting the seats at checkout. A follow-up task after BILLING-001 makes joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit, with a retry on failure; pending invites are not seats.
+- **Decision:** BILLING-001 keeps setting the seats at checkout. A follow-up task after BILLING-001 makes joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit, with a retry on failure; pending invites are not seats. The follow-up's spec settles the design and adds an ADR if it changes the architecture.
 - **Question:** BILLING-001b sets the Stripe quantity to the workspace's member count when checking out. Should it follow later member changes?
 - **Context:** D-13 prices Pro per member. Today a Pro workspace that grows keeps paying for the seats it had at checkout. Pending invites are not counted as seats (they count toward the Free member limit only).
 - **Options:** (a) seats are set at checkout only (current behavior); (b) joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit; (c) (b), counting pending invites too.
