@@ -29,7 +29,7 @@
 | Authorization | ≥ MEMBER |
 | Body | `{ title, background? }` (`background` defaults to `#0079bf`) |
 | Success | `201 { data: BoardDto }` · logs `BOARD_CREATED` with `data: { title }`, in the same transaction |
-| Errors | `400` · `401` · `403` · `404` · `429 RATE_LIMITED` · `402` (from BILLING-001 only, D-11) |
+| Errors | `400` · `401` · `403` · `404` · `402 PLAN_LIMIT_REACHED` (the plan's board limit, [billing.md](billing.md#plans-and-limits)) · `429 RATE_LIMITED` |
 
 Schemas: `CreateBoardInputSchema`, `ListBoardsQuerySchema`, `BoardDtoSchema`; activity types: `ACTIVITY_TYPES` (`@trello-clone/shared`). Board-scoped endpoints (BOARD-002 onwards) authorize through `assertBoardAccess(userId, boardId, action)` in the boards service.
 
@@ -75,7 +75,7 @@ Schemas: `UpdateBoardInputSchema`, `BoardDetailDtoSchema`, `ListDtoSchema`, `Car
 | Success | `200 { data: ActivityDto[], nextCursor }` |
 | Errors | `400` (invalid `limit`, `cursor` or `cardId`; a cursor outside this feed) · `401` · `404` (unknown board, not a member, or `cardId` not on this board) · `429 RATE_LIMITED` |
 
-Since CARD-005e. Newest first by `createdAt, id`; `cursor` is the id of the last entry of the previous page and must be an entry of the feed asked for (this board, and this card when `cardId` is given), else `400 VALIDATION_ERROR` (`path: "cursor"`), the same for a foreign id and one nothing has. `cardId` must be a card on this board now: a card that moved here shows only the entries logged on this board (its `CARD_MOVED` included). `data` is the event's details as logged (e.g. `CARD_MOVED`: `fromListId`, `toListId`, `fromBoardId`, `toBoardId`; `CARD_UPDATED`: the changed fields, `description: true` for a new description); clients ignore fields they do not know. Schemas: `ListActivitiesQuerySchema`, `ActivityDtoSchema`, `ActivitiesPageSchema` (`@trello-clone/shared`).
+Since CARD-005e. Only the entries the workspace's plan still shows: on Free, the last 7 days (activity retention, [billing.md](billing.md#plans-and-limits)); older entries are hidden, not deleted, and are not cursors of the feed. Newest first by `createdAt, id`; `cursor` is the id of the last entry of the previous page and must be an entry of the feed asked for (this board, and this card when `cardId` is given), else `400 VALIDATION_ERROR` (`path: "cursor"`), the same for a foreign id and one nothing has. `cardId` must be a card on this board now: a card that moved here shows only the entries logged on this board (its `CARD_MOVED` included). `data` is the event's details as logged (e.g. `CARD_MOVED`: `fromListId`, `toListId`, `fromBoardId`, `toBoardId`; `CARD_UPDATED`: the changed fields, `description: true` for a new description); clients ignore fields they do not know. Schemas: `ListActivitiesQuerySchema`, `ActivityDtoSchema`, `ActivitiesPageSchema` (`@trello-clone/shared`).
 
 ## Labels (CARD-005)
 

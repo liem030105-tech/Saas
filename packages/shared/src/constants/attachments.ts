@@ -1,5 +1,7 @@
 // Upload rules for attachments (ATTACHMENTS-001, docs/architecture/security.md → File uploads).
 
+import { PLAN_LIMITS } from './plans';
+
 /**
  * File types an attachment may have (D-19), checked against the file's bytes, never its name.
  * Images among them can be a card cover.
@@ -21,5 +23,8 @@ export type AttachmentMimeType = (typeof ATTACHMENT_MIME_TYPES)[number];
 /** The types a card cover may have. */
 export const COVER_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
 
-/** Largest upload: the Free plan's 10 MB (D-10) for every workspace until BILLING-001. */
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/**
+ * The Free plan's largest upload (D-10). The server allows each workspace its plan's
+ * `PLAN_LIMITS[plan].maxFileBytes`.
+ */
+export const MAX_ATTACHMENT_BYTES = PLAN_LIMITS.FREE.maxFileBytes;

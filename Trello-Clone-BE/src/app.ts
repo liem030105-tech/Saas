@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/error-handler';
 import { notFound } from './middlewares/not-found';
 import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
+import { billingRouter } from './modules/billing/billing.routes';
 import { boardsRouter } from './modules/boards/boards.routes';
 import { cardsRouter } from './modules/cards/cards.routes';
 import { commentsRouter } from './modules/comments/comments.routes';
@@ -53,6 +54,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   api.use(cardsRouter);
   api.use(commentsRouter);
   api.use(notificationsRouter);
+  api.use(billingRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

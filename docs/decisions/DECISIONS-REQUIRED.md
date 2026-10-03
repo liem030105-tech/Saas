@@ -88,6 +88,7 @@
   | File size | 10 MB | 100 MB |
   | Activity retention | 7 days | unlimited |
 
+  Counting (part of the proposed default): boards include archived ones; members include pending invites.
 - **Affects:** `api/billing.md`, BILLING-001, ATTACHMENTS-001. **Blocking:** no.
 
 ### D-11 When plan limits are enforced

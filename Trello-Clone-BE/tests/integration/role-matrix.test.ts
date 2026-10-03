@@ -73,6 +73,15 @@ describeRoleMatrix(getApp, {
 });
 
 describeRoleMatrix(getApp, {
+  name: 'GET /workspaces/:workspaceId/billing',
+  request: (ctx) =>
+    request(ctx.app)
+      .get(`${workspacePath(ctx)}/billing`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 200, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
   name: 'PATCH /workspaces/:workspaceId/members/:userId',
   setup: addTargetMember,
   request: (ctx) =>

@@ -14,7 +14,8 @@ import type { Express } from 'express';
 // Two-tenant fixture (WORKSPACE-006): two users, each OWNER of their own workspace with a second
 // member, a pending invite and a board (BOARD-001) with a list (LIST-001) holding a card
 // (CARD-001); the board's default labels (CARD-005) carry one on the card, the member is assigned to it, and
-// it has a checklist with one item and a comment by the member, which the owner has a notification of. Later tasks add their own sample data here,
+// it has a checklist with one item and a comment by the member, which the owner has a notification of; the
+// workspace has a canceled subscription (BILLING-001). Later tasks add their own sample data here,
 // their tables to snapshotWorkspace (it is what detects a cross-tenant change), and their
 // endpoints to tests/integration/tenant-isolation.test.ts.
 
@@ -103,6 +104,8 @@ async function tenant(
       commentId: comment.body.data.id as string,
     },
   });
+  // A past subscription (BILLING-001): plan FREE again, the row kept.
+  await testPrisma.subscription.create({ data: { workspaceId, status: 'CANCELED' } });
   return {
     owner,
     member,
@@ -165,6 +168,7 @@ export async function snapshotWorkspace(workspaceId: string) {
     comments,
     attachments,
     notifications,
+    subscriptions,
   ] = await Promise.all([
     testPrisma.workspace.findUnique({ where: { id: workspaceId } }),
     testPrisma.workspaceMember.findMany({ where: { workspaceId }, orderBy: { userId: 'asc' } }),
@@ -199,6 +203,7 @@ export async function snapshotWorkspace(workspaceId: string) {
       orderBy: { id: 'asc' },
     }),
     testPrisma.notification.findMany({ where: { workspaceId }, orderBy: { id: 'asc' } }),
+    testPrisma.subscription.findMany({ where: { workspaceId } }),
   ]);
   return {
     workspace,
@@ -216,5 +221,6 @@ export async function snapshotWorkspace(workspaceId: string) {
     comments,
     attachments,
     notifications,
+    subscriptions,
   };
 }

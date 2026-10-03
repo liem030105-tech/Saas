@@ -70,7 +70,7 @@
 
 ## File uploads (ATTACHMENTS-001)
 - Multer memory storage → AWS S3 (D-20, ADR-020), a private bucket. Nothing is written to server disk. Files are read only through signed GET URLs the API mints per response (lifetime D-27); no URL is stored.
-- MIME allowlist (**D-19**) verified by magic bytes, not the extension. Size by plan (**D-10**).
+- MIME allowlist (**D-19**) verified by magic bytes, not the extension. Size by plan (**D-10**, BILLING-001): the caller is authorized first, then the upload is read only up to the card's workspace plan's limit, so a Free workspace (or a non-member) never makes the server buffer more than 10 MB.
 - File names are sanitized. Storage keys are `<workspaceId>/<cardId>/<uuid>`.
 
 ## Stripe webhook

@@ -6,9 +6,10 @@ import { fileTypeFromBuffer } from 'file-type';
 import { toAttachmentDto, UPLOADER, type AttachmentRow } from './attachments.mapper';
 import { assertCardAccess, emitCardChanged } from './cards.service';
 import { prisma } from '../../config/prisma';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type Plan } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { fileStorage, removeFiles } from '../../lib/storage';
+import * as billingService from '../billing/billing.service';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
 import { hasPermission } from '../workspaces/permissions';
 
@@ -59,12 +60,22 @@ interface Upload {
 }
 
 /**
- * POST /cards/:cardId/attachments (≥ MEMBER). The file goes to storage first, then the row and its
- * ATTACHMENT_ADDED entry are written in one transaction; if that fails (e.g. the card was deleted
- * meanwhile), the stored object is deleted again.
+ * Before the upload is read (middlewares/upload.ts): the caller may upload to the card, and its
+ * workspace's plan sets how much of the file is read at most (BILLING-001).
+ */
+export async function uploadPlan(userId: string, cardId: string): Promise<Plan> {
+  const card = await assertCardAccess(userId, cardId, 'attachment.upload');
+  return billingService.currentPlan(card.workspaceId);
+}
+
+/**
+ * POST /cards/:cardId/attachments (≥ MEMBER), within the plan's file size. The file goes to storage
+ * first, then the row and its ATTACHMENT_ADDED entry are written in one transaction; if that fails
+ * (e.g. the card was deleted meanwhile), the stored object is deleted again.
  */
 export async function upload(userId: string, cardId: string, file: Upload): Promise<AttachmentDto> {
   const card = await assertCardAccess(userId, cardId, 'attachment.upload');
+  await billingService.assertFileSize(card.workspaceId, file.buffer.length);
   const mimeType = await verifiedMimeType(file.buffer);
   if (!mimeType) {
     throw new AppError('UNSUPPORTED_FILE_TYPE', 415, 'This type of file cannot be attached');

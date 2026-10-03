@@ -91,6 +91,14 @@ cardsRouter.patch(
 );
 cardsRouter.delete(ITEM, authenticate, apiRateLimit, checklists.removeItem);
 
-// Attachments (ATTACHMENTS-001): one multipart file in memory, then the service authorizes.
-cardsRouter.post(`${CARD}/attachments`, authenticate, apiRateLimit, uploadFile, attachments.upload);
+// Attachments (ATTACHMENTS-001): authorized before the file is read, which stops at the plan's
+// size limit; then one multipart file in memory, and the service checks again.
+cardsRouter.post(
+  `${CARD}/attachments`,
+  authenticate,
+  apiRateLimit,
+  attachments.authorizeUpload,
+  uploadFile,
+  attachments.upload,
+);
 cardsRouter.delete('/attachments/:attachmentId', authenticate, apiRateLimit, attachments.remove);

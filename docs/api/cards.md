@@ -117,10 +117,10 @@ Since CARD-005d. `content` is trimmed, 1–5000 characters (`CommentContentSchem
 ## Attachments (Post-MVP, ATTACHMENTS-001)
 | Method | Path | Authorization | Body → Success | Errors |
 |--------|------|---------------|----------------|--------|
-| POST | `/cards/:cardId/attachments` | ≥ MEMBER | `multipart/form-data`, field `file` → `201 { data: AttachmentDto }` · logs `ATTACHMENT_ADDED` | `413` · `415` · `403` · `404` |
+| POST | `/cards/:cardId/attachments` | ≥ MEMBER | `multipart/form-data`, field `file` → `201 { data: AttachmentDto }` · logs `ATTACHMENT_ADDED` | `402 PLAN_LIMIT_REACHED` (over the Free plan's file size) · `413` (over the largest plan's) · `415` · `403` · `404`; the caller is authorized before the file is read |
 | DELETE | `/attachments/:attachmentId` | Uploader (≥ MEMBER) or ≥ ADMIN | → `204` (file deleted after commit) | `403` · `404` |
 
-Logs `ATTACHMENT_ADDED` with `data: { attachmentId, fileName }`; a delete logs nothing. The card's attachments come with `GET /cards/:cardId`, newest first. Limits: D-10 (size; the Free value for every workspace until BILLING-001), D-19 (MIME allowlist, checked by the file's bytes, not its name). The file is stored in S3 (ADR-020) before the row is written; if the write fails, the object is deleted again. Deleting an attachment that is the card's cover clears the cover. Every attachment change sends `card:updated`.
+Logs `ATTACHMENT_ADDED` with `data: { attachmentId, fileName }`; a delete logs nothing. The card's attachments come with `GET /cards/:cardId`, newest first. Limits: D-10 (size per the workspace's plan, [billing.md](billing.md#plans-and-limits)), D-19 (MIME allowlist, checked by the file's bytes, not its name). The file is stored in S3 (ADR-020) before the row is written; if the write fails, the object is deleted again. Deleting an attachment that is the card's cover clears the cover. Every attachment change sends `card:updated`.
 
 ## Realtime (Post-MVP, REALTIME-001)
 `card:created|updated|moved|deleted|reordered` and `comment:created|updated|deleted` → room `board:{boardId}`. See [realtime.md](../architecture/realtime.md#events). **MVP tasks do not emit.**

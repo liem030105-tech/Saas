@@ -9,6 +9,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { hasRole } from '../../lib/roles';
+import * as billingService from '../billing/billing.service';
 import * as notificationsService from '../notifications/notifications.service';
 
 import type {
@@ -45,7 +46,7 @@ const isForeignKeyViolation = (error: unknown) =>
 /**
  * POST /workspaces/:workspaceId/invites (≥ ADMIN; the route checks it first too). The invite role is capped
  * at the caller's role and is never OWNER (schema). A pending or old invite for the same email is
- * replaced: new token, new expiry.
+ * replaced: new token, new expiry. The new invite must fit the plan's member limit (BILLING-001).
  */
 export async function create(
   workspaceId: string,
@@ -71,6 +72,7 @@ export async function create(
 
       // Re-inviting deletes the old row, and with it its notification (FK cascade).
       await tx.workspaceInvite.deleteMany({ where: { workspaceId, email: input.email } });
+      await billingService.assertWithinLimit(tx, workspaceId, 'members');
       const created = await tx.workspaceInvite.create({
         data: {
           workspaceId,
@@ -158,7 +160,8 @@ export async function acceptById(userId: string, inviteId: string): Promise<Work
 /**
  * The caller's email must equal the invite's. Marking the invite accepted (only if it still is
  * pending), creating the membership and marking the invite's notification read happen in one
- * transaction, so an invite works once.
+ * transaction, so an invite works once. The plan's member limit applies again (BILLING-001): the
+ * workspace may have been downgraded, or filled up, since the invite was sent.
  */
 async function acceptInvite(
   userId: string,
@@ -172,6 +175,11 @@ async function acceptInvite(
   let readIds: string[];
   try {
     readIds = await prisma.$transaction(async (tx) => {
+      // The workspace row first, as invite creation locks it before the invite rows (one lock
+      // order, no deadlock); a workspace deleted meanwhile is the same 404 as a gone invite.
+      await lockWorkspace(tx, invite.workspaceId).catch(() => {
+        throw inviteNotFound();
+      });
       const member = await tx.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId, workspaceId: invite.workspaceId } },
         select: { userId: true },
@@ -183,6 +191,8 @@ async function acceptInvite(
         data: { acceptedAt: new Date() },
       });
       if (count === 0) throw inviteNotFound();
+      // Accepted now, so it no longer counts as pending: the new member must fit the limit.
+      await billingService.assertWithinLimit(tx, invite.workspaceId, 'members');
 
       await tx.workspaceMember.create({
         data: { userId, workspaceId: invite.workspaceId, role: invite.role },
