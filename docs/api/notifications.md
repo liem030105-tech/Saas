@@ -33,7 +33,7 @@ Each notification is written in the same transaction as the change that causes i
 | `CARD_DUE_SOON` | a card the recipient is a member of is due within 24 hours (D-29), not completed, not archived; see below | each card member | workspace, board, card |
 | `WORKSPACE_INVITED` | `POST /workspaces/:workspaceId/invites` for an email that belongs to an existing account | that account | actor, workspace, invite |
 
-**Due soon, without a job runner** (ADR-021: no schedulers or queues): due-soon notifications are created when the recipient asks for notifications (`GET /notifications` and `GET /notifications/unread-count`). Before answering, the server adds the missing ones for the caller's cards that are due within 24 hours, at most one per card and due date (a unique key; a changed due date can notify again). They are therefore not sent live; the FE refetches the count on load, on focus, on reconnect and every 15 minutes, so they show up within that time while the app is open.
+**Due soon, without a job runner** (ADR-021: no schedulers or queues): due-soon notifications are created when the recipient asks for notifications (`GET /notifications` and `GET /notifications/unread-count`). Before answering, the server adds the missing ones for the caller's cards that are due within 24 hours, at most one per card and due date (a unique key; a changed due date can notify again). This is bounded: only cards the caller is a member of, in workspaces they still belong to, not completed or archived, with `dueDate` between now and now + 24 hours. It is idempotent and race-safe: one insert that skips rows already there (`createMany` with `skipDuplicates` on the `(userId, dedupeKey)` unique), so two tabs asking at once create each row once. They are therefore not sent live; the FE refetches the count on load, on focus, on reconnect and every 15 minutes, so they show up within that time while the app is open.
 
 **Re-invites:** re-inviting the same email replaces the invite row (workspaces.md), so its notification goes with it and the new invite brings a new one.
 
@@ -94,6 +94,7 @@ Schemas (to add in `@trello-clone/shared`): `NOTIFICATION_TYPES`, `NotificationD
 
 ## Required tests
 - **Each endpoint:** happy path, validation, `401`, and someone else's notification (`404`). The endpoints are per user, so there is no role case.
+- **Suites:** register every new endpoint in the role-matrix harness and in `tests/integration/tenant-isolation.test.ts` (its coverage test walks the whole app, so add `/notifications` to its filter). That includes `POST /invites/:inviteId/accept`: an invite of another workspace or another email → `404`.
 - **Each trigger:**
   - who is notified and who is not (the actor, non-members of the card, a repeated assign);
   - comment vs. mention precedence;
