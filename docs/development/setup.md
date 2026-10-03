@@ -40,7 +40,8 @@ pnpm dev                                     # FE :5173, BE :4000
 | `ACCESS_TOKEN_TTL` | Proposed default `15m` (D-01) |
 | `REFRESH_TOKEN_TTL_DAYS` | Proposed default `30` (D-02) |
 | `CLIENT_URL` | FE origin, used for CORS |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO` | Phase 7 |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO` | Billing (BILLING-001), Stripe **test mode**: the `sk_test_…` key and the `price_…` id of a recurring per-member monthly Pro price (D-13). Without them checkout and the portal answer `500` (logged); everything else works |
+| `STRIPE_WEBHOOK_SECRET` | The `whsec_…` signing secret of the webhook endpoint (locally, the one `stripe listen` prints, see below). Without it every webhook gets `400` |
 | `S3_BUCKET`, `S3_REGION` | Attachments (ATTACHMENTS-001, ADR-020). Without them uploads answer `500` and are logged; everything else works |
 | `S3_ENDPOINT` | Optional: an S3-compatible endpoint (e.g. MinIO `http://localhost:9000` for local development); path-style addressing is used then |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | S3 credentials (the AWS SDK's standard variables). Never commit them |
@@ -52,6 +53,14 @@ pnpm dev                                     # FE :5173, BE :4000
 | `VITE_SOCKET_URL` | e.g. `http://localhost:4000` |
 
 `VITE_*` variables are exposed to the browser – **never** put secrets there.
+
+## Stripe webhooks locally (BILLING-001)
+Stripe cannot reach `localhost`, so forward its events with the [Stripe CLI](https://docs.stripe.com/stripe-cli):
+```bash
+stripe login
+stripe listen --forward-to localhost:4000/api/v1/billing/webhook
+```
+Put the `whsec_…` secret it prints in `STRIPE_WEBHOOK_SECRET` and restart the API. A test-mode checkout (card `4242 4242 4242 4242`) then makes the workspace Pro; cancelling in the Customer Portal makes it Free again.
 
 ## Common commands (from the root)
 | Command | Effect |

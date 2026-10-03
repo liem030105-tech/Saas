@@ -177,8 +177,8 @@ async function acceptInvite(
     readIds = await prisma.$transaction(async (tx) => {
       // The workspace row first, as invite creation locks it before the invite rows (one lock
       // order, no deadlock); a workspace deleted meanwhile is the same 404 as a gone invite.
-      await lockWorkspace(tx, invite.workspaceId).catch(() => {
-        throw inviteNotFound();
+      await lockWorkspace(tx, invite.workspaceId).catch((error: unknown) => {
+        throw error instanceof AppError && error.status === 404 ? inviteNotFound() : error;
       });
       const member = await tx.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId, workspaceId: invite.workspaceId } },

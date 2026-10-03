@@ -404,3 +404,11 @@ model Subscription {
   updatedAt        DateTime           @updatedAt
   workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
+
+/// A Stripe webhook event already applied (BILLING-001): the same `event.id` delivered again is
+/// skipped. Written in the transaction that applies the event.
+model StripeEvent {
+  /// Stripe's `evt_…` id.
+  id        String   @id
+  createdAt DateTime @default(now())
+}

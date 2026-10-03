@@ -18,6 +18,7 @@ export const paths = {
   attachments: '/api/v1/attachments',
   notifications: '/api/v1/notifications',
   invites: '/api/v1/invites',
+  billingWebhook: '/api/v1/billing/webhook',
   unknown: '/api/v1/this-route-does-not-exist',
   // Test-only routes mounted through createApp({ extraRoutes }).
   validate: '/__test/validate',

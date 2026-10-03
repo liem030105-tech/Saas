@@ -10,7 +10,7 @@ import { errorHandler } from './middlewares/error-handler';
 import { notFound } from './middlewares/not-found';
 import { requestId } from './middlewares/request-id';
 import { authRouter } from './modules/auth/auth.routes';
-import { billingRouter } from './modules/billing/billing.routes';
+import { billingRouter, billingWebhookRouter } from './modules/billing/billing.routes';
 import { boardsRouter } from './modules/boards/boards.routes';
 import { cardsRouter } from './modules/cards/cards.routes';
 import { commentsRouter } from './modules/comments/comments.routes';
@@ -39,6 +39,8 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   app.use(pinoHttp({ logger, genReqId: (req) => req.id }));
   app.use(helmet());
   app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+  // The Stripe webhook reads its raw body (signature check), so it comes before the JSON parser.
+  app.use(API_PREFIX, billingWebhookRouter);
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.use(realtimeOrigin); // which socket made the request, for realtime emits (REALTIME-001)

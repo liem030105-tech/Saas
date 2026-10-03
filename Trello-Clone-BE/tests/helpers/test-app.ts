@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { installMemoryStorage } from './storage';
+import { installFakeStripe } from './stripe';
 import { createApp } from '../../src/app';
 import { authenticate } from '../../src/middlewares/authenticate';
 import { authRateLimit } from '../../src/middlewares/rate-limit';
@@ -42,8 +43,12 @@ testRoutes.get(
   },
 );
 
-/** The app with the test-only routes; no test reaches S3 (a fresh in-memory store each time). */
+/**
+ * The app with the test-only routes; no test reaches S3 or Stripe (a fresh in-memory store and a
+ * fresh fake Stripe each time).
+ */
 export const createTestApp = () => {
   installMemoryStorage();
+  installFakeStripe();
   return createApp({ extraRoutes: testRoutes });
 };

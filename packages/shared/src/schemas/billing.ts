@@ -16,3 +16,6 @@ export const BillingDtoSchema = z.object({
   /** What the plan limits count: boards (archived included), members plus pending invites. */
   usage: z.object({ boards: z.number().int().min(0), members: z.number().int().min(0) }),
 });
+
+/** POST …/billing/checkout and …/billing/portal: where to send the browser (Stripe). */
+export const BillingRedirectDtoSchema = z.object({ url: z.url() });

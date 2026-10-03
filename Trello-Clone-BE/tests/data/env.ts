@@ -15,6 +15,9 @@ export const testEnv = {
   JWT_ACCESS_SECRET: 'test-only-access-secret-0123456789abcdef',
   ACCESS_TOKEN_TTL: '15m',
   REFRESH_TOKEN_TTL_DAYS: '30',
+  // Signs the test webhooks (tests/helpers/stripe.ts); no Stripe account behind either value.
+  STRIPE_WEBHOOK_SECRET: 'whsec_test_only_0123456789abcdef',
+  STRIPE_PRICE_PRO: 'price_test_pro',
 } satisfies Record<string, string>;
 
 /** Variants env.ts must reject, keyed by what is wrong. */

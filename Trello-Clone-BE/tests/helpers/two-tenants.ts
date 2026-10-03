@@ -104,8 +104,11 @@ async function tenant(
       commentId: comment.body.data.id as string,
     },
   });
-  // A past subscription (BILLING-001): plan FREE again, the row kept.
-  await testPrisma.subscription.create({ data: { workspaceId, status: 'CANCELED' } });
+  // A past subscription (BILLING-001): plan FREE again, the row and its Stripe customer kept, so
+  // B has a billing portal another tenant must not reach.
+  await testPrisma.subscription.create({
+    data: { workspaceId, stripeCustomerId: `cus_${workspaceId}`, status: 'CANCELED' },
+  });
   return {
     owner,
     member,
