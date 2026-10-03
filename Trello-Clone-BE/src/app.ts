@@ -33,6 +33,8 @@ interface CreateAppOptions {
 export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   const app = express();
   app.disable('x-powered-by');
+  // Behind the host's proxy (Render): the client IP comes from X-Forwarded-For (TRUST_PROXY hops).
+  app.set('trust proxy', env.TRUST_PROXY);
 
   // Order matters (FOUNDATION-002): the request id comes first so every log line and error has it.
   app.use(requestId);

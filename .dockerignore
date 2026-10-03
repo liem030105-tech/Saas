@@ -1,0 +1,14 @@
+# Docker build context (Trello-Clone-BE/Dockerfile): only what the API image needs. Local
+# environment files never enter an image (secrets come from the host's secret manager).
+**/node_modules
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+**/.env
+**/.env.*
+.git
+Trello-Clone-FE
+docs
+.claude
+.github

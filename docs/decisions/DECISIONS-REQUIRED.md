@@ -165,16 +165,18 @@
 
 ## Deployment & operations
 
-### D-21 Hosting
+### D-21 Hosting: **Resolved** (Vercel + Render + Neon), [ADR-023](README.md#adr-023-hosting-on-vercel-render-and-neon-one-domain-for-fe-and-api-d-21-d-22)
+- **Decision:** FE on Vercel, API on Render (Docker), PostgreSQL on Neon.
 - **Options (from the docs):** FE on Vercel/Netlify. BE on Render/Railway/Fly.io. DB on Neon/Supabase.
-- **Affects:** DEPLOYMENT-001. **Blocking:** yes (DEPLOYMENT-001).
+- **Affects:** DEPLOYMENT-001. **Blocking:** no longer (resolved).
 
-### D-22 Domain topology for cookies
+### D-22 Domain topology for cookies: **Resolved** (a, one registrable domain), [ADR-023](README.md#adr-023-hosting-on-vercel-render-and-neon-one-domain-for-fe-and-api-d-21-d-22)
+- **Decision:** FE and API on one registrable domain (`app.<domain>` and `api.<domain>`); the refresh cookie stays `SameSite=Strict`, no CSRF token.
 - **Question:** will FE and API be served from the **same site**?
 - **Context:** the refresh cookie is `SameSite=Strict`. A FE on `*.vercel.app` with an API on `*.onrender.com` is cross-site, so the browser will **not send the cookie**.
 - **Options:** (a) same registrable domain (`app.example.com` + `api.example.com`); (b) `SameSite=None; Secure` plus CSRF protection on `/auth/refresh`.
 - **Recommendation:** (a).
-- **Affects:** `architecture/security.md`, DEPLOYMENT-001. **Blocking:** yes (DEPLOYMENT-001).
+- **Affects:** `architecture/security.md`, DEPLOYMENT-001. **Blocking:** no longer (resolved).
 
 ### D-23 Monitoring provider
 - **Proposed default:** Sentry (FE + BE).

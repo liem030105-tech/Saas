@@ -36,7 +36,7 @@
 | Access token lifetime | 15 minutes (**D-01**) |
 | Refresh token | 256-bit random value, base64url; **not** a JWT |
 | Refresh token lifetime | 30 days, absolute from login; rotation keeps the family's original expiry (**D-02**) |
-| Refresh cookie | `refresh_token`; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`. Requires FE and API on the same site in production (**D-22**) |
+| Refresh cookie | `refresh_token`; `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`. FE and API share one registrable domain in production (`app.<domain>`, `api.<domain>`; D-22, ADR-023), so it is sent |
 | Token storage (server) | only `sha256(token)` in `RefreshToken.tokenHash` |
 | Rotation | every successful `/auth/refresh` revokes the presented token and issues a successor in the same `familyId` |
 | Reuse detection | presenting a revoked token revokes **every** token in its family → `401 TOKEN_REUSED` |
@@ -56,10 +56,10 @@
 
 ### CSRF
 - Bearer-authenticated endpoints are not CSRF-prone.
-- Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) rely on `SameSite=Strict` plus the CORS allowlist. If D-22 chooses `SameSite=None`, a CSRF token for these two endpoints becomes mandatory.
+- Cookie-authenticated endpoints (`/auth/refresh`, `/auth/logout`) rely on `SameSite=Strict` plus the CORS allowlist. FE and API stay on one site (D-22, ADR-023); moving them to different sites would need `SameSite=None` and a CSRF token for these two endpoints.
 
 ## HTTP hardening
-- **Helmet** defaults on the API. The FE host sets the CSP.
+- **Helmet** defaults on the API. The FE host sets the CSP and the other headers (`Trello-Clone-FE/vercel.json`, DEPLOYMENT-001): scripts only from the app's own origin, no inline scripts, no framing; `connect-src` allows any `https:`/`wss:` origin (the API's address depends on the owner's domain, ADR-023) and `img-src` allows `https:` (signed S3 URLs). Narrow both to `api.<domain>` and the bucket once the domain is set.
 - **CORS:** allowlist from `CLIENT_URL`, `credentials: true`, never `*`.
 - JSON body limit 1 MB. Every response carries `X-Request-Id`.
 

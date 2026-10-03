@@ -6,6 +6,7 @@ import {
   envDefaults,
   invalidEnvs,
   minimalEnv,
+  productionEnv,
   testEnv,
 } from '../../tests/data/env';
 
@@ -31,6 +32,15 @@ describe('parseEnv', () => {
 
     expect(result.success).toBe(false);
     expect(!result.success && result.message).toContain('JWT_ACCESS_SECRET');
+  });
+
+  it('accepts a production environment: an https origin and the proxy hops', () => {
+    const result = parseEnv(productionEnv);
+
+    expect(result.success && result.env).toMatchObject({
+      CLIENT_URL: productionEnv.CLIENT_URL,
+      TRUST_PROXY: 1,
+    });
   });
 
   it.each(Object.entries(invalidEnvs))('rejects %s', (_name, source) => {

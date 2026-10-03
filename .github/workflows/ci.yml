@@ -179,6 +179,55 @@ jobs:
           path: Trello-Clone-FE/test-results/
           retention-days: 7
 
+  # The API image (Trello-Clone-BE/Dockerfile, DEPLOYMENT-001): it builds, applies the migrations
+  # to a fresh database and answers its health check, as it must on Render.
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trello
+          POSTGRES_PASSWORD: trello # throwaway CI database, not a secret
+          POSTGRES_DB: trello_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U trello -d trello_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build the API image
+        run: docker build -f Trello-Clone-BE/Dockerfile -t trello-api:ci .
+
+      # Host networking reaches the Postgres service on localhost; test-only values.
+      - name: Start it (migrations, then the server)
+        run: >-
+          docker run -d --name api --network host
+          -e NODE_ENV=production
+          -e PORT=4000
+          -e TRUST_PROXY=1
+          -e CLIENT_URL=https://app.example.com
+          -e DATABASE_URL=postgresql://trello:trello@localhost:5432/trello_test
+          -e JWT_ACCESS_SECRET=ci-only-access-secret-0123456789abcdef
+          trello-api:ci
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:4000/api/v1/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs api
+          exit 1
+
   docs:
     name: docs
     runs-on: ubuntu-latest

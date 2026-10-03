@@ -27,6 +27,12 @@ export const invalidEnvs = {
   clientUrlNotAUrl: { ...testEnv, CLIENT_URL: 'localhost' },
   clientUrlNotHttp: { ...testEnv, CLIENT_URL: 'file:///srv/app' },
   badTtl: { ...testEnv, ACCESS_TOKEN_TTL: 'fifteen minutes' },
+  httpClientInProduction: {
+    ...testEnv,
+    NODE_ENV: 'production',
+    CLIENT_URL: 'http://app.example.com',
+  },
+  negativeTrustProxy: { ...testEnv, TRUST_PROXY: '-1' },
 } satisfies Record<string, Record<string, string | undefined>>;
 
 /** Only the required variables; everything else takes its documented default. */
@@ -57,4 +63,13 @@ export const envDefaults = {
   PORT: 4000,
   ACCESS_TOKEN_TTL: '15m',
   REFRESH_TOKEN_TTL_DAYS: 30,
+  TRUST_PROXY: 0,
 } as const;
+
+/** A production environment as on Render (ADR-023): https origin, one proxy. */
+export const productionEnv = {
+  ...testEnv,
+  NODE_ENV: 'production',
+  CLIENT_URL: 'https://app.example.com',
+  TRUST_PROXY: '1',
+};
