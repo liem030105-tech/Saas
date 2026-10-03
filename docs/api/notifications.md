@@ -29,11 +29,11 @@ Each notification is written in the same transaction as the change that causes i
 |------|------|-----------|------------|
 | `CARD_ASSIGNED` | `POST /cards/:cardId/members/:userId` adds a member (not a repeated assign) | the assigned user, unless they assigned themselves | actor, workspace, board, card |
 | `CARD_COMMENTED` | `POST /cards/:cardId/comments` | the card's members except the author, and except anyone this comment mentions (they get `CARD_MENTIONED` instead) | actor, workspace, board, card, comment |
-| `CARD_MENTIONED` | `POST /cards/:cardId/comments` whose content mentions a workspace member (**syntax: D-28**) | each mentioned workspace member except the author; an edit adds no notification | actor, workspace, board, card, comment |
-| `CARD_DUE_SOON` | a card the recipient is a member of is due within the window (**D-29**, proposed 24 hours), not completed, not archived; see below | each card member | workspace, board, card |
+| `CARD_MENTIONED` | `POST /cards/:cardId/comments` whose content mentions a workspace member: `@[Name](mention:<userId>)`, inserted by the composer's `@` picker (D-28); ids that are not workspace members are ignored | each mentioned workspace member except the author; an edit adds no notification | actor, workspace, board, card, comment |
+| `CARD_DUE_SOON` | a card the recipient is a member of is due within 24 hours (D-29), not completed, not archived; see below | each card member | workspace, board, card |
 | `WORKSPACE_INVITED` | `POST /workspaces/:workspaceId/invites` for an email that belongs to an existing account | that account | actor, workspace, invite |
 
-**Due soon, without a job runner** (ADR-021: no schedulers or queues): due-soon notifications are created when the recipient asks for notifications (`GET /notifications` and `GET /notifications/unread-count`). Before answering, the server adds the missing ones for the caller's cards that are due within the window, at most one per card and due date (a unique key; a changed due date can notify again). They are therefore not sent live; the FE refetches the count on load, on focus, on reconnect and every 15 minutes, so they show up within that time while the app is open.
+**Due soon, without a job runner** (ADR-021: no schedulers or queues): due-soon notifications are created when the recipient asks for notifications (`GET /notifications` and `GET /notifications/unread-count`). Before answering, the server adds the missing ones for the caller's cards that are due within 24 hours, at most one per card and due date (a unique key; a changed due date can notify again). They are therefore not sent live; the FE refetches the count on load, on focus, on reconnect and every 15 minutes, so they show up within that time while the app is open.
 
 **Re-invites:** re-inviting the same email replaces the invite row (workspaces.md), so its notification goes with it and the new invite brings a new one.
 

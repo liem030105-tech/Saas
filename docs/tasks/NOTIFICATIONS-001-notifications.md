@@ -21,9 +21,9 @@ Delivery and triggers are decided ([ADR-021](../decisions/README.md#adr-021-in-a
 Email delivery (ADR-021); push notifications.
 
 # Spec (requirement 1)
-[api/notifications.md](../api/notifications.md) (endpoints, triggers, visibility, FE), [schema.md → Notification](../database/schema.md#notification--notifications-001), [realtime.md](../architecture/realtime.md) (`notification:created`, `notification:read` in `user:{userId}`), `POST /invites/:inviteId/accept` in [workspaces.md](../api/workspaces.md). Open values: D-28 (mention syntax), D-29 (due-soon window).
+[api/notifications.md](../api/notifications.md) (endpoints, triggers, visibility, FE), [schema.md → Notification](../database/schema.md#notification--notifications-001), [realtime.md](../architecture/realtime.md) (`notification:created`, `notification:read` in `user:{userId}`), `POST /invites/:inviteId/accept` in [workspaces.md](../api/workspaces.md). Approved by the owner, with D-28 (mention syntax: (a), the `@` picker) and D-29 (24 hours) resolved.
 
-Delivery in sub-PRs, each meeting the DoD: **001a** model, migration `add_notifications`, the four endpoints and accept-by-id; **001b** the triggers (assign, comment, invite, due soon) and the live events; **001c** FE (bell, popover, socket); **001d** mentions (per D-28).
+Delivery in sub-PRs, each meeting the DoD: **001a** model, migration `add_notifications`, the four endpoints and accept-by-id; **001b** the triggers (assign, comment, invite, due soon) and the live events; **001c** FE (bell, popover, socket); **001d** mentions (D-28: the composer's `@` picker, mention chips in `Markdown`, `CARD_MENTIONED`).
 
 # Frontend Changes
 `features/notifications` (bell in the top bar, popover list, `useNotificationsSocket`); per the spec.
@@ -47,7 +47,7 @@ Notifications must only reference resources the recipient can still access (re-c
 Defined by the spec; the baseline DoD applies.
 
 # Acceptance Criteria
-- [ ] Spec approved (docs PR) before implementation starts.
+- [x] Spec approved (docs PR) before implementation starts.
 
 # Definition of Done
 - [ ] [Baseline Definition of Done](../development/definition-of-done.md) satisfied

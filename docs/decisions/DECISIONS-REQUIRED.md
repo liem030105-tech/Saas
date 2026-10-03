@@ -64,17 +64,17 @@
 - **Question:** which events notify whom, delivery (in-app only vs. email), and the data model (`Notification` entity).
 - **Affects:** NOTIFICATIONS-001. **Blocking:** was yes; NOTIFICATIONS-001 now starts with its spec PR.
 
-### D-28 Mention syntax in comments
+### D-28 Mention syntax in comments: **Resolved** (a)
+- **Decision:** the comment composer offers the workspace's members after `@` and inserts `@[Ada Lovelace](mention:<userId>)`; the server reads the ids and keeps only workspace members; `Markdown` shows a mention as a name chip.
 - **Question:** how a comment mentions someone (ADR-021's `CARD_MENTIONED` trigger, [notifications.md](../api/notifications.md#triggers)).
 - **Context:** comments are raw markdown with no mention syntax today. Names are not unique, so a plain `@Ada` cannot say whom it means.
 - **Options:** (a) the composer offers the workspace's members after `@` and inserts `@[Ada Lovelace](mention:<userId>)`; the server reads the ids, keeps only workspace members, and `Markdown` shows it as a name chip; (b) `@email`; (c) leave mentions out of NOTIFICATIONS-001 (a comment then notifies the card's members only).
-- **Proposed default:** (a).
-- **Affects:** NOTIFICATIONS-001, `api/notifications.md`, `api/cards.md` (comments), the comment composer. **Blocking:** no (with (c), `CARD_MENTIONED` waits).
+- **Affects:** NOTIFICATIONS-001, `api/notifications.md`, `api/cards.md` (comments), the comment composer. **Blocking:** no longer (resolved).
 
-### D-29 "Due soon" window
+### D-29 "Due soon" window: **Resolved** (24 hours)
+- **Decision:** a card's members get `CARD_DUE_SOON` once it is due within 24 hours.
 - **Question:** how long before a card's due date its members get `CARD_DUE_SOON`.
-- **Proposed default:** 24 hours.
-- **Affects:** NOTIFICATIONS-001. **Blocking:** no (a constant).
+- **Affects:** NOTIFICATIONS-001. **Blocking:** no longer (resolved; a constant).
 
 ## Billing & plan limits
 
