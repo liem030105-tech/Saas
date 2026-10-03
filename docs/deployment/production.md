@@ -18,7 +18,7 @@ Set up like [staging](staging.md#one-time-setup-repository-owner), with producti
 
 ## Releasing
 1. `main` is green and has been checked on staging.
-2. Tag the commit: `git tag v1.2.0 <sha> && git push origin v1.2.0`. The `release` workflow (`.github/workflows/release.yml`) checks that the tag is on `main`, then moves the `production` branch to it, fast-forward only.
+2. Tag the commit: `git tag v1.2.0 <sha> && git push origin v1.2.0`. The `release` workflow (`.github/workflows/release.yml`) checks that the tag is on `main` and that `ci`, `e2e`, `docker` and `docs` passed on that commit, then moves the `production` branch to it, fast-forward only.
    - One-time setup: a fine-grained personal access token (or GitHub App token) for this repository with **Contents** and **Workflows** write, saved as the repository secret `RELEASE_TOKEN`. The default `GITHUB_TOKEN` may not push commits that change workflow files.
    - A ruleset that protects `production` must let that token push, or the release stops here.
 3. Render deploys `trello-api-production` from `production`. The container applies the migrations, which must be backward compatible ([architecture/database.md](../architecture/database.md#migrations)), then starts. Traffic switches once the health check passes. Vercel deploys `trello-web` from `production`.
@@ -36,7 +36,7 @@ Neon keeps point-in-time history for the production branch (the retention depend
 ## Go-live checklist
 - [ ] All secrets in Render's and Vercel's settings, none in the repo
 - [ ] HTTPS on `app.<domain>` and `api.<domain>`; `CLIENT_URL=https://app.<domain>` (CORS); a reload keeps the session (the cookie)
-- [ ] Rate limiting on (`TRUST_PROXY=1`, so each client is counted by its own IP); logs contain no sensitive data
+- [ ] Rate limiting on (`TRUST_PROXY=1`): requests from two different networks get separate `RateLimit` counts (as in the [staging checklist](staging.md#checklist)); logs contain no sensitive data
 - [ ] Stripe live keys + a verified webhook for `https://api.<domain>/api/v1/billing/webhook`
 - [ ] DB backups on and a restore tested at least once (above)
 - [ ] Error tracking and 5xx alerting in place (D-23)

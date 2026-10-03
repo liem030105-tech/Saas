@@ -8,8 +8,8 @@ services:
   - type: web
     name: trello-api-staging
     runtime: docker
-    # A paid instance: the free one sleeps when idle, which drops Socket.IO connections. Pick the
-    # region of the Neon project (the owner's choice; ADR-023).
+    # Plan and region are the owner's choice (ADR-023): a paid instance, since the free one sleeps
+    # when idle and drops Socket.IO connections, in the region of the Neon project.
     plan: starter
     region: oregon
     branch: main

@@ -1,6 +1,7 @@
 # Production release (DEPLOYMENT-001, ADR-023): pushing a `v*` tag on a commit of `main` moves the
 # `production` branch to it; Render's and Vercel's production deployments follow that branch.
-# Fast-forward only: a tag that is not ahead of the current production commit fails here.
+# Fast-forward only: a tag that is not ahead of the current production commit fails here. The tagged
+# commit must have passed every `ci` workflow job on main (ci, e2e, docker, docs).
 # GITHUB_TOKEN may not push commits that change .github/workflows/, so the push uses RELEASE_TOKEN:
 # a fine-grained token with Contents and Workflows write on this repository (production.md).
 name: release
@@ -11,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
 
 jobs:
   release:
@@ -26,6 +28,17 @@ jobs:
 
       - name: The tag is on main
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: CI passed on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for check in ci e2e docker docs; do
+            conclusion=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=$check&filter=latest" \
+              --jq '.check_runs[0].conclusion // "missing"')
+            echo "$check: $conclusion"
+            [ "$conclusion" = "success" ] || { echo "::error::$check is not green on $GITHUB_SHA"; exit 1; }
+          done
 
       - name: Move production to the tag
         run: git push origin "$GITHUB_SHA:refs/heads/production"
