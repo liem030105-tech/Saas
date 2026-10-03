@@ -75,22 +75,26 @@ export function prependNotification(queryClient: QueryClient, notification: Noti
 const refetchCount = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount });
 
-/** Marks one notification read: at once in the list and the count; put back with a toast on error. */
+/** Marks one notification read: at once in the list and the count; both put back, with a toast, on error. */
 export function useMarkRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (notificationId: string) => notificationsApi.setRead(notificationId, true),
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({ queryKey: notificationKeys.all });
+      const previous = {
+        list: queryClient.getQueryData<NotificationPages>(notificationKeys.list),
+        count: queryClient.getQueryData<UnreadCount>(notificationKeys.unreadCount),
+      };
       updateNotifications(queryClient, (n) => (n.id === notificationId ? { ...n, read: true } : n));
       queryClient.setQueryData<UnreadCount>(notificationKeys.unreadCount, (count) =>
         count ? { count: Math.max(0, count.count - 1) } : count,
       );
+      return previous;
     },
-    onError: (_error, notificationId) => {
-      updateNotifications(queryClient, (n) =>
-        n.id === notificationId ? { ...n, read: false } : n,
-      );
+    onError: (_error, _notificationId, previous) => {
+      if (previous?.list) queryClient.setQueryData(notificationKeys.list, previous.list);
+      if (previous?.count) queryClient.setQueryData(notificationKeys.unreadCount, previous.count);
       toast.error(READ_ERROR);
     },
     onSettled: () => refetchCount(queryClient),

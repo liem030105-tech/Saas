@@ -12,6 +12,9 @@ import {
   commentedNotification,
   dueSoonNotification,
   invitedNotification,
+  manyUnread,
+  notificationReadError,
+  notificationServerError,
   notificationTexts,
 } from '@/testing/data/notifications';
 import { acmeWorkspace, betaWorkspace, workspacePathFor } from '@/testing/data/workspaces';
@@ -32,13 +35,22 @@ function signedIn(
     dueSoonNotification,
     invitedNotification,
   ],
-  options: { count?: number } = {},
+  options: {
+    count?: number;
+    /** These requests fail with a 500 (`list` only the first time). */
+    fail?: ('patch' | 'readAll' | 'list')[];
+    /** The list's first page holds only this many; the rest come with "Load more". */
+    pageSize?: number;
+  } = {},
 ) {
   const state = {
     notifications: structuredClone(notifications),
     workspaces: [acmeWorkspace],
     calls: [] as string[],
+    listGets: 0,
   };
+  const fails = (what: 'patch' | 'readAll' | 'list') => options.fail?.includes(what) ?? false;
+  const failure = () => HttpResponse.json(notificationServerError, { status: 500 });
   const unread = () => state.notifications.filter((n) => !n.read).length;
   server.use(
     mswHttp.post(apiUrl('/auth/refresh'), () =>
@@ -50,21 +62,30 @@ function signedIn(
       HttpResponse.json({ data: roadmapWithCards }),
     ),
     mswHttp.get(apiUrl('/cards/:cardId'), () => HttpResponse.json({ data: loginCardDetail })),
-    mswHttp.get(apiUrl('/notifications'), () =>
-      HttpResponse.json({ data: state.notifications, nextCursor: null }),
-    ),
+    mswHttp.get(apiUrl('/notifications'), ({ request }) => {
+      state.listGets += 1;
+      if (fails('list') && state.listGets === 1) return failure();
+      const cursor = new URL(request.url).searchParams.get('cursor');
+      const from = cursor ? state.notifications.findIndex((n) => n.id === cursor) + 1 : 0;
+      const size = options.pageSize ?? state.notifications.length;
+      const data = state.notifications.slice(from, from + size);
+      const more = from + size < state.notifications.length;
+      return HttpResponse.json({ data, nextCursor: more ? data.at(-1)!.id : null });
+    }),
     mswHttp.get(apiUrl('/notifications/unread-count'), () =>
       HttpResponse.json({ data: { count: options.count ?? unread() } }),
     ),
     mswHttp.patch(apiUrl('/notifications/:id'), async ({ params, request }) => {
       const { read } = (await request.json()) as { read: boolean };
       state.calls.push(`PATCH ${String(params.id)} ${read}`);
+      if (fails('patch')) return failure();
       const n = state.notifications.find((x) => x.id === params.id)!;
       n.read = read;
       return HttpResponse.json({ data: n });
     }),
     mswHttp.post(apiUrl('/notifications/read-all'), () => {
       state.calls.push('POST read-all');
+      if (fails('readAll')) return failure();
       for (const n of state.notifications) n.read = true;
       return new HttpResponse(null, { status: 204 });
     }),
@@ -91,7 +112,7 @@ describe('notification bell (NOTIFICATIONS-001)', () => {
     toast.dismiss();
   });
 
-  it('shows the unread count, named for screen readers; 99+ above 99; none at 0', async () => {
+  it('shows the unread count, named for screen readers', async () => {
     signedIn();
     renderApp(workspacePathFor(acmeWorkspace));
     await waitFor(async () => expect(await bell()).toHaveAccessibleName('Notifications, 3 unread'));
@@ -99,9 +120,9 @@ describe('notification bell (NOTIFICATIONS-001)', () => {
   });
 
   it('caps the badge at 99+', async () => {
-    signedIn([assignedNotification], { count: 150 });
+    signedIn([assignedNotification], { count: manyUnread.count });
     renderApp(workspacePathFor(acmeWorkspace));
-    await waitFor(async () => expect(await bell()).toHaveTextContent('99+'));
+    await waitFor(async () => expect(await bell()).toHaveTextContent(manyUnread.badge));
   });
 
   it('lists the notifications, newest first, with what happened and the comment excerpt', async () => {
@@ -166,7 +187,9 @@ describe('notification bell (NOTIFICATIONS-001)', () => {
     renderApp(workspacePathFor(acmeWorkspace));
     const panel = await openBell();
 
-    fireEvent.click(await within(panel).findByRole('button', { name: 'Accept' }));
+    fireEvent.click(
+      await within(panel).findByRole('button', { name: `Accept invite to ${betaWorkspace.name}` }),
+    );
 
     await waitFor(() =>
       expect(state.calls).toEqual([`POST accept ${invitedNotification.invite!.id}`]),
@@ -204,5 +227,96 @@ describe('notification bell (NOTIFICATIONS-001)', () => {
 
     await waitFor(async () => expect(await bell()).toHaveAccessibleName('Notifications'));
     expect(within(panel).queryByText(/unread/)).toBeNull();
+  });
+
+  it('a failed read puts the entry and the count back, with a toast', async () => {
+    signedIn(undefined, { fail: ['patch'] });
+    renderApp(workspacePathFor(acmeWorkspace));
+    await waitFor(async () => expect(await bell()).toHaveAccessibleName('Notifications, 3 unread'));
+    const panel = await openBell();
+
+    fireEvent.click(
+      await within(panel).findByRole('button', { name: new RegExp(notificationTexts.assigned) }),
+    );
+
+    expect(await screen.findByText(notificationReadError)).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /^Notifications/, hidden: true }),
+      ).toHaveAccessibleName('Notifications, 3 unread'),
+    );
+  });
+
+  it('a failed "Mark all as read" shows a toast and refetches the list', async () => {
+    const state = signedIn(undefined, { fail: ['readAll'] });
+    renderApp(workspacePathFor(acmeWorkspace));
+    const panel = await openBell();
+    await within(panel).findByText(notificationTexts.assigned);
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Mark all as read' }));
+
+    expect(await screen.findByText(notificationReadError)).toBeVisible();
+    await waitFor(() => expect(state.listGets).toBe(2));
+    expect(await within(panel).findAllByText(/unread/)).not.toHaveLength(0);
+  });
+
+  it('"Mark all as read" shows while unread ones are not loaded yet; "Load more" brings them', async () => {
+    signedIn([commentedNotification, assignedNotification], { pageSize: 1 });
+    renderApp(workspacePathFor(acmeWorkspace));
+    const panel = await openBell();
+    await within(panel).findByText(notificationTexts.commented);
+    // Only the read one is loaded, but the count says one is unread.
+    expect(await within(panel).findByRole('button', { name: 'Mark all as read' })).toBeVisible();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Load more' }));
+
+    expect(await within(panel).findByText(notificationTexts.assigned)).toBeVisible();
+    expect(within(panel).queryByRole('button', { name: 'Load more' })).toBeNull();
+  });
+
+  it('a failed load shows an error with "Try again"', async () => {
+    signedIn(undefined, { fail: ['list'] });
+    renderApp(workspacePathFor(acmeWorkspace));
+    const panel = await openBell();
+
+    const alert = await within(panel).findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't load your notifications.");
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+
+    expect(await within(panel).findByText(notificationTexts.assigned)).toBeVisible();
+  });
+
+  it('live: the same notification twice shows once; another tab reading one marks it read; a reconnect refetches', async () => {
+    const state = signedIn([assignedNotification]);
+    renderApp(workspacePathFor(acmeWorkspace));
+    const panel = await openBell();
+    await within(panel).findByText(notificationTexts.assigned);
+    const envelope = {
+      boardId: roadmapBoard.id,
+      workspaceId: acmeWorkspace.id,
+      actorId: assignedNotification.actor!.id,
+      version: 1,
+    };
+
+    // Already in the list, and sent again under another event id: still one entry.
+    realtime().serverSends('notification:created', { ...envelope, data: assignedNotification });
+    realtime().serverSends('notification:created', { ...envelope, data: assignedNotification });
+    // A different one after them: once it shows, the duplicates have been handled.
+    realtime().serverSends('notification:created', { ...envelope, data: commentedNotification });
+    expect(await within(panel).findByText(notificationTexts.commented)).toBeVisible();
+    expect(within(panel).getAllByRole('listitem')).toHaveLength(2);
+
+    state.notifications[0]!.read = true;
+    realtime().serverSends('notification:updated', {
+      ...envelope,
+      actorId: currentUser.id,
+      data: { notificationId: assignedNotification.id, read: true },
+    });
+    await waitFor(() => expect(within(panel).queryByText(/unread/)).toBeNull());
+    await waitFor(async () => expect(await bell()).toHaveAccessibleName('Notifications'));
+
+    const gets = state.listGets;
+    realtime().reconnect();
+    await waitFor(() => expect(state.listGets).toBeGreaterThan(gets));
   });
 });

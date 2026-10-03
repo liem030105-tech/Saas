@@ -35,8 +35,14 @@ export function NotificationBell() {
   const userId = useCurrentUser().data?.id;
   useNotificationsSocket(userId);
   const [open, setOpen] = useState(false);
-  const unread = useUnreadCount().data?.count ?? 0;
-  const label = unread > 0 ? `Notifications, ${unread} unread` : 'Notifications';
+  const count = useUnreadCount();
+  const unread = count.data?.count ?? 0;
+  const label =
+    count.isError && !count.data
+      ? 'Notifications, count unavailable'
+      : unread > 0
+        ? `Notifications, ${unread} unread`
+        : 'Notifications';
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,13 +64,14 @@ export function NotificationBell() {
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
-        {open && <NotificationList onClose={() => setOpen(false)} />}
+        {open && <NotificationList unread={unread} onClose={() => setOpen(false)} />}
       </PopoverContent>
     </Popover>
   );
 }
 
-function NotificationList({ onClose }: { onClose: () => void }) {
+/** `unread`: the server's count, which also covers notifications not loaded yet. */
+function NotificationList({ unread, onClose }: { unread: number; onClose: () => void }) {
   const notifications = useNotifications(true);
   const readAll = useReadAll();
   const items = notifications.data?.pages.flatMap((page) => page.data) ?? [];
@@ -75,7 +82,7 @@ function NotificationList({ onClose }: { onClose: () => void }) {
         <h2 id="notifications-title" className="text-sm font-semibold">
           Notifications
         </h2>
-        {items.some((n) => !n.read) && (
+        {(unread > 0 || items.some((n) => !n.read)) && (
           <Button variant="ghost" size="sm" onClick={() => readAll.mutate()}>
             Mark all as read
           </Button>
@@ -166,6 +173,7 @@ function NotificationItem({
         <span className="flex w-full items-start gap-2">{body}</span>
         <Button
           size="sm"
+          aria-label={`Accept invite to ${notification.workspace.name}`}
           className="ml-8"
           disabled={accept.isPending || !notification.invite}
           onClick={() =>

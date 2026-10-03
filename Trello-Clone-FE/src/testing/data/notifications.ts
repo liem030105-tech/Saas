@@ -1,3 +1,4 @@
+import { buildErrorBody } from './api';
 import { roadmapBoard } from './boards';
 import { loginCard } from './cards';
 import { acmeWorkspace, betaWorkspace, ownerMember } from './workspaces';
@@ -58,6 +59,19 @@ export const invitedNotification: NotificationDto = {
   card: null,
   invite: { id: 'clx00000000000000000000d1', role: 'MEMBER' },
 };
+
+/** More unread than the badge shows. */
+export const manyUnread = { count: 150, badge: '99+' };
+
+/** A 500 from the notification routes. */
+export const notificationServerError = buildErrorBody({
+  code: 'INTERNAL_ERROR',
+  message: 'Something went wrong',
+  details: [],
+});
+
+/** What a failed read shows (queries.ts). */
+export const notificationReadError = "Couldn't update the notification. Try again.";
 
 export const notificationTexts = {
   assigned: `${ownerMember.user.name} assigned you to ${loginCard.title}`,
