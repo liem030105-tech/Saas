@@ -40,7 +40,7 @@ pnpm dev                                     # FE :5173, BE :4000
 | `ACCESS_TOKEN_TTL` | Proposed default `15m` (D-01) |
 | `REFRESH_TOKEN_TTL_DAYS` | Proposed default `30` (D-02) |
 | `CLIENT_URL` | FE origin, used for CORS |
-| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO` | Billing (BILLING-001), Stripe **test mode**: the `sk_test_…` key and the `price_…` id of a recurring per-member monthly Pro price (D-13). Without them checkout and the portal answer `500` (logged); everything else works |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO` | Billing (BILLING-001), Stripe **test mode**: the `sk_test_…` key and the `price_…` id of a recurring per-member monthly Pro price (D-13). Without them checkout and the portal answer `500` (logged); everything else works. Use test-mode keys; the variables also take live keys for a real deployment (DEPLOYMENT-001) |
 | `STRIPE_WEBHOOK_SECRET` | The `whsec_…` signing secret of the webhook endpoint (locally, the one `stripe listen` prints, see below). Without it every webhook gets `400` |
 | `S3_BUCKET`, `S3_REGION` | Attachments (ATTACHMENTS-001, ADR-020). Without them uploads answer `500` and are logged; everything else works |
 | `S3_ENDPOINT` | Optional: an S3-compatible endpoint (e.g. MinIO `http://localhost:9000` for local development); path-style addressing is used then |

@@ -47,10 +47,35 @@ export class FakeStripe implements BillingProvider {
     return Promise.resolve(`https://billing.stripe.test/p/${this.portals.length}`);
   }
 
-  retrieveSubscription(subscriptionId: string) {
+  private held: Promise<void> | null = null;
+
+  /**
+   * Makes the next retrieveSubscription answer what Stripe had when it was called, but only once
+   * `release()` is called (a slow Stripe read).
+   */
+  holdRetrieve() {
+    let release!: () => void;
+    this.held = new Promise<void>((resolve) => (release = resolve));
+    return { release };
+  }
+
+  async retrieveSubscription(subscriptionId: string) {
     this.retrieved++;
-    const sub = this.subscriptions.get(subscriptionId);
-    return sub ? Promise.resolve(sub) : Promise.reject(new Error(`No such subscription`));
+    const sub = this.subscriptions.get(subscriptionId); // Stripe's state at the time of the call
+    const held = this.held;
+    this.held = null;
+    if (held) await held;
+    if (!sub) throw new Error('No such subscription');
+    return sub;
+  }
+
+  hasLiveSubscription(customerId: string) {
+    return Promise.resolve(
+      [...this.subscriptions.values()].some(
+        (sub) =>
+          sub.customerId === customerId && ['active', 'trialing', 'past_due'].includes(sub.status),
+      ),
+    );
   }
 }
 

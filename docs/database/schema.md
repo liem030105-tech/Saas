@@ -239,6 +239,8 @@ Stripe webhook events already applied, for idempotency (Stripe offers no receive
 | Field | Type | N | Default | Key | Notes |
 |-------|------|---|---------|-----|-------|
 | id | String | | | PK | Stripe's `evt_…` id, written in the transaction that applies the event |
+
+Rows are never deleted today; rows older than Stripe's retry window (3 days) could be pruned if the table grows.
 | createdAt | DateTime | | now | | |
 
 ---

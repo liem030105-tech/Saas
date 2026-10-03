@@ -14,8 +14,6 @@ export interface ProviderSubscription {
   status: string;
   /** The end of the current period (the latest of its items'); null if it has none. */
   currentPeriodEnd: Date | null;
-  /** `metadata.workspaceId`, set at checkout. */
-  workspaceId: string | null;
 }
 
 export interface BillingProvider {
@@ -32,6 +30,8 @@ export interface BillingProvider {
   /** A Customer Portal session; returns its URL. */
   createPortalSession(customerId: string, returnUrl: string): Promise<string>;
   retrieveSubscription(subscriptionId: string): Promise<ProviderSubscription>;
+  /** Whether the customer has a subscription that is active, trialing or past due. */
+  hasLiveSubscription(customerId: string): Promise<boolean>;
 }
 
 const notConfigured = (what: string) => new Error(`Billing is not configured: ${what} is not set`);
@@ -84,10 +84,20 @@ export class StripeProvider implements BillingProvider {
       customerId: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
       status: sub.status,
       currentPeriodEnd: ends.length > 0 ? new Date(Math.max(...ends) * 1000) : null,
-      workspaceId: sub.metadata.workspaceId ?? null,
     };
   }
+
+  async hasLiveSubscription(customerId: string) {
+    const subs = await this.stripe.subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 100,
+    });
+    return subs.data.some((sub) => LIVE.has(sub.status));
+  }
 }
+
+const LIVE = new Set(['active', 'trialing', 'past_due']);
 
 /** Without the Stripe settings every call fails (logged by the error handler as a 500). */
 class MissingProvider implements BillingProvider {
@@ -102,6 +112,9 @@ class MissingProvider implements BillingProvider {
     return Promise.reject(notConfigured(this.what));
   }
   retrieveSubscription(): Promise<ProviderSubscription> {
+    return Promise.reject(notConfigured(this.what));
+  }
+  hasLiveSubscription(): Promise<boolean> {
     return Promise.reject(notConfigured(this.what));
   }
 }

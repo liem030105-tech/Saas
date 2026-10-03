@@ -3,11 +3,11 @@ import { PLAN_LIMITS } from '@trello-clone/shared';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 import { prisma } from '../../config/prisma';
-import { Prisma, type Plan, type SubscriptionStatus } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { billingProvider, type ProviderSubscription, type Stripe } from '../../lib/stripe';
 import { lockWorkspace } from '../workspaces/workspaces.service';
 
+import type { Plan, Prisma, SubscriptionStatus } from '../../generated/prisma/client';
 import type { BillingDto, BillingRedirectDto, PlanLimitedResource } from '@trello-clone/shared';
 
 // docs/api/billing.md (BILLING-001). Limits are PLAN_LIMITS (D-10); only this module enforces them.
@@ -132,6 +132,8 @@ export async function getSummary(workspaceId: string): Promise<BillingDto> {
 
 // Stripe (BILLING-001b). The plan changes only in handleWebhookEvent, never on a redirect.
 
+const alreadyPro = () => new AppError('CONFLICT', 409, 'This workspace is already on the Pro plan');
+
 const settingsUrl = (slug: string, result?: 'success' | 'canceled') =>
   `${env.CLIENT_URL}/w/${slug}/settings${result ? `?billing=${result}` : ''}`;
 
@@ -139,7 +141,7 @@ const settingsUrl = (slug: string, result?: 'success' | 'canceled') =>
  * POST /workspaces/:workspaceId/billing/checkout (OWNER; the route checks it). Creates the
  * workspace's Stripe customer on the first checkout (the Subscription row then exists with status
  * INCOMPLETE until a subscription is synced), then a Checkout session for one Pro seat per member
- * (D-13). Already Pro → 409.
+ * (D-13). Already Pro, or a live subscription in Stripe that the webhook has not synced yet → 409.
  */
 export async function checkout(workspaceId: string): Promise<BillingRedirectDto> {
   const workspace = await prisma.workspace.findUnique({
@@ -147,11 +149,11 @@ export async function checkout(workspaceId: string): Promise<BillingRedirectDto>
     select: { plan: true, slug: true, subscription: { select: { stripeCustomerId: true } } },
   });
   if (!workspace) throw AppError.notFound();
-  if (workspace.plan === 'PRO') {
-    throw new AppError('CONFLICT', 409, 'This workspace is already on the Pro plan');
-  }
+  if (workspace.plan === 'PRO') throw alreadyPro();
   const provider = billingProvider();
   let customerId = workspace.subscription?.stripeCustomerId ?? null;
+  // Paid but the webhook has not landed yet (a second tab, a second click): no second subscription.
+  if (customerId && (await provider.hasLiveSubscription(customerId))) throw alreadyPro();
   if (!customerId) {
     // The same key for every first checkout of this workspace: concurrent clicks get one customer.
     customerId = await provider.createCustomer(workspaceId, `customer-${workspaceId}`);
@@ -207,63 +209,91 @@ const PRO_STATUSES = new Set<SubscriptionStatus>(['ACTIVE', 'TRIALING', 'PAST_DU
 const idOf = (value: string | { id: string } | null | undefined) =>
   typeof value === 'string' ? value : (value?.id ?? null);
 
-/** The subscription an event is about, for the events billing handles; null for any other. */
-function subscriptionIdOf(event: Stripe.Event): string | null {
+/**
+ * The subscription and customer an event is about, for the events billing handles; null for any
+ * other. Only these ids are read from the payload; the state comes from Stripe.
+ */
+function targetOf(event: Stripe.Event): { subscriptionId: string; customerId: string } | null {
+  let subscriptionId: string | null;
+  let customerId: string | null;
   switch (event.type) {
     case 'checkout.session.completed':
-      return event.data.object.mode === 'subscription'
-        ? idOf(event.data.object.subscription)
-        : null;
+      if (event.data.object.mode !== 'subscription') return null;
+      subscriptionId = idOf(event.data.object.subscription);
+      customerId = idOf(event.data.object.customer);
+      break;
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
-      return event.data.object.id;
+      subscriptionId = event.data.object.id;
+      customerId = idOf(event.data.object.customer);
+      break;
     case 'invoice.payment_failed':
-      return idOf(event.data.object.parent?.subscription_details?.subscription);
+      subscriptionId = idOf(event.data.object.parent?.subscription_details?.subscription);
+      customerId = idOf(event.data.object.customer);
+      break;
     default:
       return null;
   }
+  return subscriptionId && customerId ? { subscriptionId, customerId } : null;
 }
 
-const isUniqueViolation = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+/** Room for the Stripe read inside the webhook's transaction (Prisma's default is 5 s). */
+const WEBHOOK_TX_TIMEOUT_MS = 20_000;
 
 /**
- * POST /billing/webhook, after the signature check. Each handled event re-reads its subscription
- * from Stripe and syncs status, period end and `Workspace.plan` from it, so late or out-of-order
- * deliveries cannot leave an old state. Idempotent by `event.id` (StripeEvent, in the same
- * transaction). A subscription other than the workspace's current one cannot change its plan.
+ * POST /billing/webhook, after the signature check. In one transaction: the event id is recorded
+ * (a delivery already recorded changes nothing), the workspace whose Stripe customer it is gets
+ * locked, and only then is the subscription read from Stripe and synced (status, period end,
+ * `Workspace.plan`). Concurrent events for a workspace therefore apply in turn, each with what
+ * Stripe has when it holds the lock, so a late or out-of-order delivery cannot leave an old state.
+ * A failure (e.g. Stripe unreachable) rolls the record back too, so Stripe's retry applies it.
  */
 export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
-  const subscriptionId = subscriptionIdOf(event);
-  if (!subscriptionId) return;
-  const sub = await billingProvider().retrieveSubscription(subscriptionId);
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.stripeEvent.create({ data: { id: event.id } });
-      await syncSubscription(tx, sub, event);
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) return; // already applied (or being applied) once
-    throw error;
-  }
+  const target = targetOf(event);
+  if (!target) return;
+  await prisma.$transaction(
+    async (tx) => {
+      // ON CONFLICT DO NOTHING: a concurrent duplicate waits for the first, then counts 0.
+      const { count } = await tx.stripeEvent.createMany({
+        data: [{ id: event.id }],
+        skipDuplicates: true,
+      });
+      if (count === 0) return;
+      const owner = await tx.subscription.findUnique({
+        where: { stripeCustomerId: target.customerId },
+        select: { workspaceId: true },
+      });
+      if (!owner) {
+        logger.warn({ eventId: event.id }, 'Stripe event for a customer no workspace has');
+        return;
+      }
+      await lockWorkspace(tx, owner.workspaceId);
+      const row = await tx.subscription.findUniqueOrThrow({
+        where: { workspaceId: owner.workspaceId },
+      });
+      const sub = await billingProvider().retrieveSubscription(target.subscriptionId);
+      if (sub.customerId !== row.stripeCustomerId) {
+        logger.warn(
+          { eventId: event.id },
+          "Stripe subscription of another customer than the event's",
+        );
+        return;
+      }
+      await syncSubscription(tx, row, sub);
+    },
+    { timeout: WEBHOOK_TX_TIMEOUT_MS },
+  );
 }
 
-async function syncSubscription(tx: Tx, sub: ProviderSubscription, event: Stripe.Event) {
-  // The customer was created at checkout with its Subscription row; metadata is the fallback.
-  const row =
-    (await tx.subscription.findUnique({ where: { stripeCustomerId: sub.customerId } })) ??
-    (sub.workspaceId
-      ? await tx.subscription.findUnique({ where: { workspaceId: sub.workspaceId } })
-      : null);
-  if (!row) {
-    logger.warn({ eventId: event.id, subscriptionId: sub.id }, 'Stripe event for no workspace');
-    return;
-  }
+async function syncSubscription(
+  tx: Tx,
+  row: { id: string; workspaceId: string; stripeSubId: string | null },
+  sub: ProviderSubscription,
+) {
   const status = STATUS[sub.status] ?? 'INCOMPLETE';
   // An earlier subscription ending (after a new one started) is not this workspace's news.
   if (row.stripeSubId && row.stripeSubId !== sub.id && !PRO_STATUSES.has(status)) return;
-  await lockWorkspace(tx, row.workspaceId);
   await tx.subscription.update({
     where: { id: row.id },
     data: { stripeSubId: sub.id, status, currentPeriodEnd: sub.currentPeriodEnd },

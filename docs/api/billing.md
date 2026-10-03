@@ -46,7 +46,7 @@ Checkout, portal and the webhook arrive with BILLING-001b. They need `STRIPE_SEC
 | Authorization | OWNER (`billing.manage`) |
 | Body | none |
 | Success | `200 { data: { url } }`: Stripe Checkout session URL (subscription mode, the Pro price, quantity = the workspace's member count, D-13). The first checkout creates the Stripe customer (`metadata.workspaceId`; one idempotency key per workspace, so concurrent clicks get one customer) and the workspace's `Subscription` row with status `INCOMPLETE`, which `GET …/billing` then shows until the webhook syncs a subscription. Stripe sends the browser back to `/w/:slug/settings?billing=success` or `?billing=canceled` |
-| Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro) · `500` (Stripe not configured or unreachable) · `429 RATE_LIMITED` |
+| Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro, or the customer already has an active, trialing or past-due subscription in Stripe that the webhook has not synced yet, e.g. a second tab after paying) · `500` (Stripe not configured or unreachable) · `429 RATE_LIMITED` |
 
 The seat count is set when checking out; members added or removed later do not change it yet (**D-30**, open).
 
@@ -68,8 +68,8 @@ The seat count is set when checking out; members added or removed later do not c
 | Success | `200 {}` (also for events not handled, and for a subscription no workspace has) |
 | Errors | `400` on a missing or invalid signature (plain `text/plain` response, not the JSON error format, because Stripe is the only caller) · `500` when processing fails (e.g. Stripe unreachable); the event is not recorded, so Stripe's retry applies it |
 
-**Handled events:** `checkout.session.completed` (subscription mode), `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Each one names a subscription; billing **re-reads that subscription from Stripe** and syncs from what Stripe has now, so a late or out-of-order delivery cannot bring back an old state:
-- The workspace is the one whose `Subscription.stripeCustomerId` is the subscription's customer (fallback: the subscription's `metadata.workspaceId`).
+**Handled events:** `checkout.session.completed` (subscription mode), `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Each one names a subscription and its customer (the only fields read from the payload). In one transaction, billing records the event id, locks the workspace whose `Subscription.stripeCustomerId` is that customer, and only then **re-reads the subscription from Stripe** and syncs from what Stripe has now. Concurrent events for a workspace therefore apply in turn, each with Stripe's state at that moment, so a late, concurrent or out-of-order delivery cannot leave an old state:
+- No workspace has the customer → nothing changes. A subscription whose customer (as Stripe reports it) is not the workspace's → nothing changes.
 - `stripeSubId`, `status` and `currentPeriodEnd` (the latest end among its items) are stored. Status mapping: `active` → ACTIVE, `trialing` → TRIALING, `past_due` and `unpaid` → PAST_DUE, `canceled`, `incomplete_expired` and `paused` → CANCELED, `incomplete` → INCOMPLETE.
 - `Workspace.plan` is PRO while the status is ACTIVE, TRIALING or PAST_DUE (a failed payment keeps Pro while Stripe retries; Stripe cancels after its retries, which downgrades), FREE otherwise. Downgrading deletes nothing.
 - A subscription other than the stored one that is not active (an earlier subscription ending after a new one started) changes nothing.

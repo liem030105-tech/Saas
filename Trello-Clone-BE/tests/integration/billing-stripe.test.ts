@@ -2,6 +2,7 @@ import { BillingRedirectDtoSchema, ErrorResponseSchema } from '@trello-clone/sha
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { env } from '../../src/config/env';
 import { prisma } from '../../src/config/prisma';
 import { setBillingProvider } from '../../src/lib/stripe';
 import { billingData } from '../data/billing';
@@ -60,6 +61,16 @@ const deliver = ({ payload, signature }: { payload: string; signature: string })
     .set('stripe-signature', signature)
     .send(payload);
 
+/** Resolves once some database session waits on a lock (a webhook waiting for another's). */
+async function waitForLockWaiter() {
+  for (;;) {
+    const [row] = await testPrisma.$queryRaw<{ waiting: bigint }[]>`
+      SELECT count(*) AS waiting FROM pg_stat_activity WHERE wait_event_type = 'Lock'`;
+    if (row && row.waiting > 0n) return;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 const stateOf = async (workspaceId: string) => {
   const workspace = await testPrisma.workspace.findUniqueOrThrow({
     where: { id: workspaceId },
@@ -116,6 +127,32 @@ describe('POST /workspaces/:workspaceId/billing/checkout', () => {
     ]);
     expect(stripe.customers).toHaveLength(1);
     expect(await testPrisma.subscription.count()).toBe(1);
+  });
+
+  it('a row left without a customer gets the new one', async () => {
+    const owner = await createUserWithToken();
+    const { workspaceId } = await workspaceOf(owner);
+    await testPrisma.subscription.create({ data: { workspaceId, status: 'CANCELED' } });
+
+    await checkout(owner, workspaceId).expect(200);
+    expect(await stateOf(workspaceId)).toMatchObject({
+      subscription: { stripeCustomerId: 'cus_test_1', status: 'CANCELED' },
+    });
+  });
+
+  it('409 when the customer already has a live subscription the webhook has not synced yet', async () => {
+    const owner = await createUserWithToken();
+    const { workspaceId } = await workspaceOf(owner);
+    await checkout(owner, workspaceId).expect(200);
+    stripe.subscriptions.set('sub_1', {
+      id: 'sub_1',
+      customerId: 'cus_test_1',
+      status: 'active',
+      currentPeriodEnd: null,
+    });
+
+    await checkout(owner, workspaceId).expect(409);
+    expect(stripe.checkouts).toHaveLength(1);
   });
 
   it('409 when the workspace is already Pro', async () => {
@@ -176,7 +213,6 @@ describe('POST /billing/webhook', () => {
       customerId: 'cus_test_1',
       status,
       currentPeriodEnd: billingData.periodEnd,
-      workspaceId,
     });
     return { owner, workspaceId };
   }
@@ -231,7 +267,11 @@ describe('POST /billing/webhook', () => {
 
     setStatus('past_due');
     await deliver(
-      signedEvent('customer.subscription.updated', { object: 'subscription', id: 'sub_1' }),
+      signedEvent('customer.subscription.updated', {
+        object: 'subscription',
+        id: 'sub_1',
+        customer: 'cus_test_1',
+      }),
     ).expect(200);
     expect(await stateOf(workspaceId)).toMatchObject({
       plan: 'PRO',
@@ -241,6 +281,7 @@ describe('POST /billing/webhook', () => {
     await deliver(
       signedEvent('invoice.payment_failed', {
         object: 'invoice',
+        customer: 'cus_test_1',
         parent: { type: 'subscription_details', subscription_details: { subscription: 'sub_1' } },
       }),
     ).expect(200);
@@ -251,7 +292,11 @@ describe('POST /billing/webhook', () => {
 
     setStatus('canceled');
     await deliver(
-      signedEvent('customer.subscription.deleted', { object: 'subscription', id: 'sub_1' }),
+      signedEvent('customer.subscription.deleted', {
+        object: 'subscription',
+        id: 'sub_1',
+        customer: 'cus_test_1',
+      }),
     ).expect(200);
     expect(await stateOf(workspaceId)).toMatchObject({
       plan: 'FREE',
@@ -269,6 +314,7 @@ describe('POST /billing/webhook', () => {
       signedEvent('customer.subscription.updated', {
         object: 'subscription',
         id: 'sub_1',
+        customer: 'cus_test_1',
         status: 'active',
       }),
     ).expect(200);
@@ -286,11 +332,14 @@ describe('POST /billing/webhook', () => {
       customerId: 'cus_test_1',
       status: 'canceled',
       currentPeriodEnd: null,
-      workspaceId,
     });
 
     await deliver(
-      signedEvent('customer.subscription.deleted', { object: 'subscription', id: 'sub_old' }),
+      signedEvent('customer.subscription.deleted', {
+        object: 'subscription',
+        id: 'sub_old',
+        customer: 'cus_test_1',
+      }),
     ).expect(200);
     expect(await stateOf(workspaceId)).toMatchObject({
       plan: 'PRO',
@@ -305,16 +354,19 @@ describe('POST /billing/webhook', () => {
       customerId: 'cus_stranger',
       status: 'active',
       currentPeriodEnd: null,
-      workspaceId: null,
     });
 
     await deliver(signedEvent('customer.created', { object: 'customer', id: 'cus_test_1' })).expect(
       200,
     );
     await deliver(
-      signedEvent('customer.subscription.updated', { object: 'subscription', id: 'sub_stranger' }),
+      signedEvent('customer.subscription.updated', {
+        object: 'subscription',
+        id: 'sub_stranger',
+        customer: 'cus_stranger',
+      }),
     ).expect(200);
-    expect(stripe.retrieved).toBe(1); // only the subscription event reads Stripe
+    expect(stripe.retrieved).toBe(0); // neither is about a workspace's customer
     expect((await stateOf(workspaceId)).plan).toBe('FREE');
   });
 
@@ -330,6 +382,92 @@ describe('POST /billing/webhook', () => {
     stripe.subscriptions.set('sub_1', sub);
     await deliver(event).expect(200);
     expect((await stateOf(workspaceId)).plan).toBe('PRO');
+  });
+
+  it('customer.subscription.created syncs too; a payment-mode checkout is ignored', async () => {
+    const { workspaceId } = await checkedOut();
+
+    await deliver(
+      signedEvent('checkout.session.completed', {
+        object: 'checkout.session',
+        mode: 'payment',
+        customer: 'cus_test_1',
+        subscription: null,
+      }),
+    ).expect(200);
+    expect((await stateOf(workspaceId)).plan).toBe('FREE');
+
+    await deliver(
+      signedEvent('customer.subscription.created', {
+        object: 'subscription',
+        id: 'sub_1',
+        customer: 'cus_test_1',
+      }),
+    ).expect(200);
+    expect(await stateOf(workspaceId)).toMatchObject({
+      plan: 'PRO',
+      subscription: { stripeSubId: 'sub_1', status: 'ACTIVE' },
+    });
+  });
+
+  it("a subscription that is not the event's customer's changes nothing", async () => {
+    const { workspaceId } = await checkedOut();
+    stripe.subscriptions.set('sub_other', {
+      id: 'sub_other',
+      customerId: 'cus_other',
+      status: 'active',
+      currentPeriodEnd: null,
+    });
+
+    await deliver(
+      signedEvent('customer.subscription.updated', {
+        object: 'subscription',
+        id: 'sub_other',
+        customer: 'cus_test_1', // the payload claims our customer; Stripe says otherwise
+      }),
+    ).expect(200);
+    expect(await stateOf(workspaceId)).toMatchObject({
+      plan: 'FREE',
+      subscription: { stripeSubId: null },
+    });
+  });
+
+  it('concurrent events apply in turn, each with what Stripe has then: the later state wins', async () => {
+    const { workspaceId } = await checkedOut();
+    // A reads Stripe ("active") slowly; meanwhile the subscription is canceled and B arrives.
+    const slow = stripe.holdRetrieve();
+    const a = deliver(completed()).then((res) => res); // supertest sends once awaited
+    while (stripe.retrieved === 0) await new Promise((resolve) => setImmediate(resolve));
+    setStatus('canceled');
+    const b = deliver(
+      signedEvent('customer.subscription.deleted', {
+        object: 'subscription',
+        id: 'sub_1',
+        customer: 'cus_test_1',
+      }),
+    ).then((res) => res);
+    // B either waits for A's lock (correct) or, if it did not, finishes first.
+    await Promise.race([b, waitForLockWaiter()]);
+    slow.release();
+    expect((await Promise.all([a, b])).map((res) => res.status)).toEqual([200, 200]);
+
+    expect(await stateOf(workspaceId)).toMatchObject({
+      plan: 'FREE',
+      subscription: { status: 'CANCELED' },
+    });
+  });
+
+  it('400 while STRIPE_WEBHOOK_SECRET is unset, even with a signature that would be valid', async () => {
+    const { workspaceId } = await checkedOut();
+    const event = completed();
+    const secret = env.STRIPE_WEBHOOK_SECRET;
+    env.STRIPE_WEBHOOK_SECRET = undefined;
+    try {
+      await deliver(event).expect(400);
+    } finally {
+      env.STRIPE_WEBHOOK_SECRET = secret;
+    }
+    expect((await stateOf(workspaceId)).plan).toBe('FREE');
   });
 
   it('400 (plain text) for a missing, wrong or stale signature or a changed body; nothing changes', async () => {
