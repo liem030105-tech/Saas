@@ -1,5 +1,5 @@
 # Quality gates for every PR and for main (FOUNDATION-006, docs/development/testing.md → CI).
-# They block merging once the repository owner adds `ci` and `docs` as required status checks
+# They block merging once the repository owner adds `ci`, `e2e` and `docs` as required status checks
 # in the ruleset (manual step, FOUNDATION-006).
 name: ci
 
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: |
@@ -137,13 +137,17 @@ jobs:
         run: pnpm --filter @trello-clone/api db:generate
 
       # Browsers are cached per Playwright version; system libraries are installed every run.
+      # Fails here, rather than with a stale cache, if the version cannot be read.
       - name: Playwright version
         id: playwright
-        run: echo "version=$(pnpm --filter @trello-clone/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(pnpm --filter @trello-clone/web exec playwright --version | awk '{print $2}')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Playwright browsers
+      - name: Restore Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -156,12 +160,20 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm --filter @trello-clone/web exec playwright install-deps chromium
 
+      # Saved right after installing, so a failing E2E run does not download it again next time.
+      - name: Save Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
       - name: E2E
         run: pnpm --filter @trello-clone/web test:e2e
 
       - name: Upload traces
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-traces
           path: Trello-Clone-FE/test-results/
