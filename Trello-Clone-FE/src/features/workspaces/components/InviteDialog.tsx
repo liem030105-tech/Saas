@@ -32,12 +32,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/format-date';
 
-import { UpgradePrompt } from './UpgradePrompt';
+import { PLAN_LIMIT_ERROR, UpgradePrompt } from './UpgradePrompt';
 import { useCreateInvite } from '../queries';
 import { INVITE_ROLES, ROLE_LABELS } from '../roleLabels';
-
-/** `errors.root.type` of a `402 PLAN_LIMIT_REACHED`: shown with an upgrade prompt. */
-const PLAN_LIMIT = 'planLimit';
 
 export const LINK_COPIED_MESSAGE = 'Invite link copied.';
 const GENERIC_ERROR = "Couldn't create the invite. Check your connection and try again.";
@@ -99,7 +96,7 @@ function InviteForm({
       onCreated(await createInvite.mutateAsync(values));
     } catch (error) {
       if (error instanceof ApiError && error.code === 'PLAN_LIMIT_REACHED') {
-        form.setError('root', { type: PLAN_LIMIT, message: error.message });
+        form.setError('root', { type: PLAN_LIMIT_ERROR, message: error.message });
         return;
       }
       if (error instanceof ApiError && error.code === 'CONFLICT') {
@@ -175,7 +172,7 @@ function InviteForm({
         />
       </div>
       {errors.root &&
-        (errors.root.type === PLAN_LIMIT ? (
+        (errors.root.type === PLAN_LIMIT_ERROR ? (
           <UpgradePrompt workspaceId={workspaceId} message={errors.root.message ?? ''} />
         ) : (
           <p role="alert" className="text-sm text-destructive">

@@ -3,6 +3,7 @@ export const pageCases = {
   home: { path: '/', heading: 'TaskBoard' },
   login: { path: '/login', heading: 'Log in' },
   register: { path: '/register', heading: 'Create an account' },
+  pricing: { path: '/pricing', heading: 'Pricing' },
 } as const;
 
 /** `/` when signed in without a workspace (ADR-019); not in pageCases, which render signed out. */

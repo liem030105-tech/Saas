@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 import { ApiError } from '@/api/client';
 import { workspaceKeys } from '@/features/workspaces';
-import { leaveTo } from '@/lib/external-navigation';
+import { isHttpsUrl, leaveTo } from '@/lib/external-navigation';
 
 import { billingApi } from './api';
 
@@ -49,7 +49,12 @@ export function useBilling(workspaceId: string, confirming = false) {
 export function useBillingRedirect(workspaceId: string, kind: 'checkout' | 'portal') {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => billingApi[kind](workspaceId),
+    mutationFn: async () => {
+      const redirect = await billingApi[kind](workspaceId);
+      // Defense in depth: only ever leave for an https page (Stripe's).
+      if (!isHttpsUrl(redirect.url)) throw new Error('Not an https URL');
+      return redirect;
+    },
     onSuccess: ({ url }) => leaveTo(url),
     onError: (error) => {
       const conflict = error instanceof ApiError && error.code === 'CONFLICT';

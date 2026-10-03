@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http as mswHttp, HttpResponse } from 'msw';
 
+import { setAccessToken } from '@/api/token-store';
 import { setExternalNavigation } from '@/lib/external-navigation';
 import { apiUrl } from '@/testing/data/api';
 import { currentUser, freshAccessToken } from '@/testing/data/auth';
@@ -74,6 +75,7 @@ function signedInAs(
 }
 
 afterEach(() => {
+  setAccessToken(null);
   setExternalNavigation(null);
   vi.useRealTimers();
 });
@@ -216,6 +218,21 @@ describe('Plan and billing (workspace settings)', () => {
     const section = await billingSection();
 
     fireEvent.click(await within(section).findByRole('button', { name: 'Manage billing' }));
+    expect(await screen.findByText(REDIRECT_ERROR)).toBeVisible();
+    expect(state.visited).toEqual([]);
+  });
+
+  it('a redirect to a non-https URL is refused', async () => {
+    const state = signedInAs('OWNER');
+    server.use(
+      mswHttp.post(`${BILLING_URL}/checkout`, () =>
+        HttpResponse.json({ data: { url: 'http://checkout.example.test/c/1' } }),
+      ),
+    );
+    renderApp(workspaceSettingsPathFor(acmeWorkspace));
+    const section = await billingSection();
+
+    fireEvent.click(await within(section).findByRole('button', { name: 'Upgrade to Pro' }));
     expect(await screen.findByText(REDIRECT_ERROR)).toBeVisible();
     expect(state.visited).toEqual([]);
   });
