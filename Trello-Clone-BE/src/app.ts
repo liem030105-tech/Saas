@@ -15,6 +15,7 @@ import { cardsRouter } from './modules/cards/cards.routes';
 import { commentsRouter } from './modules/comments/comments.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { listsRouter } from './modules/lists/lists.routes';
+import { notificationsRouter } from './modules/notifications/notifications.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { invitesRouter } from './modules/workspaces/invites.routes';
 import { workspacesRouter } from './modules/workspaces/workspaces.routes';
@@ -51,6 +52,7 @@ export function createApp({ extraRoutes }: CreateAppOptions = {}) {
   api.use(listsRouter);
   api.use(cardsRouter);
   api.use(commentsRouter);
+  api.use(notificationsRouter);
   if (extraRoutes) api.use(extraRoutes);
   app.use(API_PREFIX, api);
 

@@ -29,3 +29,11 @@ export async function accept(req: Request, res: Response) {
   const workspace = await invitesService.accept(currentUserId(req), body.token);
   res.status(200).json({ data: workspace });
 }
+
+export async function acceptById(req: Request, res: Response) {
+  const workspace = await invitesService.acceptById(
+    currentUserId(req),
+    req.params.inviteId as string,
+  );
+  res.status(200).json({ data: workspace });
+}

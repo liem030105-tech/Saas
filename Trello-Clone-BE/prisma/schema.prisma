@@ -12,23 +12,25 @@ datasource db {
 
 /// Global identity; not tenant-scoped. Introduced in FOUNDATION-004, used from AUTH-001.
 model User {
-  id            String            @id @default(cuid())
+  id                  String            @id @default(cuid())
   /// Stored lower-cased.
-  email         String            @unique
+  email               String            @unique
   /// bcrypt hash; never returned by the API.
-  passwordHash  String
-  name          String
+  passwordHash        String
+  name                String
   /// URL only; uploads are out of scope.
-  avatarUrl     String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  refreshTokens RefreshToken[]
-  memberships   WorkspaceMember[]
-  invitesSent   WorkspaceInvite[]
-  activities    Activity[]
-  cards         CardMember[]
-  comments      Comment[]
-  attachments   Attachment[]
+  avatarUrl           String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  refreshTokens       RefreshToken[]
+  memberships         WorkspaceMember[]
+  invitesSent         WorkspaceInvite[]
+  activities          Activity[]
+  cards               CardMember[]
+  comments            Comment[]
+  attachments         Attachment[]
+  notifications       Notification[]    @relation("NotificationRecipient")
+  notificationsCaused Notification[]    @relation("NotificationActor")
 }
 
 /// One refresh token of a login's rotation chain (security.md → Authentication flow). AUTH-001.
@@ -68,16 +70,17 @@ enum Plan {
 
 /// The tenant: every board and its content belongs to one workspace. WORKSPACE-001.
 model Workspace {
-  id        String            @id @default(cuid())
-  name      String
+  id            String            @id @default(cuid())
+  name          String
   /// URL `/w/:slug`; generated from the name, random suffix on collision.
-  slug      String            @unique
-  plan      Plan              @default(FREE)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  members   WorkspaceMember[]
-  invites   WorkspaceInvite[]
-  boards    Board[]
+  slug          String            @unique
+  plan          Plan              @default(FREE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  members       WorkspaceMember[]
+  invites       WorkspaceInvite[]
+  boards        Board[]
+  notifications Notification[]
 }
 
 /// A user's membership and role in a workspace. WORKSPACE-001.
@@ -96,21 +99,22 @@ model WorkspaceMember {
 
 /// A pending (or accepted, kept for audit) invitation by email. WORKSPACE-004.
 model WorkspaceInvite {
-  id          String    @id @default(cuid())
-  workspaceId String
+  id            String         @id @default(cuid())
+  workspaceId   String
   /// Stored lower-cased; one row per email per workspace (re-inviting replaces it).
-  email       String
+  email         String
   /// Never OWNER (I5; enforced by validation).
-  role        Role      @default(MEMBER)
+  role          Role           @default(MEMBER)
   /// sha256 of the raw token (hex); the raw token is only in the invite link.
-  tokenHash   String    @unique
-  invitedById String
+  tokenHash     String         @unique
+  invitedById   String
   /// Now + D-17 (7 days).
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy     User           @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@unique([workspaceId, email])
   @@index([invitedById])
@@ -141,19 +145,20 @@ enum ActivityType {
 
 /// A Kanban board inside a workspace. BOARD-001.
 model Board {
-  id          String     @id @default(cuid())
-  workspaceId String
-  title       String
+  id            String         @id @default(cuid())
+  workspaceId   String
+  title         String
   /// Hex colour `#rrggbb`; the UI offers the presets in docs/design/ui.md.
-  background  String     @default("#0079bf")
-  archived    Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  activities  Activity[]
-  lists       List[]
-  cards       Card[]
-  labels      Label[]
+  background    String         @default("#0079bf")
+  archived      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  activities    Activity[]
+  lists         List[]
+  cards         Card[]
+  labels        Label[]
+  notifications Notification[]
 
   @@index([workspaceId, archived])
 }
@@ -177,7 +182,7 @@ model List {
 /// A card in a list, ordered by `position ASC, id ASC`. `boardId` always equals the list's
 /// (invariant I1): it is denormalized for one-query authorization and board-wide queries. CARD-001.
 model Card {
-  id                String       @id @default(cuid())
+  id                String         @id @default(cuid())
   boardId           String
   listId            String
   title             String
@@ -185,21 +190,22 @@ model Card {
   description       String?
   position          Float
   dueDate           DateTime?
-  completed         Boolean      @default(false)
+  completed         Boolean        @default(false)
   /// The cover image: one of the card's own image attachments (ATTACHMENTS-001).
-  coverAttachmentId String?      @unique
-  archived          Boolean      @default(false)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  board             Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  list              List         @relation(fields: [listId], references: [id], onDelete: Cascade)
+  coverAttachmentId String?        @unique
+  archived          Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  board             Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  list              List           @relation(fields: [listId], references: [id], onDelete: Cascade)
   activities        Activity[]
   labels            CardLabel[]
   members           CardMember[]
   checklists        Checklist[]
   comments          Comment[]
-  attachments       Attachment[] @relation("CardAttachments")
-  coverAttachment   Attachment?  @relation("CardCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
+  attachments       Attachment[]   @relation("CardAttachments")
+  notifications     Notification[]
+  coverAttachment   Attachment?    @relation("CardCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
 
   @@index([listId, position])
   @@index([boardId])
@@ -270,16 +276,17 @@ model ChecklistItem {
 
 /// A comment on a card (CARD-005d): raw markdown, rendered sanitized by the FE.
 model Comment {
-  id        String   @id @default(cuid())
-  cardId    String
+  id            String         @id @default(cuid())
+  cardId        String
   /// Restrict: users with comments are anonymized, not deleted.
-  authorId  String
-  content   String
-  createdAt DateTime @default(now())
+  authorId      String
+  content       String
+  createdAt     DateTime       @default(now())
   /// Later than createdAt once the comment was edited.
-  updatedAt DateTime @updatedAt
-  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  updatedAt     DateTime       @updatedAt
+  card          Card           @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  notifications Notification[]
 
   @@index([cardId, createdAt])
   @@index([authorId])
@@ -324,4 +331,48 @@ model Attachment {
   coverOf    Card?    @relation("CardCover")
 
   @@index([cardId, createdAt])
+}
+
+/// In-app notification types (NOTIFICATIONS-001, ADR-021).
+enum NotificationType {
+  CARD_ASSIGNED
+  CARD_COMMENTED
+  CARD_MENTIONED
+  CARD_DUE_SOON
+  WORKSPACE_INVITED
+}
+
+/// One user's in-app notification (NOTIFICATIONS-001, docs/api/notifications.md). Shown only while the
+/// recipient may still reach what it points to (checked on every read); deleting that target deletes it.
+model Notification {
+  id          String           @id @default(cuid())
+  /// The recipient.
+  userId      String
+  type        NotificationType
+  workspaceId String
+  /// Who caused it; null for CARD_DUE_SOON.
+  actorId     String?
+  boardId     String?
+  cardId      String?
+  commentId   String?
+  inviteId    String?
+  /// `due:{cardId}:{dueDate}` for CARD_DUE_SOON (one per card and due date); null otherwise.
+  dedupeKey   String?
+  /// Null while unread.
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  user        User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  board       Board?           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  card        Card?            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  comment     Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  invite      WorkspaceInvite? @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, readAt])
+  @@index([cardId])
+  @@index([commentId])
+  @@index([inviteId])
 }

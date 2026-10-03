@@ -258,6 +258,65 @@ const cases: IsolationCase[] = [
         .send({ token: b.inviteToken }),
   },
   {
+    route: 'POST /invites/:inviteId/accept',
+    attempt: "accept B's invite by id (someone else's email)",
+    request: (a, b) =>
+      request(app).post(`${paths.invites}/${b.inviteId}/accept`).set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app).post(`${paths.invites}/${missingId}/accept`).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /notifications',
+    attempt: "list A's own notifications: none of B's appear",
+    request: (a) => request(app).get(paths.notifications).set(bearer(a.owner.token)),
+    expectResponse: (res, b) => {
+      expectNoTraceOf(res, b);
+      expect(JSON.stringify(res.body)).not.toContain(b.notificationId);
+    },
+  },
+  {
+    route: 'GET /notifications',
+    attempt: "page from B's notification as the cursor",
+    request: (a, b) =>
+      request(app)
+        .get(paths.notifications)
+        .query({ cursor: b.notificationId })
+        .set(bearer(a.owner.token)),
+    expectResponse: (res) => expect(res.status).toBe(400),
+    missing: (a) =>
+      request(app).get(paths.notifications).query({ cursor: missingId }).set(bearer(a.owner.token)),
+  },
+  {
+    route: 'GET /notifications/unread-count',
+    attempt: "count A's own unread notifications: B's are not counted",
+    request: (a) =>
+      request(app).get(`${paths.notifications}/unread-count`).set(bearer(a.owner.token)),
+    expectResponse: (res) => {
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual({ count: 1 }); // A's own one
+    },
+  },
+  {
+    route: 'PATCH /notifications/:notificationId',
+    attempt: "mark B's notification read",
+    request: (a, b) =>
+      request(app)
+        .patch(`${paths.notifications}/${b.notificationId}`)
+        .set(bearer(a.owner.token))
+        .send({ read: true }),
+    missing: (a) =>
+      request(app)
+        .patch(`${paths.notifications}/${missingId}`)
+        .set(bearer(a.owner.token))
+        .send({ read: true }),
+  },
+  {
+    route: 'POST /notifications/read-all',
+    attempt: "read all of A's notifications: B's stay unread",
+    request: (a) => request(app).post(`${paths.notifications}/read-all`).set(bearer(a.owner.token)),
+    expectResponse: (res) => expect(res.status).toBe(204),
+  },
+  {
     route: 'GET /workspaces/:workspaceId/boards',
     attempt: "list B's boards",
     request: (a, b) =>
@@ -799,10 +858,10 @@ const routesIn = (stack: Layer[]): string[] =>
   });
 
 describe('tenant isolation coverage', () => {
-  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/*, /comments/* and /attachments/* route in the app', () => {
+  it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/*, /comments/*, /attachments/* and /notifications/* route in the app', () => {
     const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
     const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments|attachments)(\/|$)/.test(
+      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments|attachments|notifications)(\/|$)/.test(
         route,
       ),
     );

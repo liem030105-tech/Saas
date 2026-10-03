@@ -45,7 +45,7 @@ Each notification is written in the same transaction as the change that causes i
 | Task | NOTIFICATIONS-001 |
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | Own notifications only |
-| Query | `cursor?` (id of the last notification of the previous page), `limit?` (1–50, default 20), `unread?` = `true`: unread ones only |
+| Query | The [pagination convention](README.md#pagination) (`limit` per D-14; `cursor` is the id of the last notification of the previous page), and `unread?` = `true` \| `false` (default): unread ones only |
 | Success | `200 { data: NotificationDto[], nextCursor: string \| null }`, newest first (`createdAt DESC, id DESC`); only those the caller may see now (above) |
 | Errors | `400` (invalid query, or a cursor that is not one of the caller's visible notifications) · `401` · `429 RATE_LIMITED` |
 
@@ -94,7 +94,7 @@ Schemas (to add in `@trello-clone/shared`): `NOTIFICATION_TYPES`, `NotificationD
 
 ## Required tests
 - **Each endpoint:** happy path, validation, `401`, and someone else's notification (`404`). The endpoints are per user, so there is no role case.
-- **Suites:** register every new endpoint in the role-matrix harness and in `tests/integration/tenant-isolation.test.ts` (its coverage test walks the whole app, so add `/notifications` to its filter). That includes `POST /invites/:inviteId/accept`: an invite of another workspace or another email → `404`.
+- **Suites:** register every new endpoint in `tests/integration/tenant-isolation.test.ts` (its coverage test walks the whole app, so `/notifications` is in its filter). That includes `POST /invites/:inviteId/accept`: an invite of another workspace or another email → `404`. The role-matrix harness covers workspace-scoped routes with a role check; these routes have none (they are the caller's own data, like `POST /invites/accept`), so instead the endpoint tests show that each role (OWNER to VIEWER) sees its workspace's notifications and that a removed member no longer does.
 - **Each trigger:**
   - who is notified and who is not (the actor, non-members of the card, a repeated assign);
   - comment vs. mention precedence;
