@@ -5,10 +5,10 @@ FROM node:24-slim AS base
 # The Prisma CLI (migrations) needs OpenSSL, which the slim image lacks.
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
-RUN corepack enable
 WORKDIR /app
 
 FROM base AS build
+RUN corepack enable
 # Manifests first, so the dependency layer is reused until they change.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY Trello-Clone-BE/package.json Trello-Clone-BE/
@@ -24,11 +24,14 @@ FROM base AS runtime
 ENV NODE_ENV=production
 # The whole install is kept: the Prisma CLI (migrations before each deploy) and tsx (the seed)
 # are dev dependencies.
-COPY --from=build --chown=node:node /app /app
+# Root-owned and read-only for the app user: migrations and the server only read it.
+COPY --from=build /app /app
 WORKDIR /app/Trello-Clone-BE
+# The package's binaries (prisma, tsx) by name: `prisma db seed` runs `tsx` from the PATH.
+ENV PATH=/app/Trello-Clone-BE/node_modules/.bin:$PATH
 USER node
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD node -e "fetch('http://localhost:' + (process.env.PORT || 4000) + '/api/v1/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 # Migrations first, then the server (one instance, so no two deploys migrate at once; ADR-023).
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node dist/server.js"]
+CMD ["sh", "-c", "prisma migrate deploy && exec node dist/server.js"]

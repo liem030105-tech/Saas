@@ -2,11 +2,16 @@
 # Trello-Clone-BE/Dockerfile (the container applies migrations, then starts). Secrets are entered in
 # the Render dashboard (sync: false), never here. Staging follows `main`; production follows the
 # `production` branch, which the release workflow (.github/workflows/release.yml) moves to each
-# `v*` tag. Setup steps: docs/deployment/staging.md and production.md.
+# `v*` tag (create `production` once before applying this Blueprint). Setup steps:
+# docs/deployment/staging.md and production.md.
 services:
   - type: web
     name: trello-api-staging
     runtime: docker
+    # A paid instance: the free one sleeps when idle, which drops Socket.IO connections. Pick the
+    # region of the Neon project (the owner's choice; ADR-023).
+    plan: starter
+    region: oregon
     branch: main
     autoDeploy: true
     dockerfilePath: ./Trello-Clone-BE/Dockerfile
@@ -45,6 +50,8 @@ services:
   - type: web
     name: trello-api-production
     runtime: docker
+    plan: starter
+    region: oregon
     branch: production
     autoDeploy: true
     dockerfilePath: ./Trello-Clone-BE/Dockerfile

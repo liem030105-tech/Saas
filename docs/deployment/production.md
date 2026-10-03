@@ -12,13 +12,15 @@
 | Error tracking | D-23 (proposed default: Sentry, FE + BE) | – |
 
 Set up like [staging](staging.md#one-time-setup-repository-owner), with production values:
-- **Render (`trello-api-production`):** `CLIENT_URL=https://app.<domain>`, the Neon production `DATABASE_URL`, the production S3 bucket, and Stripe keys (live keys only at go-live). Custom domain `api.<domain>`.
+- **Render (`trello-api-production`):** `CLIENT_URL=https://app.<domain>`, the Neon production branch's direct `DATABASE_URL` (not the pooler), the production S3 bucket, and Stripe keys (live keys only at go-live). Custom domain `api.<domain>`.
 - **Vercel (project `trello-web`):** Production Branch `production`, `VITE_API_URL=https://api.<domain>/api/v1`, `VITE_SOCKET_URL=https://api.<domain>`, and the domain `app.<domain>`.
 - **No seed data** in production.
 
 ## Releasing
 1. `main` is green and has been checked on staging.
 2. Tag the commit: `git tag v1.2.0 <sha> && git push origin v1.2.0`. The `release` workflow (`.github/workflows/release.yml`) checks that the tag is on `main`, then moves the `production` branch to it, fast-forward only.
+   - One-time setup: a fine-grained personal access token (or GitHub App token) for this repository with **Contents** and **Workflows** write, saved as the repository secret `RELEASE_TOKEN`. The default `GITHUB_TOKEN` may not push commits that change workflow files.
+   - A ruleset that protects `production` must let that token push, or the release stops here.
 3. Render deploys `trello-api-production` from `production`. The container applies the migrations, which must be backward compatible ([architecture/database.md](../architecture/database.md#migrations)), then starts. Traffic switches once the health check passes. Vercel deploys `trello-web` from `production`.
 4. Smoke test as on staging (health, log in, open a board, reload).
 
