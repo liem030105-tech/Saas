@@ -10,6 +10,7 @@ import { labelData } from '../data/labels';
 import { listData } from '../data/lists';
 import { tenantData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
+import { registeredRoutes } from '../helpers/routes';
 import { createTestApp } from '../helpers/test-app';
 import { createTwoTenants, snapshotWorkspace, type Tenant } from '../helpers/two-tenants';
 import { bearer } from '../helpers/users';
@@ -878,29 +879,15 @@ describe('tenant isolation: A against B', () => {
   });
 });
 
-interface Layer {
-  route?: { path: string; methods: Record<string, boolean> };
-  handle?: { stack?: Layer[] };
-}
-
-/** `METHOD /path` of every route in the app, descending into mounted routers. */
-const routesIn = (stack: Layer[]): string[] =>
-  stack.flatMap((layer) => {
-    if (layer.route) {
-      const { path, methods } = layer.route;
-      return Object.keys(methods).map((method) => `${method.toUpperCase()} ${path}`);
-    }
-    return layer.handle?.stack ? routesIn(layer.handle.stack) : [];
-  });
-
 describe('tenant isolation coverage', () => {
   it('has a case for every /workspaces/*, /invites/*, /boards/*, /lists/*, /cards/*, /labels/*, /checklists/*, /comments/*, /attachments/* and /notifications/* route in the app', () => {
-    const appRouter = (createTestApp() as unknown as { router: { stack: Layer[] } }).router;
-    const registered = routesIn(appRouter.stack).filter((route) =>
-      /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments|attachments|notifications)(\/|$)/.test(
-        route,
-      ),
-    );
+    const registered = registeredRoutes(createTestApp())
+      .map(({ route }) => route)
+      .filter((route) =>
+        /^[A-Z]+ \/(workspaces|invites|boards|lists|cards|labels|checklists|comments|attachments|notifications)(\/|$)/.test(
+          route,
+        ),
+      );
     const covered = new Set(cases.map((c) => c.route));
 
     expect(registered.length).toBeGreaterThan(0);

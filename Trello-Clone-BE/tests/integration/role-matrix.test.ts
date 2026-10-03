@@ -1,8 +1,9 @@
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
 import { attachmentData } from '../data/attachments';
+import { perUserRoutes } from '../data/baseline';
 import { boardData } from '../data/boards';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
@@ -10,7 +11,8 @@ import { labelData } from '../data/labels';
 import { listData } from '../data/lists';
 import { roleMatrixData } from '../data/workspaces';
 import { resetDb, testPrisma } from '../helpers/db';
-import { describeRoleMatrix, type MatrixContext } from '../helpers/role-matrix';
+import { describeRoleMatrix, matrixRoutes, type MatrixContext } from '../helpers/role-matrix';
+import { registeredRoutes } from '../helpers/routes';
 import { createTestApp } from '../helpers/test-app';
 import { bearer, createUserWithToken } from '../helpers/users';
 
@@ -578,4 +580,17 @@ describeRoleMatrix(getApp, {
   request: (ctx) =>
     request(ctx.app).delete(`${paths.attachments}/${ctx.fixture.attachmentId}`).set(as(ctx)),
   expected: { OWNER: 204, ADMIN: 204, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describe('role matrix coverage', () => {
+  it('has a case for every route that needs a token, except the per-user ones', () => {
+    const needed = registeredRoutes(createTestApp())
+      .filter(({ handlers }) => handlers.includes('authenticate'))
+      .map(({ route }) => route)
+      .filter((route) => !(perUserRoutes as readonly string[]).includes(route));
+
+    expect(needed.length).toBeGreaterThan(0);
+    expect(needed.filter((route) => !matrixRoutes.has(route))).toEqual([]);
+    expect([...matrixRoutes].filter((route) => !needed.includes(route))).toEqual([]);
+  });
 });
