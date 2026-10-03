@@ -6,6 +6,7 @@ import { AcceptInvitePage } from '@/pages/AcceptInvitePage';
 import { BoardPage } from '@/pages/BoardPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { PricingPage } from '@/pages/PricingPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { WorkspaceMembersPage } from '@/pages/WorkspaceMembersPage';
@@ -28,6 +29,8 @@ export const routes: RouteObject[] = [
       { path: '/', element: <HomeRoute /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/register', element: <RegisterPage /> },
+      // Public, signed in or not (BILLING-001, ADR-022).
+      { path: '/pricing', element: <PricingPage /> },
       {
         // Signed in only: otherwise /login?redirectTo=<here>.
         element: <ProtectedRoute />,

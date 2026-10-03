@@ -25,7 +25,7 @@ Spec: [api/billing.md](../api/billing.md); webhook security: [security.md](../ar
 Invoices UI (Stripe portal covers it); taxes; multiple paid tiers.
 
 # Frontend Changes
-`features/billing/*`, `pages/{PricingPage,LandingPage}.tsx`.
+`features/billing/*`, `pages/PricingPage.tsx`, `pages/HomePage.tsx` (the landing page).
 
 # Backend Changes
 `modules/billing/*`, limit calls in boards, workspaces invites, and attachments.

@@ -8,6 +8,9 @@ import { useWorkspaces } from '../queries';
 
 export const ASK_OWNER_TO_UPGRADE = 'Ask a workspace owner to upgrade to Pro.';
 
+/** A form's `errors.root.type` for a `402 PLAN_LIMIT_REACHED`: shown as an UpgradePrompt. */
+export const PLAN_LIMIT_ERROR = 'planLimit';
+
 /**
  * A `402 PLAN_LIMIT_REACHED` (BILLING-001, docs/design/ui.md → Upgrade prompts): the API's message,
  * and "Upgrade to Pro" (the settings' billing section) for an OWNER, or whom to ask for others.

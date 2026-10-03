@@ -20,14 +20,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UpgradePrompt } from '@/features/workspaces';
+import { PLAN_LIMIT_ERROR, UpgradePrompt } from '@/features/workspaces';
 import { cn } from '@/lib/utils';
 
 import { BOARD_BACKGROUNDS, DEFAULT_BOARD_BACKGROUND, readableTextColor } from '../colors';
 import { useCreateBoard } from '../queries';
-
-/** `errors.root.type` of a `402 PLAN_LIMIT_REACHED`: shown with an upgrade prompt. */
-const PLAN_LIMIT = 'planLimit';
 
 const GENERIC_ERROR = "Couldn't create the board. Check your connection and try again.";
 
@@ -76,7 +73,7 @@ function CreateBoardForm({
       onCreated();
     } catch (error) {
       if (error instanceof ApiError && error.code === 'PLAN_LIMIT_REACHED') {
-        form.setError('root', { type: PLAN_LIMIT, message: error.message });
+        form.setError('root', { type: PLAN_LIMIT_ERROR, message: error.message });
         return;
       }
       if (error instanceof ApiError && error.code === 'VALIDATION_ERROR') {
@@ -158,7 +155,7 @@ function CreateBoardForm({
       />
 
       {errors.root &&
-        (errors.root.type === PLAN_LIMIT ? (
+        (errors.root.type === PLAN_LIMIT_ERROR ? (
           <UpgradePrompt workspaceId={workspaceId} message={errors.root.message ?? ''} />
         ) : (
           <p role="alert" className="text-sm text-destructive">

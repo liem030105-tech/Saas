@@ -8,6 +8,15 @@ let navigation = browserNavigation;
 /** Sends the browser to `url`. */
 export const leaveTo = (url: string) => navigation(url);
 
+/** Whether `url` is an https URL: the only kind the app leaves for. */
+export function isHttpsUrl(url: string) {
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Tests replace the navigation (and back with `null`). */
 export function setExternalNavigation(next: ((url: string) => void) | null) {
   navigation = next ?? browserNavigation;

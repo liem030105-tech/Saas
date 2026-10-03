@@ -126,6 +126,9 @@ ATTACHMENTS-001 adds "Attachments" under the description: each file shows a thum
 
 **Due dates are whole days in UTC:** the picker (a native date input) stores the end of that day in UTC, the day is shown in UTC (so it reads the same in every time zone), and a card is overdue once that day has ended.
 
+### Public pages `/` (signed out), `/pricing`
+BILLING-001 (ADR-022). Both have a public header: "TaskBoard" (to `/`), "Pricing", and "Log in" / "Sign up" when signed out, or "Go to your workspaces" when signed in. The landing page (`/` signed out; signed in, `/` opens the workspaces) has the heading "TaskBoard", one line about the app, "Get started free" (to `/register`) and "See pricing", and three feature tiles (boards, lists and cards; live updates and notifications; roles and workspaces). `/pricing` (public, signed in or not) shows Free ("$0") and Pro ("$5 per member per month", D-13) side by side, each with what it includes, read from `PLAN_LIMITS` (boards, members with pending invites, file size, activity history); signed out, "Get started" and "Start free, upgrade later" lead to `/register`; signed in, Pro says "A workspace owner upgrades from the workspace's settings." Below: "Plans are per workspace. Downgrading never deletes anything; …".
+
 ### Auth pages `/login`, `/register`
 A centered 400px card on a neutral background: title, fields, primary button, link to the other page. Field errors under each field (from Zod); a server error (`INVALID_CREDENTIALS`) as one message above the button.
 
