@@ -17,8 +17,9 @@ export function PricingPage() {
         </div>
         <PricingTable signedIn={signedIn} />
         <p className="text-center text-sm text-muted-foreground">
-          Plans are per workspace. Downgrading never deletes anything; it only stops new boards,
-          members and large files beyond the Free limits.
+          Plans are per workspace. Downgrading never deletes anything: new boards, members and large
+          files beyond the Free limits are blocked, and older activity is hidden until you upgrade
+          again.
         </p>
       </main>
     </div>

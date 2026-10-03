@@ -19,7 +19,7 @@ Trello-Clone-FE/
 │   ├── config/              # env.ts: import.meta.env validated with Zod (VITE_* only)
 │   ├── components/
 │   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input, Markdown)
-│   │   ├── layout/          # AppLayout, Sidebar, Header
+│   │   ├── layout/          # AppLayout, Sidebar, Header, PublicHeader
 │   │   ├── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster, ConfirmDialog, ActionAlert
 │   │   └── forms/           # EditableTitle (rename in place, boards and lists)
 │   ├── features/

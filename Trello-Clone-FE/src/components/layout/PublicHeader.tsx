@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { Link, NavLink } from 'react-router';
 
 const NAV_LINK = 'rounded-md px-3 py-1.5 text-sm font-medium hover:bg-muted';
 
@@ -13,9 +13,9 @@ export function PublicHeader({ signedIn }: { signedIn: boolean }) {
         TaskBoard
       </Link>
       <nav aria-label="Main" className="flex items-center gap-1">
-        <Link to="/pricing" className={NAV_LINK}>
+        <NavLink to="/pricing" className={NAV_LINK}>
           Pricing
-        </Link>
+        </NavLink>
         {signedIn ? (
           <Link to="/" className={NAV_LINK}>
             Go to your workspaces

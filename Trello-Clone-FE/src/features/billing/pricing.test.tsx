@@ -27,7 +27,11 @@ function signedIn() {
 describe('/pricing', () => {
   it('signed out: Free and Pro with their limits, each leading to sign-up', async () => {
     renderApp(pageCases.pricing.path);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Pricing' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: pageCases.pricing.heading }),
+    ).toBeVisible();
+    // The header marks the page it is on.
+    expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
 
     const free = plan('Free');
     expect(within(free).getByText('$0')).toBeVisible();
@@ -67,7 +71,9 @@ describe('/pricing', () => {
   it('signed in: no sign-up, a way back to the workspaces, and where an owner upgrades', async () => {
     signedIn();
     renderApp(pageCases.pricing.path);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Pricing' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: pageCases.pricing.heading }),
+    ).toBeVisible();
 
     expect(screen.queryByRole('link', { name: /Get started|Sign up|Start free/ })).toBeNull();
     expect(screen.getByRole('link', { name: 'Go to your workspaces' })).toHaveAttribute(
@@ -93,6 +99,8 @@ describe('landing page', () => {
     ).toHaveLength(3);
 
     fireEvent.click(screen.getByRole('link', { name: 'See pricing' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Pricing' })).toBeVisible();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: pageCases.pricing.heading }),
+    ).toBeVisible();
   });
 });
