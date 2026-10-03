@@ -95,8 +95,8 @@ Lists (LIST-003): `features/lists/components/SortableLists.tsx` (the `DndContext
 ## Routes
 | Route | Page |
 |-------|------|
-| `/` | Signed in: redirect to the first workspace, or the "Create your first workspace" screen when the user has none (WORKSPACE-001, ADR-019). Signed out: landing page (BILLING-001, pending D-08) |
-| `/pricing` | Pricing (BILLING-001, pending D-08) |
+| `/` | Signed in: redirect to the first workspace, or the "Create your first workspace" screen when the user has none (WORKSPACE-001, ADR-019). Signed out: landing page (BILLING-001, ADR-022) |
+| `/pricing` | Pricing, public (BILLING-001, ADR-022) |
 | `/invite/:token` | Accept invitation (WORKSPACE-004) |
 | `/login`, `/register` | Auth |
 | `/w/:slug`, `/w/:slug/members`, `/w/:slug/settings` | Workspace. Resolved from the cached `GET /workspaces` list by `WorkspaceGate` (`features/workspaces`), which also follows slug changes and redirects to `/` when the workspace is gone ([ui.md](../design/ui.md#workspace-settings-wslugsettings)) |

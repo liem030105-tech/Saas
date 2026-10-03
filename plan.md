@@ -21,7 +21,7 @@
 | **Post-MVP** | 5 → 9 | Realtime · Attachments & covers · Search/filters · Notifications · Billing & plan limits · Testing hardening · Production deployment |
 
 **Explicitly not in the MVP:** realtime updates (clients refetch), plan limits (D-11), email delivery (invite links are shared manually, D-18), file uploads.
-**Unphased ideas** (templates, dark mode, favorites, landing/pricing pages): awaiting **D-08**.
+**Backlog** (no phase, ADR-022): board templates (after Phase 9), dark mode, board favorites. Landing and pricing pages ship with billing (Phase 7).
 
 ## 3. Tech stack
 

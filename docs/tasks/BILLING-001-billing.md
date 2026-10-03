@@ -4,7 +4,7 @@
 |-------|-------|
 | Phase | 7 (Post-MVP) |
 | Depends on | REALTIME-001 |
-| Blocked by decisions | none (D-13 resolved: $5 per member per month); D-08, D-10, D-11, D-12 have defaults |
+| Blocked by decisions | none (D-13 resolved: $5 per member per month; D-08 resolved: landing and pricing pages, ADR-022); D-10, D-11, D-12 have defaults |
 | Skills | backend, database, frontend |
 
 # Goal
@@ -19,7 +19,7 @@ Spec: [api/billing.md](../api/billing.md); webhook security: [security.md](../ar
 3. `billing.service.assertWithinLimit(workspaceId, resource)`, called from board creation, invite creation and acceptance, and attachment upload (per-plan size) – D-11.
 4. Activity retention for Free applied as filter-on-read in the activities endpoint (D-12).
 5. Shared `constants/plans.ts` (limits per D-10).
-6. FE: billing section in workspace settings (OWNER actions, ADMIN read-only), upgrade prompts on `402`, pricing page `/pricing`, landing page `/` for signed-out visitors (per the D-08 recommendation, if approved).
+6. FE: billing section in workspace settings (OWNER actions, ADMIN read-only), upgrade prompts on `402`, pricing page `/pricing`, landing page `/` for signed-out visitors (D-08, ADR-022).
 
 # Out of Scope
 Invoices UI (Stripe portal covers it); taxes; multiple paid tiers.

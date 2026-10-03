@@ -53,11 +53,12 @@
 - **Recommendation:** yes, as part of AUTH-005 (it is small).
 - **Affects:** AUTH-005, `api/authentication.md`. **Blocking:** no (AUTH-005 marks it optional).
 
-### D-08 Unphased features
+### D-08 Unphased features: **Resolved** (landing and pricing in BILLING-001), [ADR-022](README.md#adr-022-landing-and-pricing-pages-in-billing-001-other-unphased-ideas-to-the-backlog-d-08)
+- **Decision:** landing (`/` signed out) and pricing (`/pricing`) pages → BILLING-001 (Phase 7). Templates → post-Phase 9 backlog. Dark mode → backlog. Favorites → backlog (client-side only if ever done).
 - **Question:** assign a phase or drop: board templates, dark mode, landing page, pricing page, board favorites (starring).
 - **Context:** all mentioned in earlier plans or routes, but no phase or task covers them.
 - **Recommendation:** landing and pricing pages → BILLING-001 (Phase 7). Templates → post-Phase 9 backlog. Dark mode → backlog. Favorites → backlog (client-side only if ever done).
-- **Affects:** `plan.md`, `architecture/frontend.md` routes. **Blocking:** no.
+- **Affects:** `plan.md`, `architecture/frontend.md` routes. **Blocking:** no longer (resolved).
 
 ### D-09 Notifications design: **Resolved** (in-app only), [ADR-021](README.md#adr-021-in-app-notifications-only-d-09)
 - **Decision:** notifications are **in-app only** (a bell with a list, live over the existing Socket.IO connection); no email (D-18 stays open for invites). Triggers: being assigned to a card; a comment on a card you are a member of (or one that mentions you); a card you are a member of coming due; an invite to a workspace (for an existing account with that email). The data model, API and exact rules are written in the NOTIFICATIONS-001 spec PR first (its requirement 1).
@@ -107,12 +108,13 @@
 - **Question:** flat price per workspace, or per member? And the amount.
 - **Affects:** BILLING-001, pricing page. **Blocking:** was yes (BILLING-001).
 
-### D-30 Pro seat count after checkout
+### D-30 Pro seat count after checkout: **Resolved** (sync in a follow-up)
+- **Decision:** BILLING-001 keeps setting the seats at checkout. A follow-up task after BILLING-001 makes joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit, with a retry on failure; pending invites are not seats.
 - **Question:** BILLING-001b sets the Stripe quantity to the workspace's member count when checking out. Should it follow later member changes?
 - **Context:** D-13 prices Pro per member. Today a Pro workspace that grows keeps paying for the seats it had at checkout. Pending invites are not counted as seats (they count toward the Free member limit only).
 - **Options:** (a) seats are set at checkout only (current behavior); (b) joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit; (c) (b), counting pending invites too.
 - **Recommendation:** (b), as a follow-up after BILLING-001 (a Stripe call on member changes, with a retry on failure).
-- **Affects:** BILLING-001, `api/billing.md`, the members flow. **Blocking:** no.
+- **Affects:** BILLING-001, `api/billing.md`, the members flow. **Blocking:** no longer (resolved).
 
 ## API conventions
 

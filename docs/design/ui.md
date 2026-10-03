@@ -19,7 +19,7 @@ Defined once as Tailwind 4 theme variables in `src/index.css` (`@theme`), used t
 | Spacing | 4px scale; list width `272px`; list gap `12px`; card gap `8px` |
 | Board backgrounds | `#0079bf` (default) `#d29034` `#519839` `#b04632` `#89609e` `#cd5a91` `#4bbf6b` `#00aecc` `#838c91` |
 | Label colours | `#61bd4f` `#f2d600` `#ff9f1a` `#eb5a46` `#c377e0` `#0079bf` `#00c2e0` `#51e898` `#ff78cb` `#344563` |
-| Dark mode | Not in scope (backlog, D-08) |
+| Dark mode | Not in scope (backlog, ADR-022) |
 
 The API accepts any `#rrggbb`; the UI offers only the presets above. Text on a coloured surface uses white or near-black, whichever passes WCAG AA contrast.
 

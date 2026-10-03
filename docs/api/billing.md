@@ -48,7 +48,7 @@ Checkout, portal and the webhook arrive with BILLING-001b. They need `STRIPE_SEC
 | Success | `200 { data: { url } }`: Stripe Checkout session URL (subscription mode, the Pro price, quantity = the workspace's member count, D-13). The first checkout creates the Stripe customer (`metadata.workspaceId`; one idempotency key per workspace, so concurrent clicks get one customer) and the workspace's `Subscription` row with status `INCOMPLETE`, which `GET …/billing` then shows until the webhook syncs a subscription. Stripe sends the browser back to `/w/:slug/settings?billing=success` or `?billing=canceled` |
 | Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro, or the customer already has an active, trialing or past-due subscription in Stripe that the webhook has not synced yet, e.g. a second tab after paying) · `500` (Stripe not configured or unreachable) · `429 RATE_LIMITED` |
 
-The seat count is set when checking out; members added or removed later do not change it yet (**D-30**, open).
+The seat count is set when checking out; members added or removed later do not change it yet; a follow-up task after BILLING-001 syncs it (D-30).
 
 ### POST /workspaces/:workspaceId/billing/portal
 | | |
