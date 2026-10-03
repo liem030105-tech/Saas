@@ -13,6 +13,7 @@ export function AppLayout({
   onLogout,
   loggingOut = false,
   sidebar,
+  actions,
   children,
 }: {
   user: HeaderUser | undefined;
@@ -21,6 +22,8 @@ export function AppLayout({
   loggingOut?: boolean;
   /** Sidebar content; no sidebar (and no ☰ button) when omitted, e.g. the first-workspace screen. */
   sidebar?: ReactNode;
+  /** Header actions before the user's menu (the notification bell). */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   // Mobile drawer state: UI-only and local to the shell, closed again on every navigation.
@@ -36,6 +39,7 @@ export function AppLayout({
         userError={userError}
         onLogout={onLogout}
         loggingOut={loggingOut}
+        actions={actions}
         menu={
           sidebar
             ? { open: sidebarOpen, onToggle: () => setSidebarOpen((open) => !open) }

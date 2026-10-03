@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router';
 import { getAccessToken } from '@/api/token-store';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { loginPathFor, useCurrentUser, useLogout } from '@/features/auth';
+import { NotificationBell } from '@/features/notifications';
 import { WorkspaceNav } from '@/features/workspaces';
 
 import type { ReactNode } from 'react';
@@ -34,6 +35,7 @@ export function SignedInShell({ sidebar, children }: { sidebar?: ReactNode; chil
       onLogout={() => logout.mutate()}
       loggingOut={logout.isPending}
       sidebar={sidebar}
+      actions={<NotificationBell />}
     >
       {children}
     </AppLayout>

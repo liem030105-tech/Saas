@@ -28,7 +28,7 @@ The API accepts any `#rrggbb`; the UI offers only the presets above. Text on a c
 ### App shell (signed in)
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ ☰  TaskBoard   [Workspace ▾]                    [Search]  (Avatar ▾) │  Header 48px
+│ ☰  TaskBoard   [Workspace ▾]               [Search]  🔔3  (Avatar ▾) │  Header 48px
 ├──────────────┬───────────────────────────────────────────────────────┤
 │ Workspace    │                                                       │
 │  • Boards    │                  page content                         │
@@ -40,6 +40,8 @@ The API accepts any `#rrggbb`; the UI offers only the presets above. Text on a c
 └──────────────┴───────────────────────────────────────────────────────┘
 ```
 Sidebar 240px; hidden behind ☰ below 768px, where it opens as a drawer that closes on navigation, Escape, or a click outside (WORKSPACE-001; the open state is local to the shell). Collapsing it on desktop, if added, keeps that UI state in a Zustand store.
+
+**Notifications** (NOTIFICATIONS-001, [api/notifications.md](../api/notifications.md)): a bell before the user's menu with a red badge for the unread count ("99+" above 99; no badge at 0), named "Notifications, 3 unread" for screen readers. It opens a popover "Notifications": newest first, each entry with the actor's avatar, what happened in bold while unread ("Ada assigned you to Fix login", "Ada commented on Fix login" with the comment's first lines below, "Fix login is due soon", "Ada invited you to Acme as a Member"), the time and a blue dot when unread; "Load more" for older ones; "Mark all as read" while any is unread; "You're all caught up." when empty; "Couldn't load your notifications." with "Try again" on error. Clicking an entry marks it read and opens its card; an invite has "Accept" (then the workspace opens). New notifications appear live, and another tab's reads clear here too.
 
 ### Workspace home `/w/:slug`
 Grid of board tiles (board colour background, title in white or near-black `#111111`, whichever passes WCAG AA on that colour; 4 per row on desktop, 1 on mobile) plus a "Create board" tile that opens a dialog (title + colour presets). Empty state: "No boards yet." + "Create your first board". Create actions are hidden from a VIEWER (BOARD-001). Tiles link to `/b/:boardId` (the board page arrives with BOARD-002).
