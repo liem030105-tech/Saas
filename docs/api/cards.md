@@ -4,7 +4,7 @@
 
 **Shared shapes**
 - `CardSummaryDto`: see [boards.md](boards.md).
-- `CardDetailDto = CardSummaryDto & { boardId, description, archived, createdAt, updatedAt, members: UserSummary[], labels: LabelDto[], checklists: ChecklistDto[], attachments: AttachmentDto[] }`
+- `CardDetailDto = CardSummaryDto & { boardId, description, archived, coverAttachmentId, createdAt, updatedAt, members: UserSummary[], labels: LabelDto[], checklists: ChecklistDto[], attachments: AttachmentDto[] }`
 - `UserSummary = { id, name, avatarUrl }`
 - `ChecklistDto = { id, title, position, items: ChecklistItemDto[] }` · `ChecklistItemDto = { id, content, done, position }`
 - `CommentDto = { id, cardId, content, createdAt, updatedAt, author: UserSummary }`

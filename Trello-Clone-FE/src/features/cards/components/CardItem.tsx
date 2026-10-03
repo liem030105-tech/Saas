@@ -23,7 +23,8 @@ const MAX_AVATARS = 3;
  * member, can be dragged (CARD-004); a card still being created has no id to open or move yet.
  * Label chips (colour only; CARD-005a) sit above the title and member avatars (CARD-005b, at most
  * three, then "+n") below it; the checklist badge (`done/total`, green when all are done;
- * CARD-005c) follows the due date, then the comment count (CARD-005d).
+ * CARD-005c) follows the due date, then the comment count (CARD-005d). A cover image
+ * (ATTACHMENTS-001) fills the top of the tile.
  */
 interface CardItemProps {
   boardId: string;
@@ -42,6 +43,15 @@ export function CardItem({ boardId, card, dragProps, overlay = false }: CardItem
   const members = card.memberIds.flatMap((id) => tileData.members.filter((user) => user.id === id));
   const body = (
     <>
+      {card.coverUrl && (
+        // Decorative: the tile's name is the card's title. Edge to edge above the content.
+        <img
+          src={card.coverUrl}
+          alt=""
+          loading="lazy"
+          className="-mx-3 -mt-2 mb-2 block h-32 w-[calc(100%+1.5rem)] max-w-none rounded-t-md object-cover"
+        />
+      )}
       {labels.length > 0 && (
         <span className="mb-1 flex flex-wrap gap-1">
           {labels.map((label) => (

@@ -9,6 +9,7 @@ import {
   boardKeys,
   boardMutationScope,
   refetchBoardWhenIdle,
+  SIGNED_URL_REFRESH_MS,
 } from '@/features/boards';
 
 import { cardsApi } from './api';
@@ -35,8 +36,9 @@ export const cardKeys = {
 };
 
 /**
- * One card's changes made from its modal (fields, labels, members, checklists) share this mutation
- * scope: they send their requests in turn, in the order they were made.
+ * One card's changes made from its modal (fields, labels, members, checklists, attachments) share
+ * this mutation scope: they send their requests in turn, in the order they were made. An upload
+ * holds the scope while it runs, so edits made meanwhile show at once but are sent after it.
  */
 export const cardMutationScope = (cardId: string) => ({ id: `card-detail:${cardId}` });
 
@@ -137,6 +139,9 @@ export function useCard(cardId: string | undefined) {
     queryKey: cardKeys.detail(cardId ?? ''),
     queryFn: () => cardsApi.get(cardId!),
     enabled: cardId !== undefined,
+    // Fresh signed URLs for the card's files before they expire (D-27).
+    refetchInterval: ({ state }) =>
+      state.data?.attachments.length ? SIGNED_URL_REFRESH_MS : false,
   });
 }
 
@@ -187,12 +192,20 @@ export function useUpdateCard(boardId: string, cardId: string) {
         ...(input.dueDate !== undefined && { dueDate: input.dueDate }),
         ...(input.completed !== undefined && { completed: input.completed }),
         ...(input.archived !== undefined && { archived: input.archived }),
+        // A cover is one of the card's attachments: its URL is known already (ATTACHMENTS-001).
+        ...(input.coverAttachmentId !== undefined && {
+          coverAttachmentId: input.coverAttachmentId,
+          coverUrl:
+            previousCard?.attachments.find((file) => file.id === input.coverAttachmentId)?.url ??
+            null,
+        }),
       };
       if (previousCard) queryClient.setQueryData(cardKey, { ...previousCard, ...fields });
       if (previousBoard) {
-        // The tile shows the title, due date and completed state; an archived card leaves it.
+        // The tile shows the title, due date, completed state and cover; an archived card leaves it.
         const summary = {
           ...(fields.title !== undefined && { title: fields.title }),
+          ...(fields.coverUrl !== undefined && { coverUrl: fields.coverUrl }),
           ...(fields.dueDate !== undefined && { dueDate: fields.dueDate }),
           ...(fields.completed !== undefined && { completed: fields.completed }),
         };
@@ -209,8 +222,16 @@ export function useUpdateCard(boardId: string, cardId: string) {
           ? Object.fromEntries(keys.filter((key) => key in fields).map((k) => [k, previousCard[k]]))
           : {};
       return {
-        card: before(['title', 'description', 'dueDate', 'completed', 'archived']),
-        tile: before(['title', 'dueDate', 'completed']),
+        card: before([
+          'title',
+          'description',
+          'dueDate',
+          'completed',
+          'archived',
+          'coverAttachmentId',
+          'coverUrl',
+        ]),
+        tile: before(['title', 'dueDate', 'completed', 'coverUrl']),
         // An archive removed the tile; only the board as it was can put it back.
         previousBoard: input.archived !== undefined ? previousBoard : undefined,
       };

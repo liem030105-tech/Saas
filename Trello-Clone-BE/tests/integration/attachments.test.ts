@@ -235,7 +235,9 @@ describe('covers: PATCH /api/v1/cards/:cardId { coverAttachmentId }', () => {
     });
 
     const res = await patch(cardId, member.token, image.body.data.id as string).expect(200);
-    expect(CardDetailDtoSchema.parse(res.body.data).coverUrl).toContain(storageKey);
+    const covered = CardDetailDtoSchema.parse(res.body.data);
+    expect(covered.coverUrl).toContain(storageKey);
+    expect(covered.coverAttachmentId).toBe(image.body.data.id);
     expect(
       await testPrisma.activity.findFirst({ where: { cardId, type: 'CARD_UPDATED' } }),
     ).toMatchObject({ data: { coverAttachmentId: image.body.data.id as string } });
@@ -254,7 +256,7 @@ describe('covers: PATCH /api/v1/cards/:cardId { coverAttachmentId }', () => {
 
     // null removes the cover; the attachment stays.
     const cleared = await patch(cardId, member.token, null).expect(200);
-    expect(cleared.body.data.coverUrl).toBeNull();
+    expect(cleared.body.data).toMatchObject({ coverUrl: null, coverAttachmentId: null });
     expect(await testPrisma.attachment.count()).toBe(1);
   });
 

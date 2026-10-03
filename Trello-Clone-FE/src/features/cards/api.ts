@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/client';
 
 import type {
+  AttachmentDto,
   CardDetailDto,
   ChecklistDto,
   ChecklistItemDto,
@@ -24,7 +25,7 @@ export const cardsApi = {
     apiClient.post<CardSummaryDto>(`/lists/${listId}/cards`, input),
   /** GET /cards/:cardId (≥ VIEWER): archived cards included. */
   get: (cardId: string) => apiClient.get<CardDetailDto>(`/cards/${cardId}`),
-  /** PATCH /cards/:cardId: title, description, due date, completed, archived (≥ MEMBER). */
+  /** PATCH /cards/:cardId: title, description, due date, completed, archived, cover (≥ MEMBER). */
   update: (cardId: string, input: UpdateCardInput) =>
     apiClient.patch<CardDetailDto>(`/cards/${cardId}`, input),
   /** PATCH /cards/:cardId/move: to a list (maybe its own) at a position (≥ MEMBER). */
@@ -72,4 +73,19 @@ export const checklistsApi = {
     apiClient.patch<ChecklistItemDto>(`/checklists/${checklistId}/items/${itemId}`, input),
   removeItem: (checklistId: string, itemId: string) =>
     apiClient.delete<void>(`/checklists/${checklistId}/items/${itemId}`),
+};
+
+/** A card's files (docs/api/cards.md → Attachments): upload ≥ MEMBER; delete own, or any ≥ ADMIN. */
+export const attachmentsApi = {
+  /** POST /cards/:cardId/attachments (multipart, field `file`); `onProgress` gets 0–1. */
+  upload: (cardId: string, file: File, onProgress?: (fraction: number) => void) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient.post<AttachmentDto>(`/cards/${cardId}/attachments`, form, {
+      onUploadProgress: (event) => {
+        if (event.total) onProgress?.(event.loaded / event.total);
+      },
+    });
+  },
+  remove: (attachmentId: string) => apiClient.delete<void>(`/attachments/${attachmentId}`),
 };

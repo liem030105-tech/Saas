@@ -126,6 +126,9 @@ export function BoardPage() {
             retry: () => void members.refetch(),
           }}
           canEdit={canEditContent}
+          canDeleteAnyAttachment={
+            !board.archived && (role ? can(role, 'attachment.deleteAny') : false)
+          }
           activityNames={activityNames}
           commentAccess={{
             user: currentUser.data && {

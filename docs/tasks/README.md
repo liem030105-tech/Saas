@@ -74,7 +74,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 27 | [CARD-004](CARD-004-card-drag-drop.md) card drag and drop | 3 | C-003 | C-005 | – | Done |
 | 28 | [CARD-005](CARD-005-card-details.md) card details | 4 | C-002 | C-003, C-004 | – | Done |
 | 29 | [REALTIME-001](REALTIME-001-realtime.md) realtime | 5 | all MVP tasks | – | – | Done |
-| 30 | [ATTACHMENTS-001](ATTACHMENTS-001-attachments.md) attachments | 6 | REALTIME-001 | SEARCH, NOTIFICATIONS, BILLING | – | In progress (001a upload, list and delete API; 001b covers and file cleanup on cascades done) |
+| 30 | [ATTACHMENTS-001](ATTACHMENTS-001-attachments.md) attachments | 6 | REALTIME-001 | SEARCH, NOTIFICATIONS, BILLING | – | Done |
 | 31 | [SEARCH-001](SEARCH-001-search-filters.md) search & filters | 6 | REALTIME-001 | ATTACHMENTS, NOTIFICATIONS, BILLING | – | Done |
 | 32 | [NOTIFICATIONS-001](NOTIFICATIONS-001-notifications.md) notifications | 6 | REALTIME-001 | ATTACHMENTS, SEARCH, BILLING | – | Todo |
 | 33 | [BILLING-001](BILLING-001-billing.md) billing & plan limits | 7 | REALTIME-001 | ATTACHMENTS, SEARCH, NOTIFICATIONS | – | Todo |

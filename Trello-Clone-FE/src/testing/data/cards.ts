@@ -52,6 +52,7 @@ export const loginCardDetail: CardDetailDto = {
   boardId: roadmapDetail.id,
   description: '**Steps**: open the login page',
   archived: false,
+  coverAttachmentId: null,
   createdAt: '2026-09-30T12:00:00.000Z',
   updatedAt: '2026-09-30T12:00:00.000Z',
   members: [],

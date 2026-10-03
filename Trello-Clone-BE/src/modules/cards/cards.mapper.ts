@@ -34,6 +34,7 @@ export function toCardDetailDto(
     boardId: card.boardId,
     description: card.description,
     archived: card.archived,
+    coverAttachmentId: card.coverAttachmentId,
     createdAt: card.createdAt.toISOString(),
     updatedAt: card.updatedAt.toISOString(),
     members,
