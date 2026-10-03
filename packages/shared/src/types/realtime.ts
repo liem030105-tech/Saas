@@ -2,6 +2,7 @@ import type { BoardDto } from './boards';
 import type { CardSummaryDto } from './cards';
 import type { CommentDto } from './comments';
 import type { ListDto } from './lists';
+import type { NotificationDto } from './notifications';
 import type { RealtimeEventType } from '../constants/events';
 
 // docs/architecture/realtime.md → Event envelope and Events.
@@ -33,6 +34,10 @@ export interface RealtimeEventData {
   'comment:updated': CommentDto;
   'comment:deleted': { commentId: string; cardId: string };
   'member:removed': { userId: string };
+  /** To the recipient's own sockets (NOTIFICATIONS-001). */
+  'notification:created': NotificationDto;
+  /** One notification read or unread, or all of them read; to the recipient's other tabs. */
+  'notification:updated': { notificationId: string; read: boolean } | { all: true };
 }
 
 /** Every server event: the envelope around its `data`. */
@@ -43,7 +48,8 @@ export interface RealtimeEvent<TType extends RealtimeEventType = RealtimeEventTy
   type: TType;
   /** Null for workspace-level events. */
   boardId: string | null;
-  workspaceId: string;
+  /** Null only for `notification:updated` with `all` (it spans the caller's workspaces). */
+  workspaceId: TType extends 'notification:updated' ? string | null : string;
   /** The user who caused the change. */
   actorId: string;
   /** `updatedAt` (epoch ms) of the changed record; `Date.now()` for deletes and `*:reordered`. */

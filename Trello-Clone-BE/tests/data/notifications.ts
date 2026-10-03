@@ -10,6 +10,8 @@ export const notificationData = {
   dueDate: '2026-10-12T23:59:59.999Z',
   /** Longer than the 140-character excerpt. */
   longComment: `Steps to reproduce: ${'open the login page and submit the form; '.repeat(6)}`,
+  /** An email no account has. */
+  unknownEmail: 'nobody@example.test',
   /** A cuid nothing has. */
   unknownId: 'clx0000000000000000000099',
 };

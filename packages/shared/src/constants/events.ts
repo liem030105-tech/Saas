@@ -20,6 +20,8 @@ export const REALTIME_EVENTS = [
   'comment:updated',
   'comment:deleted',
   'member:removed',
+  'notification:created',
+  'notification:updated',
 ] as const;
 
 export type RealtimeEventType = (typeof REALTIME_EVENTS)[number];

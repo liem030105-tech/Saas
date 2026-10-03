@@ -65,7 +65,7 @@ Each notification is written in the same transaction as the change that causes i
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | The recipient |
 | Body | `{ read: boolean }` |
-| Success | `200 { data: NotificationDto }`; idempotent. Sends `notification:read` to the recipient's other tabs |
+| Success | `200 { data: NotificationDto }`; idempotent. Sends `notification:updated` to the recipient's other tabs |
 | Errors | `400` · `401` · `404` (unknown, malformed, someone else's, or not visible now) · `429 RATE_LIMITED` |
 
 ### POST /notifications/read-all
@@ -75,7 +75,7 @@ Each notification is written in the same transaction as the change that causes i
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | Own notifications only |
 | Body | none |
-| Success | `204`: every notification of the caller created up to now is read. Sends `notification:read` with `all: true` |
+| Success | `204`: every notification the caller sees now (above), created up to now, is read; hidden ones stay as they are, so rejoining a workspace shows them as they were. Sends `notification:updated` with `all: true` |
 | Errors | `401` · `429 RATE_LIMITED` |
 
 ### POST /invites/:inviteId/accept
@@ -104,4 +104,4 @@ Schemas (to add in `@trello-clone/shared`): `NOTIFICATION_TYPES`, `NotificationD
   - a removed member stops seeing the workspace's notifications, and the unread count drops;
   - an expired or accepted invite disappears;
   - cascades when the card, comment or workspace is deleted.
-- **Live:** `notification:created` reaches only the recipient's sockets, and `notification:read` reaches the recipient's other tabs.
+- **Live:** `notification:created` reaches only the recipient's sockets, and `notification:updated` reaches the recipient's other tabs.
