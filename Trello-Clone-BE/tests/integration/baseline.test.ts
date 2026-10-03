@@ -3,7 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
-import { anyId, publicRoutes } from '../data/baseline';
+import { anyId, invalidInputs, publicRoutes } from '../data/baseline';
 import { resetDb, testPrisma } from '../helpers/db';
 import { registeredRoutes } from '../helpers/routes';
 import { createTestApp } from '../helpers/test-app';
@@ -60,42 +60,6 @@ describe('401 without a token', () => {
   });
 });
 
-/**
- * One invalid input per route that validates (the `validate` middleware): sent by a signed-in
- * user, it is refused before any lookup, so the ids need not exist.
- */
-const invalidInputs: Record<string, { query?: Record<string, string>; body?: object }> = {
-  'POST /auth/register': { body: { email: 'not-an-email', password: 'x', name: '' } },
-  'POST /auth/login': { body: { email: 'not-an-email' } },
-  'PATCH /users/me': { body: { name: '' } },
-  'POST /workspaces': { body: { name: '' } },
-  'PATCH /workspaces/:workspaceId': { body: { name: '' } },
-  'PATCH /workspaces/:workspaceId/members/:userId': { body: { role: 'KING' } },
-  'POST /workspaces/:workspaceId/invites': { body: { email: 'nope', role: 'MEMBER' } },
-  'POST /invites/accept': { body: {} },
-  'GET /workspaces/:workspaceId/boards': { query: { archived: 'maybe' } },
-  'POST /workspaces/:workspaceId/boards': { body: { title: '' } },
-  'PATCH /boards/:boardId': { body: { title: '' } },
-  'GET /boards/:boardId/activities': { query: { limit: '0' } },
-  'GET /boards/:boardId/search': { query: { due: 'someday' } },
-  'POST /boards/:boardId/labels': { body: { color: 'red' } },
-  'PATCH /labels/:labelId': { body: { color: 'red' } },
-  'POST /boards/:boardId/lists': { body: { title: '' } },
-  'PATCH /lists/:listId': { body: { title: '' } },
-  'POST /lists/:listId/cards': { body: { title: '' } },
-  'PATCH /cards/:cardId': { body: { title: '' } },
-  'PATCH /cards/:cardId/move': { body: { listId: 'nope' } },
-  'POST /cards/:cardId/checklists': { body: { title: '' } },
-  'PATCH /checklists/:checklistId': { body: { title: '' } },
-  'POST /checklists/:checklistId/items': { body: { content: '' } },
-  'PATCH /checklists/:checklistId/items/:itemId': { body: { done: 'yes' } },
-  'GET /cards/:cardId/comments': { query: { limit: '0' } },
-  'POST /cards/:cardId/comments': { body: { content: '' } },
-  'PATCH /comments/:commentId': { body: { content: '' } },
-  'GET /notifications': { query: { unread: 'yes' } },
-  'PATCH /notifications/:notificationId': { body: { read: 'yes' } },
-};
-
 describe('400 for invalid input', () => {
   it('every route that validates has a case here', () => {
     const validating = routes
@@ -114,6 +78,7 @@ describe('400 for invalid input', () => {
     expect(res.status, JSON.stringify(res.body)).toBe(400);
     const { error } = ErrorResponseSchema.parse(res.body);
     expect(error.code).toBe('VALIDATION_ERROR');
-    expect(error.details.length).toBeGreaterThan(0);
+    // Exactly the field the case breaks: no other rule can be what refused it.
+    expect(error.details.map((detail) => detail.path)).toEqual([input.path]);
   });
 });
