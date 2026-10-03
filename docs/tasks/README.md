@@ -78,7 +78,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 31 | [SEARCH-001](SEARCH-001-search-filters.md) search & filters | 6 | REALTIME-001 | ATTACHMENTS, NOTIFICATIONS, BILLING | – | Done |
 | 32 | [NOTIFICATIONS-001](NOTIFICATIONS-001-notifications.md) notifications | 6 | REALTIME-001 | ATTACHMENTS, SEARCH, BILLING | – | Done |
 | 33 | [BILLING-001](BILLING-001-billing.md) billing & plan limits | 7 | REALTIME-001 | ATTACHMENTS, SEARCH, NOTIFICATIONS | – | In progress |
-| 34 | [TESTING-001](TESTING-001-testing-hardening.md) testing hardening | 8 | Phases 5–7 | – | – | Todo |
+| 34 | [TESTING-001](TESTING-001-testing-hardening.md) testing hardening | 8 | Phases 5–7 | – | – | In progress |
 | 35 | [DEPLOYMENT-001](DEPLOYMENT-001-production-deployment.md) production deployment | 9 | TESTING-001 | – | **D-21, D-22** | Todo |
 
 "Can run in parallel" means no code dependency; with a single developer, still follow the numeric order unless deliberately parallelizing in separate branches.
@@ -86,6 +86,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 ## Notes on task boundaries
 - **Activity log:** the model and write helper arrive in BOARD-001 and are used from then on. The feed endpoint and UI arrive in CARD-005.
 - **Plan limits:** not enforced in MVP tasks. BILLING-001 adds them (D-11).
+- **TESTING-001** is delivered as sub-PRs: E2E and coverage in CI (001a) → the endpoint audit and its gaps (001b).
 - **Follow-up after BILLING-001 (D-30, no spec yet):** sync the Pro seat count with joining and leaving members.
 - **BILLING-001** is delivered as sub-PRs: plan limits and the billing summary (001a) → Stripe checkout, portal and webhook (001b) → the billing UI and upgrade prompts (001c) → the pricing and landing pages (001d), each meeting the DoD. After 001d, BILLING-001 is Done once its acceptance check has passed against Stripe test mode (needs test keys and the Stripe CLI, [setup.md](../development/setup.md)).
 - **Realtime:** MVP tasks never emit. REALTIME-001 adds emits to existing services.
