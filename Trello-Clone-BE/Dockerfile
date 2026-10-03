@@ -14,6 +14,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY Trello-Clone-BE/package.json Trello-Clone-BE/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --filter @trello-clone/api...
+# The packages' tsconfigs extend the root one (Prisma reads it when loading prisma.config.ts).
+COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY Trello-Clone-BE Trello-Clone-BE
 RUN pnpm --filter @trello-clone/api db:generate && pnpm --filter @trello-clone/api build
