@@ -54,7 +54,7 @@ export async function create(
 ): Promise<CreatedInviteDto> {
   const raw = newRawToken();
   try {
-    const invite = await prisma.$transaction(async (tx) => {
+    const { invite, notified } = await prisma.$transaction(async (tx) => {
       // Granting a role depends on the caller's own: re-read it under the workspace lock, as
       // member changes do, so a caller demoted meanwhile cannot still invite above it.
       await lockWorkspace(tx, workspaceId);
@@ -69,8 +69,9 @@ export async function create(
       });
       if (member) throw alreadyMember();
 
+      // Re-inviting deletes the old row, and with it its notification (FK cascade).
       await tx.workspaceInvite.deleteMany({ where: { workspaceId, email: input.email } });
-      return tx.workspaceInvite.create({
+      const created = await tx.workspaceInvite.create({
         data: {
           workspaceId,
           email: input.email,
@@ -81,7 +82,25 @@ export async function create(
         },
         include: { invitedBy: inviter },
       });
+      // An existing account with this email is notified in the app (NOTIFICATIONS-001).
+      const account = await tx.user.findUnique({
+        where: { email: input.email },
+        select: { id: true },
+      });
+      const notified = account
+        ? await notificationsService.notify(tx, [
+            {
+              userId: account.id,
+              type: 'WORKSPACE_INVITED',
+              workspaceId,
+              actorId,
+              inviteId: created.id,
+            },
+          ])
+        : [];
+      return { invite: created, notified };
     });
+    await notificationsService.announce(actorId, notified);
     return { ...toInviteDto(invite), inviteUrl: inviteUrl(raw) };
   } catch (error) {
     // Two invites for the same email at the same moment: the other one won.
@@ -150,8 +169,9 @@ async function acceptInvite(
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   if (!user || user.email !== invite.email) throw inviteNotFound();
 
+  let readIds: string[];
   try {
-    await prisma.$transaction(async (tx) => {
+    readIds = await prisma.$transaction(async (tx) => {
       const member = await tx.workspaceMember.findUnique({
         where: { userId_workspaceId: { userId, workspaceId: invite.workspaceId } },
         select: { userId: true },
@@ -167,7 +187,7 @@ async function acceptInvite(
       await tx.workspaceMember.create({
         data: { userId, workspaceId: invite.workspaceId, role: invite.role },
       });
-      await notificationsService.markInviteRead(tx, userId, invite.id);
+      return notificationsService.markInviteRead(tx, userId, invite.id);
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyMember();
@@ -175,5 +195,6 @@ async function acceptInvite(
     if (isForeignKeyViolation(error)) throw inviteNotFound();
     throw error;
   }
+  notificationsService.announceRead(userId, invite.workspaceId, readIds);
   return toWorkspaceDto(invite.workspace, invite.role);
 }

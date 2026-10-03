@@ -28,6 +28,7 @@ import {
 } from '../boards/boards.service';
 import * as notificationsService from '../notifications/notifications.service';
 
+import type { CreatedNotification } from '../notifications/notifications.service';
 import type { WorkspaceAction } from '../workspaces/permissions';
 import type {
   CardDetailDto,
@@ -475,6 +476,7 @@ export async function assignMember(
 ): Promise<void> {
   const card = await assertCardAccess(userId, cardId, 'card.assign');
   let changed: boolean;
+  let notified: CreatedNotification[] = [];
   try {
     changed = await prisma.$transaction(async (tx) => {
       const [membership] = await tx.$queryRaw<{ userId: string }[]>`
@@ -498,6 +500,17 @@ export async function assignMember(
           type: 'MEMBER_ADDED',
           data: { userId: memberId },
         });
+        // The assignee hears of it, unless they assigned themselves (NOTIFICATIONS-001).
+        notified = await notificationsService.notify(tx, [
+          {
+            userId: memberId,
+            type: 'CARD_ASSIGNED',
+            workspaceId: card.workspaceId,
+            actorId: userId,
+            boardId: card.boardId,
+            cardId,
+          },
+        ]);
       }
       return count > 0;
     });
@@ -507,6 +520,7 @@ export async function assignMember(
     throw error;
   }
   if (changed) await emitCardChanged(userId, cardId, card.workspaceId);
+  await notificationsService.announce(userId, notified);
 }
 
 /**

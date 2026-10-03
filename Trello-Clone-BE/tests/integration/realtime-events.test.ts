@@ -706,3 +706,98 @@ describe('cover events', () => {
     expect((await uncovered).data).toMatchObject({ id: cardId, coverUrl: null });
   });
 });
+
+// NOTIFICATIONS-001b: notifications go to the recipient's own sockets (`user:{id}`), nobody else's.
+describe('notification events', () => {
+  it("notification:created reaches only the recipient's sockets", async () => {
+    const { owner, member, boardId, socket: memberSocket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const ownerSocket = await connected(clientFor(harness.url, { token: owner.token }));
+    sockets.push(ownerSocket);
+    const ownerHeard = recordEvents(ownerSocket);
+
+    const created = nextEvent(memberSocket, 'notification:created');
+    await request(app)
+      .post(`${paths.cards}/${cardId}/members/${member.user.id}`)
+      .set(bearer(owner.token))
+      .expect(204);
+
+    const event = await created;
+    envelope(event, {
+      type: 'notification:created',
+      boardId,
+      actorId: owner.user.id,
+      data: { type: 'CARD_ASSIGNED', read: false, card: { id: cardId } },
+    });
+    const stored = await testPrisma.notification.findFirstOrThrow({
+      where: { userId: member.user.id },
+    });
+    expect(event.data.id).toBe(stored.id);
+    expect(ownerHeard.filter((e) => e.type.startsWith('notification:'))).toEqual([]);
+  });
+
+  it("reading one, or all, reaches the recipient's other tabs, not the tab that read", async () => {
+    const { owner, member, boardId } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    await request(app)
+      .post(`${paths.cards}/${cardId}/members/${member.user.id}`)
+      .set(bearer(owner.token))
+      .expect(204);
+    const { id } = await testPrisma.notification.findFirstOrThrow({
+      where: { userId: member.user.id },
+    });
+    const tabA = await connected(clientFor(harness.url, { token: member.token }));
+    const tabB = await connected(clientFor(harness.url, { token: member.token }));
+    sockets.push(tabA, tabB);
+    const heardByA = recordEvents(tabA);
+
+    const one = nextEvent(tabB, 'notification:updated');
+    await request(app)
+      .patch(`${paths.notifications}/${id}`)
+      .set(bearer(member.token))
+      .set('X-Socket-Id', tabA.id!)
+      .send({ read: true })
+      .expect(200);
+    envelope(await one, {
+      type: 'notification:updated',
+      boardId,
+      actorId: member.user.id,
+      data: { notificationId: id, read: true },
+    });
+
+    const all = nextEvent(tabB, 'notification:updated');
+    await request(app)
+      .post(`${paths.notifications}/read-all`)
+      .set(bearer(member.token))
+      .set('X-Socket-Id', tabA.id!)
+      .expect(204);
+    envelope(await all, { type: 'notification:updated', workspaceId: null, data: { all: true } });
+    expect(heardByA.filter((e) => e.type.startsWith('notification:'))).toEqual([]);
+  });
+
+  it("accepting an invite by id reads its notification in the invitee's other tabs", async () => {
+    const { owner, workspaceId } = await watchedBoard();
+    const invitee = await createUserWithToken();
+    const created = await request(app)
+      .post(`${paths.workspaces}/${workspaceId}/invites`)
+      .set(bearer(owner.token))
+      .send({ email: invitee.user.email, role: 'MEMBER' })
+      .expect(201);
+    const { id } = await testPrisma.notification.findFirstOrThrow({
+      where: { userId: invitee.user.id },
+    });
+    const tab = await connected(clientFor(harness.url, { token: invitee.token }));
+    sockets.push(tab);
+
+    const read = nextEvent(tab, 'notification:updated');
+    await request(app)
+      .post(`${paths.invites}/${created.body.data.id as string}/accept`)
+      .set(bearer(invitee.token))
+      .expect(200);
+    envelope(await read, {
+      type: 'notification:updated',
+      workspaceId,
+      data: { notificationId: id, read: true },
+    });
+  });
+});

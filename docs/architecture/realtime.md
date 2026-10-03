@@ -62,9 +62,9 @@ Naming: `<domain>:<past-tense-verb>` (existing convention; D-16 records the alte
 | `comment:deleted` | `board:{id}` | DELETE `/comments/:id` | `{ commentId, cardId }` |
 | `member:removed` | `workspace:{id}` + removed user's sockets | DELETE `/workspaces/:id/members/:userId` | `{ userId }` |
 | `notification:created` | `user:{recipientId}` | the change that notifies ([notifications.md → Triggers](../api/notifications.md#triggers)); due-soon ones are not sent live | `NotificationDto` |
-| `notification:read` | `user:{recipientId}` (except the tab that made the change) | PATCH `/notifications/:id`, POST `/notifications/read-all`, accepting an invite by id | `{ notificationId, read } \| { all: true }` |
+| `notification:updated` | `user:{recipientId}` (except the tab that made the change) | PATCH `/notifications/:id`, POST `/notifications/read-all`, accepting an invite by id | `{ notificationId, read } \| { all: true }` |
 
-For `notification:*` the envelope's `boardId` is the notification's board (or null) and `workspaceId` its workspace; `version` is `Date.now()`. The FE (`useNotificationsSocket`) puts a created notification at the top of `['notifications']` and refetches the unread count; a `notification:read` updates the list and refetches the count.
+For `notification:*` the envelope's `boardId` is the notification's board (or null) and `workspaceId` its workspace (null only for `notification:updated` with `all: true`, which spans the caller's workspaces); `actorId` is the user who caused it (the recipient, for `notification:updated`); `version` is `Date.now()`. The FE (`useNotificationsSocket`) puts a created notification at the top of `['notifications']` and refetches the unread count; a `notification:updated` updates the list and refetches the count.
 
 Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). A PATCH `/lists/:id` that renames and moves at once sends both `list:updated` and `list:moved` with the **same** `version`, so a client that applies `list:updated` (which already carries the settled position) must not expect to apply `list:moved` too; a create or move that rebalances also sends one `list:reordered`.
 

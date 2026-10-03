@@ -116,7 +116,7 @@ Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bit
 | Authentication | Bearer · rate limited per user (D-04) |
 | Authorization | ≥ ADMIN; invite `role` ≤ caller's role and never `OWNER` (I5: the schema rejects it with `400`) |
 | Body | `{ email, role }` (email trimmed and lower-cased) |
-| Success | `201 { data: InviteDto & { inviteUrl: string } }`. Any earlier invite for the same email in this workspace (pending, expired, or accepted) is replaced: new token, new expiry, and the old link stops working |
+| Success | `201 { data: InviteDto & { inviteUrl: string } }`. Any earlier invite for the same email in this workspace (pending, expired, or accepted) is replaced: new token, new expiry, and the old link stops working. An existing account with that email is notified in the app (`WORKSPACE_INVITED`, [notifications.md](notifications.md#triggers)); a replaced invite's notification goes with it |
 | Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (email already belongs to a member, or a concurrent invite for it won) · `429 RATE_LIMITED` · `402` (from BILLING-001 only, D-11) |
 
 ### DELETE /workspaces/:workspaceId/invites/:inviteId

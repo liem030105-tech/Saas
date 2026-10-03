@@ -81,7 +81,7 @@ Moving to an archived list is allowed. Archived cards can be moved.
 ## Card members & labels (CARD-005)
 | Method | Path | Authorization | Success | Errors |
 |--------|------|---------------|---------|--------|
-| POST | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent) | `404` (card not visible) · `422` rule `NOT_WORKSPACE_MEMBER` (I3; also for a user id that does not exist, so the answer reveals nothing). Any role of the workspace can be assigned |
+| POST | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent); a new assignment notifies the assignee unless they assigned themselves (`CARD_ASSIGNED`, [notifications.md](notifications.md#triggers)) | `404` (card not visible) · `422` rule `NOT_WORKSPACE_MEMBER` (I3; also for a user id that does not exist, so the answer reveals nothing). Any role of the workspace can be assigned |
 | DELETE | `/cards/:cardId/members/:userId` | ≥ MEMBER | `204` (idempotent) | `404` |
 | POST | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` (card or label not visible) · `422` rule `LABEL_OTHER_BOARD` (I2) |
 | DELETE | `/cards/:cardId/labels/:labelId` | ≥ MEMBER | `204` (idempotent) | `404` |
@@ -106,7 +106,7 @@ Since CARD-005c. All six need `card.assign` (≥ MEMBER) on the card's stored bo
 | Method | Path | Authorization | Body → Success |
 |--------|------|---------------|----------------|
 | GET | `/cards/:cardId/comments` | ≥ VIEWER | `?limit&cursor` → `200 { data: CommentDto[], nextCursor }` (newest first) |
-| POST | `/cards/:cardId/comments` | ≥ MEMBER | `{ content }` → `201 { data: CommentDto }` · logs `COMMENT_ADDED` |
+| POST | `/cards/:cardId/comments` | ≥ MEMBER | `{ content }` → `201 { data: CommentDto }` · logs `COMMENT_ADDED` · notifies the card's members except the author (`CARD_COMMENTED`, [notifications.md](notifications.md#triggers)) |
 | PATCH | `/comments/:commentId` | Author, and caller role ≥ MEMBER | `{ content }` → `200 { data: CommentDto }` |
 | DELETE | `/comments/:commentId` | Author with role ≥ MEMBER, or ≥ ADMIN | → `204` |
 

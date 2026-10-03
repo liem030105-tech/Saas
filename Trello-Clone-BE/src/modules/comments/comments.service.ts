@@ -9,8 +9,10 @@ import {
 } from '../../realtime/events/comments.events';
 import { assertBoardAccess, logActivity } from '../boards/boards.service';
 import { assertCardAccess, emitCardChanged } from '../cards/cards.service';
+import * as notificationsService from '../notifications/notifications.service';
 import { hasPermission } from '../workspaces/permissions';
 
+import type { CreatedNotification } from '../notifications/notifications.service';
 import type {
   CommentData,
   CommentDto,
@@ -80,8 +82,9 @@ export async function create(
 ): Promise<CommentDto> {
   const card = await assertCardAccess(userId, cardId, 'comment.create');
   let comment: Prisma.CommentGetPayload<{ include: typeof AUTHOR }>;
+  let notified: CreatedNotification[];
   try {
-    comment = await prisma.$transaction(async (tx) => {
+    [comment, notified] = await prisma.$transaction(async (tx) => {
       const created = await tx.comment.create({
         data: { cardId, authorId: userId, content: input.content },
         include: AUTHOR,
@@ -93,7 +96,21 @@ export async function create(
         type: 'COMMENT_ADDED',
         data: { commentId: created.id },
       });
-      return created;
+      // The card's members hear of it (NOTIFICATIONS-001); `notify` leaves out the author.
+      const members = await tx.cardMember.findMany({ where: { cardId }, select: { userId: true } });
+      const sent = await notificationsService.notify(
+        tx,
+        members.map((member) => ({
+          userId: member.userId,
+          type: 'CARD_COMMENTED',
+          workspaceId: card.workspaceId,
+          actorId: userId,
+          boardId: card.boardId,
+          cardId,
+          commentId: created.id,
+        })),
+      );
+      return [created, sent] as const;
     });
   } catch (error) {
     if (isMissing(error)) throw AppError.notFound();
@@ -103,6 +120,7 @@ export async function create(
   const dto = toCommentDto(comment);
   commentCreated({ boardId: card.boardId, workspaceId: card.workspaceId }, userId, dto);
   await emitCardChanged(userId, cardId, card.workspaceId);
+  await notificationsService.announce(userId, notified);
   return dto;
 }
 
