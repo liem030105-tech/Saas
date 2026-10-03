@@ -2,6 +2,7 @@
 export const notificationData = {
   actorName: 'Ada Lovelace',
   workspaceName: 'Acme',
+  otherWorkspaceName: 'Elsewhere',
   workspaceSlug: 'acme',
   boardTitle: 'Roadmap',
   otherBoardTitle: 'Backlog',

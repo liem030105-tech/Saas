@@ -1,5 +1,6 @@
-import ReactMarkdown from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
+import { MENTION_PROTOCOL } from '@trello-clone/shared';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 
 import { cn } from '@/lib/utils';
 
@@ -13,8 +14,24 @@ interface MarkdownProps {
  * The only place user markdown is rendered (docs/architecture/security.md → Markdown). Raw HTML in
  * the text is never rendered as HTML, the output goes through `rehype-sanitize` (GitHub's
  * allowlist: no scripts, event handlers or `javascript:` URLs), and links open in a new tab
- * without access to this page. Never use `dangerouslySetInnerHTML` instead.
+ * without access to this page. Mentions (D-28) render as a highlighted name. Never use `dangerouslySetInnerHTML` instead.
  */
+/** GitHub's allowlist, plus mention links (D-28) in `href`. */
+const schema = {
+  ...defaultSchema,
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), MENTION_PROTOCOL.slice(0, -1)],
+  },
+};
+
+/** A mention link as the server reads it (D-28): a user id after the protocol. */
+const MENTION_HREF = new RegExp(`^${MENTION_PROTOCOL}[a-z0-9]{20,32}$`);
+
+/** Mention links are kept (rendered as a name, never followed); other URLs as react-markdown does. */
+const urlTransform = (url: string) =>
+  url.startsWith(MENTION_PROTOCOL) ? url : defaultUrlTransform(url);
+
 export function Markdown({ children, className }: MarkdownProps) {
   return (
     <div
@@ -29,13 +46,23 @@ export function Markdown({ children, className }: MarkdownProps) {
     >
       <ReactMarkdown
         skipHtml
-        rehypePlugins={[rehypeSanitize]}
+        rehypePlugins={[[rehypeSanitize, schema]]}
+        urlTransform={urlTransform}
         components={{
-          a: ({ href, children: text }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {text}
-            </a>
-          ),
+          // A mention (`@[Name](mention:<id>)`, D-28) shows as the name, not as a link; any other
+          // `mention:` link is plain text.
+          a: ({ href, children: text }) =>
+            href?.startsWith(MENTION_PROTOCOL) ? (
+              MENTION_HREF.test(href) ? (
+                <span className="font-medium text-primary">{text}</span>
+              ) : (
+                <span>{text}</span>
+              )
+            ) : (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {text}
+              </a>
+            ),
         }}
       >
         {children}

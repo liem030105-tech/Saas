@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import { markdownSample, xssAttempts } from '@/testing/data/markdown';
+import { markdownSample, mentionSample, xssAttempts } from '@/testing/data/markdown';
 
 import { Markdown } from './Markdown';
 
@@ -26,5 +26,15 @@ describe('Markdown', () => {
     }
     expect(container.innerHTML).not.toMatch(/<script|onerror=|javascript:/i);
     expect((window as { __pwned?: boolean }).__pwned).toBeUndefined();
+  });
+
+  it('shows a mention as the name, never as a link', () => {
+    const { container } = render(<Markdown>{mentionSample.source}</Markdown>);
+
+    expect(screen.getByText(mentionSample.name).tagName).toBe('SPAN');
+    // A `mention:` link without a user id is plain text, not a highlighted name.
+    expect(screen.getByText('x')).not.toHaveClass('text-primary');
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.innerHTML).not.toMatch(/javascript:/i);
   });
 });

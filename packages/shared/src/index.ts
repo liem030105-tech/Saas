@@ -29,4 +29,5 @@ export * from './types/lists';
 export * from './types/notifications';
 export * from './types/realtime';
 export * from './types/workspaces';
+export * from './utils/mentions';
 export * from './utils/position';

@@ -1,4 +1,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import {
+  formatMention,
+  type BoardDetailDto,
+  type CommentDto,
+  type Role,
+} from '@trello-clone/shared';
 import { delay, http as mswHttp, HttpResponse } from 'msw';
 import { toast } from 'sonner';
 
@@ -15,11 +21,9 @@ import {
   olderComment,
 } from '@/testing/data/comments';
 import { markdownSample, xssAttempts } from '@/testing/data/markdown';
-import { acmeAs } from '@/testing/data/workspaces';
+import { acmeAs, ownerMember, plainMember } from '@/testing/data/workspaces';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
-
-import type { BoardDetailDto, CommentDto, Role } from '@trello-clone/shared';
 
 type Failing = 'create' | 'update' | 'remove' | 'list';
 
@@ -161,6 +165,74 @@ describe('card comments (CARD-005d)', () => {
     const first = within(activity).getAllByRole('article')[0]!;
     expect(first).toHaveTextContent(newCommentInput.sent);
     await waitFor(() => expect(tileOf()).toHaveTextContent('Comments:4'));
+  });
+
+  it('"@" offers the workspace\'s other members; picking one inserts a mention shown as a name', async () => {
+    const { state, dialog, activity } = await openCard('MEMBER');
+    await commentBy(activity, currentUser.name);
+    const field = within(activity).getByRole('textbox', { name: 'Write a comment' });
+
+    fireEvent.change(field, { target: { value: 'Thanks @' } });
+    const picker = await within(activity).findByRole('listbox', { name: 'Mention someone' });
+    // The author is not offered.
+    expect(
+      within(picker)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual([
+      expect.stringContaining(ownerMember.user.name),
+      expect.stringContaining(plainMember.user.name),
+    ]);
+
+    // Typing narrows it; Escape closes it without closing the card.
+    fireEvent.change(field, { target: { value: 'Thanks @lin' } });
+    expect(within(activity).getAllByRole('option')).toHaveLength(1);
+    fireEvent.keyDown(field, { key: 'Escape' });
+    await waitFor(() => expect(within(activity).queryByRole('listbox')).toBeNull());
+    expect(dialog).toBeVisible();
+
+    fireEvent.change(field, { target: { value: 'Thanks @linu' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    const token = formatMention(plainMember.user.name, plainMember.user.id);
+    expect(field).toHaveValue(`Thanks ${token} `);
+    // The caret is right after the mention, so typing goes on from there.
+    expect((field as HTMLTextAreaElement).selectionStart).toBe(`Thanks ${token} `.length);
+    expect(within(activity).queryByRole('listbox')).toBeNull();
+
+    fireEvent.click(within(activity).getByRole('button', { name: 'Comment' }));
+    await waitFor(() => expect(state.calls).toContain(`POST Thanks ${token}`));
+    const first = within(activity).getAllByRole('article')[0]!;
+    expect(within(first).getByText(plainMember.user.name).tagName).toBe('SPAN');
+    expect(within(first).queryByRole('link')).toBeNull();
+  });
+
+  it('the "@" picker: arrows move and wrap, Tab or a click picks the highlighted person', async () => {
+    const { activity } = await openCard('MEMBER');
+    await commentBy(activity, currentUser.name);
+    const field = within(activity).getByRole('textbox', { name: 'Write a comment' });
+    fireEvent.change(field, { target: { value: '@' } });
+    const options = await within(activity).findAllByRole('option');
+    const selected = () => within(activity).getByRole('option', { selected: true });
+
+    expect(selected()).toBe(options[0]);
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(selected()).toHaveTextContent(plainMember.user.name);
+    expect(field).toHaveAttribute('aria-activedescendant', selected().id);
+    fireEvent.keyDown(field, { key: 'ArrowDown' }); // wraps to the first
+    expect(selected()).toHaveTextContent(ownerMember.user.name);
+    fireEvent.keyDown(field, { key: 'ArrowUp' }); // wraps to the last
+    expect(selected()).toHaveTextContent(plainMember.user.name);
+
+    fireEvent.keyDown(field, { key: 'Tab' });
+    const linus = formatMention(plainMember.user.name, plainMember.user.id);
+    expect(field).toHaveValue(`${linus} `);
+
+    fireEvent.change(field, { target: { value: `${linus} and @ad` } });
+    fireEvent.mouseDown(
+      await within(activity).findByRole('option', { name: ownerMember.user.name }),
+    );
+    const ada = formatMention(ownerMember.user.name, ownerMember.user.id);
+    expect(field).toHaveValue(`${linus} and ${ada} `);
   });
 
   it('a blank comment is not sent', async () => {

@@ -1,3 +1,5 @@
+import { mentionedUserIds } from '@trello-clone/shared';
+
 import { toCommentDto } from './comments.mapper';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
@@ -96,26 +98,37 @@ export async function create(
         type: 'COMMENT_ADDED',
         data: { commentId: created.id },
       });
-      // The card's members hear of it (NOTIFICATIONS-001); `notify` leaves out the author. Their
-      // memberships are held (FOR KEY SHARE), so a removal waits and a removed member gets nothing.
+      // Who hears of it (NOTIFICATIONS-001); `notify` leaves out the author. Memberships are held
+      // (FOR KEY SHARE), so a removal waits and a removed member gets nothing.
+      // - mentioned workspace members (D-28: ids that are not members are ignored): CARD_MENTIONED;
+      // - the card's other members: CARD_COMMENTED.
+      const mentionIds = mentionedUserIds(input.content);
+      const mentioned = mentionIds.length
+        ? await tx.$queryRaw<{ userId: string }[]>`
+            SELECT "userId" FROM "WorkspaceMember"
+            WHERE "workspaceId" = ${card.workspaceId} AND "userId" IN (${Prisma.join(mentionIds)})
+            FOR KEY SHARE`
+        : [];
       const members = await tx.$queryRaw<{ userId: string }[]>`
         SELECT cm."userId" FROM "CardMember" cm
         JOIN "WorkspaceMember" wm
           ON wm."userId" = cm."userId" AND wm."workspaceId" = ${card.workspaceId}
         WHERE cm."cardId" = ${cardId}
         FOR KEY SHARE OF wm`;
-      const sent = await notificationsService.notify(
-        tx,
-        members.map((member) => ({
-          userId: member.userId,
-          type: 'CARD_COMMENTED',
-          workspaceId: card.workspaceId,
-          actorId: userId,
-          boardId: card.boardId,
-          cardId,
-          commentId: created.id,
-        })),
-      );
+      const isMentioned = new Set(mentioned.map((m) => m.userId));
+      const about = {
+        workspaceId: card.workspaceId,
+        actorId: userId,
+        boardId: card.boardId,
+        cardId,
+        commentId: created.id,
+      };
+      const sent = await notificationsService.notify(tx, [
+        ...mentioned.map((m) => ({ ...about, userId: m.userId, type: 'CARD_MENTIONED' as const })),
+        ...members
+          .filter((m) => !isMentioned.has(m.userId))
+          .map((m) => ({ ...about, userId: m.userId, type: 'CARD_COMMENTED' as const })),
+      ]);
       return [created, sent] as const;
     });
   } catch (error) {

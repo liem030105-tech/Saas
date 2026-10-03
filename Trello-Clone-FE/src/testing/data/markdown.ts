@@ -14,3 +14,10 @@ export const xssAttempts = [
   { case: 'a javascript: link', source: '[click me](javascript:window.__pwned=true)' },
   { case: 'an iframe', source: '<iframe src="https://evil.example"></iframe>' },
 ];
+
+/** A comment with a mention (D-28) and a mention-looking link that tries to run script. */
+export const mentionSample = {
+  source:
+    'Thanks @[Ada Lovelace](mention:clx0000000000000000000003) and [x](mention:javascript:alert(1))',
+  name: 'Ada Lovelace',
+};

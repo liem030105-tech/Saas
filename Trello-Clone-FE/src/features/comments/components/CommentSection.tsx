@@ -1,6 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CommentInputSchema, type CommentDto, type UserSummary } from '@trello-clone/shared';
-import { useId, useState, type ReactNode } from 'react';
+import {
+  CommentInputSchema,
+  formatMention,
+  type CommentDto,
+  type UserSummary,
+} from '@trello-clone/shared';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
@@ -26,6 +31,9 @@ const EDIT_ERROR = "Couldn't save the comment. Check your connection and try aga
 
 const EDITED_AFTER_MS = 1000;
 
+/** People the `@` picker offers at once. */
+const MAX_MATCHES = 5;
+
 /** The API's message for an error it explains, otherwise `fallback` (offline, timeout, …). */
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof ApiError && error.code !== NETWORK_ERROR_CODE ? error.message : fallback;
@@ -48,6 +56,8 @@ interface CommentSectionProps {
   headerAction?: ReactNode;
   /** After the comments (the card's activity entries, when shown). */
   children?: ReactNode;
+  /** Who can be mentioned with `@` in a new comment (the workspace's members, D-28). */
+  mentionable?: UserSummary[];
 }
 
 /**
@@ -61,6 +71,7 @@ export function CommentSection({
   access,
   headerAction,
   children,
+  mentionable = [],
 }: CommentSectionProps) {
   useCommentsSocket(cardId, access.user?.id); // comments made elsewhere appear (REALTIME-001)
   const comments = useComments(cardId);
@@ -75,7 +86,12 @@ export function CommentSection({
         {headerAction}
       </div>
       {access.canComment && access.user && (
-        <CommentComposer boardId={boardId} cardId={cardId} author={access.user} />
+        <CommentComposer
+          boardId={boardId}
+          cardId={cardId}
+          author={access.user}
+          mentionable={mentionable}
+        />
       )}
       {comments.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
@@ -134,6 +150,7 @@ function CommentForm({
   serverError,
   onSubmit,
   onCancel,
+  mentionable = [],
 }: {
   label: string;
   defaultContent: string;
@@ -147,6 +164,8 @@ function CommentForm({
    */
   onSubmit: (content: string, restore: (content: string) => void) => Promise<boolean>;
   onCancel?: () => void;
+  /** Typing `@` offers these people; picking one inserts a mention (D-28). */
+  mentionable?: UserSummary[];
 }) {
   const form = useForm<CommentFormInput, unknown, CommentFormData>({
     resolver: zodResolver(CommentInputSchema),
@@ -154,6 +173,40 @@ function CommentForm({
   });
   const error = form.formState.errors.content?.message ?? serverError;
   const errorId = useId();
+  const listId = useId();
+  const { ref: registerRef, onChange: registerOnChange, ...field } = form.register('content');
+  const textarea = useRef<HTMLTextAreaElement | null>(null);
+  /** The `@query` being typed before the caret, and where its `@` is. */
+  const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
+  const [active, setActive] = useState(0);
+  const query = mention?.query.toLowerCase() ?? '';
+  const matches = mention
+    ? mentionable.filter((user) => user.name.toLowerCase().includes(query)).slice(0, MAX_MATCHES)
+    : [];
+  const listOpen = matches.length > 0;
+  // The list can shrink while open (the members refetched): keep the highlight on an option.
+  const current = Math.min(active, matches.length - 1);
+
+  /** Follows the caret: an `@` at a word start, then no space, opens the picker. */
+  const track = (el: HTMLTextAreaElement) => {
+    const before = el.value.slice(0, el.selectionStart);
+    const typed = /(^|\s)@([^\s@[\]]*)$/.exec(before);
+    setMention(typed ? { start: before.length - typed[2]!.length - 1, query: typed[2]! } : null);
+    setActive(0);
+  };
+  /** Replaces the `@query` with the mention token and puts the caret after it. */
+  const pick = (user: UserSummary) => {
+    const el = textarea.current;
+    if (!el || !mention) return;
+    const token = `${formatMention(user.name, user.id)} `;
+    const value = el.value.slice(0, mention.start) + token + el.value.slice(el.selectionStart);
+    form.setValue('content', value, { shouldDirty: true });
+    setMention(null);
+    // At once (setValue has written the field), so the next key typed lands after the mention.
+    const caret = mention.start + token.length;
+    el.focus();
+    el.setSelectionRange(caret, caret);
+  };
 
   return (
     <form
@@ -174,16 +227,75 @@ function CommentForm({
         })(event)
       }
     >
-      <textarea
-        aria-label={label}
-        placeholder={onCancel ? undefined : 'Write a comment…'}
-        rows={3}
-        autoFocus={Boolean(onCancel)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
-        {...form.register('content')}
-      />
+      <div className="relative">
+        <textarea
+          aria-label={label}
+          placeholder={onCancel ? undefined : 'Write a comment…'}
+          rows={3}
+          autoFocus={Boolean(onCancel)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+          aria-autocomplete={mentionable.length > 0 ? 'list' : undefined}
+          aria-controls={listOpen ? listId : undefined}
+          aria-activedescendant={listOpen ? `${listId}-${current}` : undefined}
+          // Escape closes the picker, not the card (CardDetailModal leaves it to this field).
+          data-inline-edit={listOpen ? '' : undefined}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
+          {...field}
+          ref={(el) => {
+            registerRef(el);
+            textarea.current = el;
+          }}
+          onChange={(event) => {
+            void registerOnChange(event);
+            track(event.target);
+          }}
+          onSelect={(event) => track(event.currentTarget)}
+          onKeyDown={(event) => {
+            // Not while an input method is composing (Enter confirms its candidate there).
+            if (!listOpen || event.nativeEvent.isComposing) return;
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              const step = event.key === 'ArrowDown' ? 1 : -1;
+              setActive((current + step + matches.length) % matches.length);
+            } else if (event.key === 'Enter' || event.key === 'Tab') {
+              event.preventDefault();
+              pick(matches[current]!);
+            } else if (event.key === 'Escape') {
+              event.stopPropagation(); // not the edit form's Escape either
+              setMention(null);
+            }
+          }}
+        />
+        {listOpen && (
+          <ul
+            id={listId}
+            role="listbox"
+            aria-label="Mention someone"
+            className="absolute z-10 mt-1 w-64 rounded-md border bg-popover p-1 shadow-md"
+          >
+            {matches.map((user, i) => (
+              <li
+                key={user.id}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === current}
+                className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm ${
+                  i === current ? 'bg-muted' : ''
+                }`}
+                // Before the field loses focus, so the caret is still where the `@` was typed.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  pick(user);
+                }}
+              >
+                <UserAvatar user={user} size="sm" />
+                {user.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       {error && (
         <p id={errorId} role="alert" className="text-sm text-destructive">
           {error}
@@ -211,10 +323,12 @@ function CommentComposer({
   boardId,
   cardId,
   author,
+  mentionable,
 }: {
   boardId: string;
   cardId: string;
   author: UserSummary;
+  mentionable: UserSummary[];
 }) {
   const add = useAddComment(boardId, cardId, author);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +339,7 @@ function CommentComposer({
       defaultContent=""
       submitLabel="Comment"
       serverError={error}
+      mentionable={mentionable.filter((user) => user.id !== author.id)}
       onSubmit={(content, restore) => {
         setError(null);
         add.mutate(content, {
