@@ -13,7 +13,8 @@ interface Schemas {
  * errorHandler as 400 VALIDATION_ERROR.
  */
 export function validate(schemas: Schemas) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  // Named, so tests can find every route that validates (tests/integration/baseline.test.ts).
+  return function validateRequest(req: Request, res: Response, next: NextFunction) {
     res.locals.validated = {
       params: schemas.params ? schemas.params.parse(req.params) : req.params,
       query: schemas.query ? schemas.query.parse(req.query) : {},

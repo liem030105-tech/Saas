@@ -36,6 +36,9 @@ export interface MatrixContext {
   fixture: Record<string, string>;
 }
 
+/** `METHOD /path` of every registered case (a name's text before " (…)"), for the coverage test. */
+export const matrixRoutes = new Set<string>();
+
 export interface MatrixCase {
   /** e.g. `PATCH /workspaces/:workspaceId`. */
   name: string;
@@ -73,6 +76,7 @@ async function callerFor(kind: MatrixCaller, workspaceId: string, owner: User) {
  * a request that changes state (a delete, a role change) never affects the next caller.
  */
 export function describeRoleMatrix(getApp: () => Express, matrixCase: MatrixCase) {
+  matrixRoutes.add(matrixCase.name.split(' (')[0]!);
   describe(`${matrixCase.name} role matrix`, () => {
     it.each(MATRIX_CALLERS)('%s', async (kind) => {
       const app = getApp();
