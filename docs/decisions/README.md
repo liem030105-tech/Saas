@@ -150,3 +150,10 @@ ADR template: **Context → Decision → Rationale → Trade-offs → Status**.
 - **Rationale:** the pricing page explains the Free and Pro plans that BILLING-001 enforces, and a landing page gives signed-out visitors somewhere to start instead of the login form. The other ideas are not needed for the product to work.
 - **Trade-offs:** two more public pages to keep consistent with `PLAN_LIMITS` and the price (D-13). The pricing page reads the limits from the shared constants, so they cannot drift.
 - **Status:** Accepted
+
+### ADR-023: Hosting on Vercel, Render and Neon; one domain for FE and API (D-21, D-22)
+- **Context:** DEPLOYMENT-001 needed a host for each part (D-21) and a domain layout that keeps the `SameSite=Strict` refresh cookie working (D-22).
+- **Decision:** the FE (static Vite build) on **Vercel**, built from the repository (no Docker). The API (Express + Socket.IO, one long-running instance) on **Render**, from `Trello-Clone-BE/Dockerfile`. PostgreSQL on **Neon** (a branch per environment). FE and API share one registrable domain the owner controls, e.g. `app.<domain>` (Vercel) and `api.<domain>` (Render); staging uses `staging.<domain>` and `api.staging.<domain>`. The browser then treats FE → API as same-site, so the refresh cookie stays `HttpOnly; Secure; SameSite=Strict` and needs no CSRF token. Files stay on AWS S3 (ADR-020).
+- **Rationale:** Render runs the API as a normal process with WebSockets, which Socket.IO needs (serverless platforms do not keep connections). Vercel and Neon have free tiers, preview deployments and branching. Keeping one site avoids weakening the cookie (D-22 option b).
+- **Trade-offs:** a custom domain is required (the providers' default domains, `*.vercel.app` and `*.onrender.com`, are different sites, and the refresh would fail). Three providers to configure. One API instance (scaling needs the Redis adapter ADR).
+- **Status:** Accepted

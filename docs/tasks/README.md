@@ -79,7 +79,7 @@ CARD-003 also depends on LIST-003 (shared rebalance helper).
 | 32 | [NOTIFICATIONS-001](NOTIFICATIONS-001-notifications.md) notifications | 6 | REALTIME-001 | ATTACHMENTS, SEARCH, BILLING | – | Done |
 | 33 | [BILLING-001](BILLING-001-billing.md) billing & plan limits | 7 | REALTIME-001 | ATTACHMENTS, SEARCH, NOTIFICATIONS | – | In progress |
 | 34 | [TESTING-001](TESTING-001-testing-hardening.md) testing hardening | 8 | Phases 5–7 | – | – | In progress |
-| 35 | [DEPLOYMENT-001](DEPLOYMENT-001-production-deployment.md) production deployment | 9 | TESTING-001 | – | **D-21, D-22** | Todo |
+| 35 | [DEPLOYMENT-001](DEPLOYMENT-001-production-deployment.md) production deployment | 9 | TESTING-001 | – | – | Todo |
 
 "Can run in parallel" means no code dependency; with a single developer, still follow the numeric order unless deliberately parallelizing in separate branches.
 
