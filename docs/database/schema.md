@@ -289,6 +289,8 @@ model User {
   activities    Activity[]
   attachments   Attachment[]
   invitesSent   WorkspaceInvite[]
+  notifications       Notification[] @relation("NotificationRecipient")
+  notificationsCaused Notification[] @relation("NotificationActor")
 }
 
 model RefreshToken {
@@ -316,6 +318,7 @@ model Workspace {
   invites      WorkspaceInvite[]
   boards       Board[]
   subscription Subscription?
+  notifications Notification[]
 }
 
 model WorkspaceMember {
@@ -342,6 +345,7 @@ model WorkspaceInvite {
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  notifications Notification[]
   @@unique([workspaceId, email])
   @@index([invitedById])
 }
@@ -359,6 +363,7 @@ model Board {
   cards       Card[]
   labels      Label[]
   activities  Activity[]
+  notifications Notification[]
   @@index([workspaceId, archived])
 }
 
@@ -394,8 +399,10 @@ model Card {
   labels      CardLabel[]
   checklists  Checklist[]
   comments    Comment[]
-  attachments Attachment[]
+  attachments Attachment[] @relation("CardAttachments")
+  coverAttachment Attachment? @relation("CardCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
   activities  Activity[]
+  notifications Notification[]
   @@index([listId, position])
   @@index([boardId])
 }
@@ -457,6 +464,7 @@ model Comment {
   updatedAt DateTime @updatedAt
   card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  notifications Notification[]
   @@index([cardId, createdAt])
   @@index([authorId])
 }

@@ -16,7 +16,7 @@
 A notification belongs to one user (the recipient) and is never shown to anyone else; another user's notification id is a `404`, like an unknown one.
 
 It is shown only while the recipient can still reach what it points to, **checked on every read** (task spec → Security):
-- Every type except `WORKSPACE_INVITED`: the recipient is still a member of the notification's workspace. A removed member stops seeing that workspace's notifications at once (they are not deleted, so rejoining shows them again).
+- Every type except `WORKSPACE_INVITED`: the recipient may still see what it points to, by the same rule as its routes: `board.view` on the notification's board (`assertBoardAccess`) for card types. Board access is workspace membership today (every member sees every board of the workspace), so the check is one membership lookup; if boards ever get their own access rules, this check follows them, so titles and excerpts never leak. A removed member stops seeing that workspace's notifications at once (they are not deleted, so rejoining shows them again).
 - `WORKSPACE_INVITED`: the invite is still pending (not accepted, not expired) and still addressed to the recipient's email.
 - What it points to was deleted: the row goes with it (foreign keys cascade from the card, board, workspace, comment or invite), so it never points to nothing.
 
