@@ -1,6 +1,8 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { useRouteError } from 'react-router';
 
 import { Button } from '@/components/ui/button';
+import { captureException } from '@/lib/error-tracking';
 
 export function ErrorFallback({ onRetry }: { onRetry?: () => void }) {
   return (
@@ -10,6 +12,13 @@ export function ErrorFallback({ onRetry }: { onRetry?: () => void }) {
       <Button onClick={onRetry ?? (() => window.location.reload())}>Reload</Button>
     </div>
   );
+}
+
+/** The router's errorElement: reports the error a route threw, then shows the fallback. */
+export function RouteErrorFallback() {
+  const error = useRouteError();
+  useEffect(() => captureException(error), [error]);
+  return <ErrorFallback />;
 }
 
 interface Props {
@@ -29,9 +38,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    // Monitoring is added with D-23; until then the browser console is the only sink.
     // eslint-disable-next-line no-console
     console.error(error, info.componentStack);
+    captureException(error);
   }
 
   override render() {

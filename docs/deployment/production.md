@@ -1,6 +1,6 @@
 # Production
 
-> **Domain:** the production environment (DEPLOYMENT-001). Hosting and domains: [ADR-023](../decisions/README.md#adr-023-hosting-on-vercel-render-and-neon-one-domain-for-fe-and-api-d-21-d-22) (D-21, D-22). Monitoring: **D-23** (proposed default Sentry, not set up yet).
+> **Domain:** the production environment (DEPLOYMENT-001). Hosting and domains: [ADR-023](../decisions/README.md#adr-023-hosting-on-vercel-render-and-neon-one-domain-for-fe-and-api-d-21-d-22) (D-21, D-22). Error tracking: Sentry ([ADR-024](../decisions/README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)).
 
 ## Infrastructure
 | Component | Platform | Address |
@@ -9,11 +9,12 @@
 | API + Socket.IO | Render, service `trello-api-production` (`render.yaml`), one instance | `https://api.<domain>` |
 | DB | Neon, branch `production` (point-in-time restore) | – |
 | Files | AWS S3 (ADR-020), a production bucket | – |
-| Error tracking | D-23 (proposed default: Sentry, FE + BE) | – |
+| Error tracking | Sentry, one project each for the FE and the API | – |
 
 Set up like [staging](staging.md#one-time-setup-repository-owner), with production values:
 - **Render (`trello-api-production`):** `CLIENT_URL=https://app.<domain>`, the Neon production branch's direct `DATABASE_URL` (not the pooler), the production S3 bucket, and Stripe keys (live keys only at go-live). Custom domain `api.<domain>`.
 - **Vercel (project `trello-web`):** Production Branch `production`, `VITE_API_URL=https://api.<domain>/api/v1`, `VITE_SOCKET_URL=https://api.<domain>`, and the domain `app.<domain>`.
+- **Sentry:** the same DSNs as staging; `render.yaml` sets `SENTRY_ENVIRONMENT=production`, and Vercel needs `VITE_SENTRY_ENVIRONMENT=production`.
 - **No seed data** in production.
 
 ## Releasing
@@ -39,7 +40,7 @@ Neon keeps point-in-time history for the production branch (the retention depend
 - [ ] Rate limiting on (`TRUST_PROXY=1`): requests from two different networks get separate `RateLimit` counts (as in the [staging checklist](staging.md#checklist)); logs contain no sensitive data
 - [ ] Stripe live keys + a verified webhook for `https://api.<domain>/api/v1/billing/webhook`
 - [ ] DB backups on and a restore tested at least once (above)
-- [ ] Error tracking and 5xx alerting in place (D-23)
+- [ ] Error tracking on: a test error shows up in both Sentry projects with environment `production`, and an alert rule emails the owner on new issues (the API reports every 5xx)
 
 ## Scaling
 - Multiple API instances → enable the Socket.IO Redis adapter + sticky sessions ([realtime.md](../architecture/realtime.md#scaling--redis-adapter-path)). This needs a new ADR. Until then the container's start-up migration relies on one instance.

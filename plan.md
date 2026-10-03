@@ -30,8 +30,8 @@ Major versions are fixed by [ADR-015](docs/decisions/README.md#adr-015-stack-maj
 | Layer | Technology |
 |-------|------------|
 | Runtime | Node.js 24 LTS (22.13+ also supported, e.g. cloud sessions; ESLint 10 needs 22.13) · pnpm 10 workspace · TypeScript 6, ESM everywhere |
-| Frontend | React 19, Vite 8, React Router 7 (data mode), TanStack Query 5 (server state), Zustand 5 (UI state), @dnd-kit, Tailwind CSS 4, shadcn/ui (Sonner for toasts), React Hook Form 7, Zod 4, Axios, socket.io-client 4 (Phase 5) |
-| Backend | Express 5, Prisma 7 (`@prisma/adapter-pg`), PostgreSQL 16, Zod 4, JWT with `jose` 6 (HS256) + bcrypt (library per D-03; proposed `bcryptjs`), Pino, Helmet; dev with `tsx`, production bundle with `tsdown`; Socket.IO 4 (Phase 5), Multer (Phase 6), Stripe (Phase 7) |
+| Frontend | React 19, Vite 8, React Router 7 (data mode), TanStack Query 5 (server state), Zustand 5 (UI state), @dnd-kit, Tailwind CSS 4, shadcn/ui (Sonner for toasts), React Hook Form 7, Zod 4, Axios, socket.io-client 4 (Phase 5), Sentry 11 `@sentry/react` (Phase 9, ADR-024) |
+| Backend | Express 5, Prisma 7 (`@prisma/adapter-pg`), PostgreSQL 16, Zod 4, JWT with `jose` 6 (HS256) + bcrypt (library per D-03; proposed `bcryptjs`), Pino, Helmet; dev with `tsx`, production bundle with `tsdown`; Socket.IO 4 (Phase 5), Multer (Phase 6), Stripe (Phase 7), Sentry 11 `@sentry/node` (Phase 9, ADR-024) |
 | Shared | `@trello-clone/shared`: Zod schemas, types, constants; internal package consumed as TypeScript source (no build step) |
 | Quality | ESLint 10 (flat config, typescript-eslint, eslint-plugin-import-x), Prettier 3, Vitest 4, Supertest, Playwright, GitHub Actions |
 | Local infra | Docker Compose (PostgreSQL) |

@@ -9,4 +9,5 @@ export const testEnv = {
 export const invalidEnvs = {
   missingApiUrl: { VITE_SOCKET_URL: testEnv.VITE_SOCKET_URL },
   apiUrlNotAUrl: { ...testEnv, VITE_API_URL: 'not-a-url' },
+  sentryDsnNotAUrl: { ...testEnv, VITE_SENTRY_DSN: 'not-a-dsn' },
 } satisfies Record<string, Record<string, unknown>>;

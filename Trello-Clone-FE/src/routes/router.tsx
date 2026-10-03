@@ -1,6 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 
-import { ErrorFallback } from '@/components/feedback/ErrorBoundary';
+import { RouteErrorFallback } from '@/components/feedback/ErrorBoundary';
 import { restoreSession } from '@/features/auth';
 import { AcceptInvitePage } from '@/pages/AcceptInvitePage';
 import { BoardPage } from '@/pages/BoardPage';
@@ -23,7 +23,7 @@ export const routes: RouteObject[] = [
     loader: restoreSession,
     shouldRevalidate: () => false,
     hydrateFallbackElement: <div aria-busy="true" className="min-h-svh" />,
-    errorElement: <ErrorFallback />,
+    errorElement: <RouteErrorFallback />,
     children: [
       // Public home when signed out; first workspace or the first-workspace screen when signed in.
       { path: '/', element: <HomeRoute /> },

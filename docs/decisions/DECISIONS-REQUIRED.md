@@ -178,9 +178,9 @@
 - **Recommendation:** (a).
 - **Affects:** `architecture/security.md`, DEPLOYMENT-001. **Blocking:** no longer (resolved).
 
-### D-23 Monitoring provider
-- **Proposed default:** Sentry (FE + BE).
-- **Affects:** DEPLOYMENT-001. **Blocking:** no.
+### D-23 Monitoring provider: **Resolved** (Sentry, FE + BE), [ADR-024](README.md#adr-024-error-tracking-with-sentry-fe-and-be-d-23)
+- **Decision:** errors from the FE and the API go to Sentry, off unless a DSN is set.
+- **Affects:** DEPLOYMENT-001. **Blocking:** no longer (resolved).
 
 ## Design
 

@@ -33,6 +33,12 @@ const EnvSchema = z
      * from X-Forwarded-For, which the rate limiter keys on. 0 = none (local); 1 on Render.
      */
     TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
+    // Error tracking (DEPLOYMENT-001, ADR-024). Optional: without a DSN, nothing is sent.
+    SENTRY_DSN: z.url().optional(),
+    /** Separates staging from production in Sentry: both run with NODE_ENV=production. */
+    SENTRY_ENVIRONMENT: z.string().min(1).optional(),
+    /** Set by Render to the deployed commit; Sentry groups errors by it (the release). */
+    RENDER_GIT_COMMIT: z.string().min(1).optional(),
   })
   // Production serves the FE over HTTPS only (Secure cookie, ADR-023); an http origin is a mistake.
   .refine((env) => env.NODE_ENV !== 'production' || env.CLIENT_URL.startsWith('https://'), {
