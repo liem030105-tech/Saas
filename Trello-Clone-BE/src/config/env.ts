@@ -21,6 +21,12 @@ const EnvSchema = z.object({
   S3_ENDPOINT: z.url().optional(),
   /** How long a signed file URL works, in seconds (D-27, proposed default 1 hour). */
   S3_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(604_800).default(3600),
+  // Billing (BILLING-001, Stripe test mode). Optional: without them, checkout and the portal answer
+  // 500 (logged) and webhooks are refused.
+  STRIPE_SECRET_KEY: z.string().startsWith('sk_').optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
+  /** The Pro price: per member per month (D-13), so checkout's quantity is the member count. */
+  STRIPE_PRICE_PRO: z.string().startsWith('price_').optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

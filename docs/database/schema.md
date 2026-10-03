@@ -39,6 +39,7 @@ Role order for comparisons: `OWNER > ADMIN > MEMBER > VIEWER`.
 | CardMember, CardLabel, Checklist, Comment, Attachment | `cardId → Card.boardId → Board.workspaceId` |
 | ChecklistItem | `checklistId → Checklist.cardId → …` |
 | User, RefreshToken | not tenant-scoped (global identity) |
+| StripeEvent | not tenant-scoped (only Stripe's event ids) |
 
 ---
 
@@ -231,7 +232,16 @@ In-app notifications ([api/notifications.md](../api/notifications.md), ADR-021).
 | currentPeriodEnd | DateTime | ✓ | | | |
 | updatedAt | DateTime | | auto | | |
 
-Processed Stripe `event.id`s for webhook idempotency: stored in a `StripeEvent(id PK, createdAt)` table **only if** BILLING-001 cannot use Stripe-side idempotency. This is a decision inside BILLING-001, not a new product field.
+`status` is `INCOMPLETE` from the first checkout until the webhook syncs a subscription.
+
+### StripeEvent — BILLING-001
+Stripe webhook events already applied, for idempotency (Stripe offers no receiver-side deduplication). Not tenant-scoped: it holds only Stripe's ids.
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | | PK | Stripe's `evt_…` id, written in the transaction that applies the event |
+
+Rows are never deleted today; rows older than Stripe's retry window (3 days) could be pruned if the table grows.
+| createdAt | DateTime | | now | | |
 
 ---
 
@@ -540,6 +550,11 @@ model Subscription {
   updatedAt        DateTime           @updatedAt
   workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
+
+model StripeEvent {
+  id        String   @id
+  createdAt DateTime @default(now())
+}
 ```
 
 ## Migration log
@@ -567,3 +582,4 @@ model Subscription {
 | `20261003030000_add_notifications` | NOTIFICATIONS-001 | `NotificationType`; `Notification` (FKs → `User` cascade as recipient and set null as actor, `Workspace`/`Board`/`Card`/`Comment`/`WorkspaceInvite` cascade; unique `(userId, dedupeKey)`; indexes `(userId, createdAt DESC, id DESC)`, `(userId, readAt)`, `cardId`, `commentId`, `inviteId`) |
 | `20261003040000_index_notification_fks` | NOTIFICATIONS-001 | Indexes on `Notification.workspaceId`, `actorId`, `boardId` (their FKs cascade or set null on delete) |
 | `20261003050000_add_subscriptions` | BILLING-001 | `SubscriptionStatus`; `Subscription` (unique `workspaceId` with FK → `Workspace` cascade, unique `stripeCustomerId` and `stripeSubId`) |
+| `20261003060000_add_stripe_events` | BILLING-001 | `StripeEvent` (PK `id`): applied webhook events |

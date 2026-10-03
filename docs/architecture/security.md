@@ -74,8 +74,9 @@
 - File names are sanitized. Storage keys are `<workspaceId>/<cardId>/<uuid>`.
 
 ## Stripe webhook
-- `/billing/webhook` uses `express.raw()` and `stripe.webhooks.constructEvent` with `STRIPE_WEBHOOK_SECRET`.
-- Idempotent by `event.id`. The plan changes **only** via webhooks.
+- `/billing/webhook` is mounted before the JSON parser and uses `express.raw()` and `Stripe.webhooks.constructEvent` with `STRIPE_WEBHOOK_SECRET` (default tolerance: a signature older than 5 minutes is refused). A missing or invalid signature gets a plain `400`; without the secret every webhook is refused.
+- The event's payload is not trusted for state: billing re-reads the subscription from Stripe with the secret key and syncs from that.
+- Idempotent by `event.id` (`StripeEvent`). The plan changes **only** via webhooks; checkout and portal (OWNER only) never change it.
 
 ## Secrets
 - Secrets live only in environment variables. The repo has `.env.example` files with empty values.

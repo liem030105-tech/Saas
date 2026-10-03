@@ -82,6 +82,30 @@ describeRoleMatrix(getApp, {
 });
 
 describeRoleMatrix(getApp, {
+  name: 'POST /workspaces/:workspaceId/billing/checkout',
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${workspacePath(ctx)}/billing/checkout`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 403, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
+  name: 'POST /workspaces/:workspaceId/billing/portal (after a checkout)',
+  setup: async ({ workspaceId }) => {
+    await testPrisma.subscription.create({
+      data: { workspaceId, stripeCustomerId: `cus_${workspaceId}`, status: 'ACTIVE' },
+    });
+    return {};
+  },
+  request: (ctx) =>
+    request(ctx.app)
+      .post(`${workspacePath(ctx)}/billing/portal`)
+      .set(as(ctx)),
+  expected: { OWNER: 200, ADMIN: 403, MEMBER: 403, VIEWER: 403, NON_MEMBER: 404 },
+});
+
+describeRoleMatrix(getApp, {
   name: 'PATCH /workspaces/:workspaceId/members/:userId',
   setup: addTargetMember,
   request: (ctx) =>

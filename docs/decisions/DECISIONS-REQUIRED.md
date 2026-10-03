@@ -107,6 +107,13 @@
 - **Question:** flat price per workspace, or per member? And the amount.
 - **Affects:** BILLING-001, pricing page. **Blocking:** was yes (BILLING-001).
 
+### D-30 Pro seat count after checkout
+- **Question:** BILLING-001b sets the Stripe quantity to the workspace's member count when checking out. Should it follow later member changes?
+- **Context:** D-13 prices Pro per member. Today a Pro workspace that grows keeps paying for the seats it had at checkout. Pending invites are not counted as seats (they count toward the Free member limit only).
+- **Options:** (a) seats are set at checkout only (current behavior); (b) joining and leaving members update the subscription's quantity (Stripe prorates), from the members service after commit; (c) (b), counting pending invites too.
+- **Recommendation:** (b), as a follow-up after BILLING-001 (a Stripe call on member changes, with a retry on failure).
+- **Affects:** BILLING-001, `api/billing.md`, the members flow. **Blocking:** no.
+
 ## API conventions
 
 ### D-14 Pagination sizes

@@ -211,6 +211,30 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token)),
   },
   {
+    route: 'POST /workspaces/:workspaceId/billing/checkout',
+    attempt: "start a checkout for B's workspace",
+    request: (a, b) =>
+      request(app)
+        .post(`${ws(b.workspaceId)}/billing/checkout`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .post(`${ws(missingId)}/billing/checkout`)
+        .set(bearer(a.owner.token)),
+  },
+  {
+    route: 'POST /workspaces/:workspaceId/billing/portal',
+    attempt: "open B's billing portal",
+    request: (a, b) =>
+      request(app)
+        .post(`${ws(b.workspaceId)}/billing/portal`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .post(`${ws(missingId)}/billing/portal`)
+        .set(bearer(a.owner.token)),
+  },
+  {
     route: 'GET /workspaces/:workspaceId/invites',
     attempt: "list B's invites",
     request: (a, b) =>

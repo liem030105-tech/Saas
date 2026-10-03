@@ -36,37 +36,47 @@ Going over a limit answers `402 PLAN_LIMIT_REACHED` with `details: [{ limit, mes
 | Success | `200 { data: BillingDto }` |
 | Errors | `401` · `403` · `404` |
 
-The endpoints below arrive with the Stripe integration (BILLING-001b).
+Checkout, portal and the webhook arrive with BILLING-001b. They need `STRIPE_SECRET_KEY`, `STRIPE_PRICE_PRO` and `STRIPE_WEBHOOK_SECRET` ([setup.md](../development/setup.md#environment-variables)); without them checkout and the portal answer `500 INTERNAL_ERROR` (logged) and every webhook gets `400`. Shape of both redirects: `BillingRedirectDto = { url }` (`BillingRedirectDtoSchema`).
 
 ### POST /workspaces/:workspaceId/billing/checkout
 | | |
 |--|--|
-| Authorization | OWNER |
+| Task | BILLING-001b |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | OWNER (`billing.manage`) |
 | Body | none |
-| Success | `200 { data: { url } }`: Stripe Checkout session URL. Creates the Stripe customer if needed, with `metadata.workspaceId` set |
-| Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro) |
+| Success | `200 { data: { url } }`: Stripe Checkout session URL (subscription mode, the Pro price, quantity = the workspace's member count, D-13). The first checkout creates the Stripe customer (`metadata.workspaceId`; one idempotency key per workspace, so concurrent clicks get one customer) and the workspace's `Subscription` row with status `INCOMPLETE`, which `GET …/billing` then shows until the webhook syncs a subscription. Stripe sends the browser back to `/w/:slug/settings?billing=success` or `?billing=canceled` |
+| Errors | `401` · `403` · `404` · `409 CONFLICT` (already Pro, or the customer already has an active, trialing or past-due subscription in Stripe that the webhook has not synced yet, e.g. a second tab after paying) · `500` (Stripe not configured or unreachable) · `429 RATE_LIMITED` |
+
+The seat count is set when checking out; members added or removed later do not change it yet (**D-30**, open).
 
 ### POST /workspaces/:workspaceId/billing/portal
 | | |
 |--|--|
-| Authorization | OWNER |
-| Success | `200 { data: { url } }`: Stripe Customer Portal URL |
-| Errors | `401` · `403` · `404` (no Stripe customer yet) |
+| Task | BILLING-001b |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | OWNER (`billing.manage`) |
+| Body | none |
+| Success | `200 { data: { url } }`: Stripe Customer Portal URL, returning to `/w/:slug/settings` |
+| Errors | `401` · `403` · `404` (no Stripe customer yet) · `500` · `429 RATE_LIMITED` |
 
 ### POST /billing/webhook
 | | |
 |--|--|
-| Authentication | Public; the Stripe signature is verified on the **raw** body |
-| Success | `200 {}` |
-| Errors | `400` on an invalid signature (plain response, not the JSON error format, because Stripe is the only caller) |
+| Task | BILLING-001b |
+| Authentication | Public; the `Stripe-Signature` header is verified on the **raw** body against `STRIPE_WEBHOOK_SECRET` (the route is mounted before the JSON parser) |
+| Success | `200 {}` (also for events not handled, and for a subscription no workspace has) |
+| Errors | `400` on a missing or invalid signature (plain `text/plain` response, not the JSON error format, because Stripe is the only caller) · `500` when processing fails (e.g. Stripe unreachable); the event is not recorded, so Stripe's retry applies it |
 
-**Handled events:**
-- `checkout.session.completed` → create/activate the Subscription and set `Workspace.plan = PRO`.
-- `customer.subscription.updated` → sync `status` and `currentPeriodEnd`; `plan` is PRO while status is ACTIVE or TRIALING.
-- `customer.subscription.deleted` → status CANCELED, `plan = FREE`.
-- `invoice.payment_failed` → status PAST_DUE (plan stays PRO until Stripe cancels).
+**Handled events:** `checkout.session.completed` (subscription mode), `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`. Each one names a subscription and its customer (the only fields read from the payload). In one transaction, billing records the event id, locks the workspace whose `Subscription.stripeCustomerId` is that customer, and only then **re-reads the subscription from Stripe** and syncs from what Stripe has now. Concurrent events for a workspace therefore apply in turn, each with Stripe's state at that moment, so a late, concurrent or out-of-order delivery cannot leave an old state:
+- No workspace has the customer → nothing changes. A subscription whose customer (as Stripe reports it) is not the workspace's → nothing changes.
+- `stripeSubId`, `status` and `currentPeriodEnd` (the latest end among its items) are stored. Status mapping: `active` → ACTIVE, `trialing` → TRIALING, `past_due` and `unpaid` → PAST_DUE, `canceled`, `incomplete_expired` and `paused` → CANCELED, `incomplete` → INCOMPLETE.
+- `Workspace.plan` is PRO while the status is ACTIVE, TRIALING or PAST_DUE (a failed payment keeps Pro while Stripe retries; Stripe cancels after its retries, which downgrades), FREE otherwise. Downgrading deletes nothing.
+- A subscription other than the stored one that is not active (an earlier subscription ending after a new one started) changes nothing.
 
-Processing is idempotent by `event.id`. The plan is changed **only** here, never by a FE redirect.
+So `checkout.session.completed` makes the workspace Pro, `invoice.payment_failed` makes it PAST_DUE and `customer.subscription.deleted` makes it CANCELED and FREE, as Stripe reports them. Processing is idempotent by `event.id`: the id is stored in `StripeEvent` in the transaction that applies the event, and a delivery whose id is already there changes nothing. The plan is changed **only** here, never by a FE redirect.
+
+Local development: `stripe listen --forward-to localhost:4000/api/v1/billing/webhook` (the Stripe CLI prints the `whsec_…` secret to use), see [setup.md](../development/setup.md).
 
 > Path note: the original plan used `/billing/checkout`. It is now `/workspaces/:workspaceId/billing/checkout` because plans are per workspace. No code existed, so nothing breaks.
 
