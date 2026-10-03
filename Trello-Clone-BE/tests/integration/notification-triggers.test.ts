@@ -132,8 +132,20 @@ describe('CARD_COMMENTED', () => {
 describe('CARD_MENTIONED', () => {
   it('mentioned workspace members hear of it instead of the plain comment; others and edits notify nobody', async () => {
     const t = await team();
+    // A member of another workspace: not one of this card's workspace, so ignored.
     const outsider = await createUserWithToken();
+    await request(app)
+      .post(paths.workspaces)
+      .set(bearer(outsider.token))
+      .send({ name: notificationData.otherWorkspaceName })
+      .expect(201);
+    // Carol is on the card but not mentioned: she gets the plain comment notification.
+    const carol = await createUserWithToken();
+    await testPrisma.workspaceMember.create({
+      data: { userId: carol.user.id, workspaceId: t.workspaceId, role: 'MEMBER' },
+    });
     await assign(t.owner, t.cardId, t.ada).expect(204);
+    await assign(t.owner, t.cardId, carol).expect(204);
     await testPrisma.notification.deleteMany();
     const content = [
       `Hey ${formatMention('Ada', t.ada.user.id)} and ${formatMention('Bob', t.bob.user.id)}`,
@@ -156,6 +168,9 @@ describe('CARD_MENTIONED', () => {
         comment: { id: comment.body.data.id },
       });
     }
+    const [plain, ...more] = await notificationsOf(carol);
+    expect(more).toEqual([]);
+    expect(plain).toMatchObject({ type: 'CARD_COMMENTED', comment: { id: comment.body.data.id } });
     expect(await testPrisma.notification.count({ where: { userId: outsider.user.id } })).toBe(0);
     expect(await notificationsOf(t.owner)).toEqual([]);
 
@@ -165,7 +180,7 @@ describe('CARD_MENTIONED', () => {
       .set(bearer(t.owner.token))
       .send({ content: `${content} ${formatMention('Bob', t.bob.user.id)}!` })
       .expect(200);
-    expect(await testPrisma.notification.count()).toBe(2);
+    expect(await testPrisma.notification.count()).toBe(3);
   });
 });
 

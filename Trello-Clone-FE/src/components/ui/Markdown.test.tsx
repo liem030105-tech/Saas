@@ -32,6 +32,8 @@ describe('Markdown', () => {
     const { container } = render(<Markdown>{mentionSample.source}</Markdown>);
 
     expect(screen.getByText(mentionSample.name).tagName).toBe('SPAN');
+    // A `mention:` link without a user id is plain text, not a highlighted name.
+    expect(screen.getByText('x')).not.toHaveClass('text-primary');
     expect(container.querySelector('a')).toBeNull();
     expect(container.innerHTML).not.toMatch(/javascript:/i);
   });

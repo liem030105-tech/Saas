@@ -206,6 +206,35 @@ describe('card comments (CARD-005d)', () => {
     expect(within(first).queryByRole('link')).toBeNull();
   });
 
+  it('the "@" picker: arrows move and wrap, Tab or a click picks the highlighted person', async () => {
+    const { activity } = await openCard('MEMBER');
+    await commentBy(activity, currentUser.name);
+    const field = within(activity).getByRole('textbox', { name: 'Write a comment' });
+    fireEvent.change(field, { target: { value: '@' } });
+    const options = await within(activity).findAllByRole('option');
+    const selected = () => within(activity).getByRole('option', { selected: true });
+
+    expect(selected()).toBe(options[0]);
+    fireEvent.keyDown(field, { key: 'ArrowDown' });
+    expect(selected()).toHaveTextContent(plainMember.user.name);
+    expect(field).toHaveAttribute('aria-activedescendant', selected().id);
+    fireEvent.keyDown(field, { key: 'ArrowDown' }); // wraps to the first
+    expect(selected()).toHaveTextContent(ownerMember.user.name);
+    fireEvent.keyDown(field, { key: 'ArrowUp' }); // wraps to the last
+    expect(selected()).toHaveTextContent(plainMember.user.name);
+
+    fireEvent.keyDown(field, { key: 'Tab' });
+    const linus = formatMention(plainMember.user.name, plainMember.user.id);
+    expect(field).toHaveValue(`${linus} `);
+
+    fireEvent.change(field, { target: { value: `${linus} and @ad` } });
+    fireEvent.mouseDown(
+      await within(activity).findByRole('option', { name: ownerMember.user.name }),
+    );
+    const ada = formatMention(ownerMember.user.name, ownerMember.user.id);
+    expect(field).toHaveValue(`${linus} and ${ada} `);
+  });
+
   it('a blank comment is not sent', async () => {
     const { state, activity } = await openCard('MEMBER');
     await commentBy(activity, currentUser.name);

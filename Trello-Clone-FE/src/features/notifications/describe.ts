@@ -24,6 +24,11 @@ export function describeNotification(notification: NotificationDto): string {
   }
 }
 
-/** A comment excerpt as people read it: mentions (D-28) as "@Name", not as their markdown. */
+/**
+ * A comment excerpt as people read it: mentions (D-28) as "@Name", not as their markdown; a mention
+ * cut off at the excerpt's end shows its name so far.
+ */
 export const excerptText = (excerpt: string) =>
-  excerpt.replace(/@\[([^\]]*)\]\(mention:[a-z0-9]+\)/g, '@$1');
+  excerpt
+    .replace(/@\[([^\]]*)\]\(mention:[a-z0-9]{20,32}\)/g, '@$1')
+    .replace(/@\[([^\]]*)(\]\([^)]*)?$/, '@$1');

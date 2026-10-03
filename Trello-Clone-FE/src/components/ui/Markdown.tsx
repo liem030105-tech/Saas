@@ -25,6 +25,9 @@ const schema = {
   },
 };
 
+/** A mention link as the server reads it (D-28): a user id after the protocol. */
+const MENTION_HREF = new RegExp(`^${MENTION_PROTOCOL}[a-z0-9]{20,32}$`);
+
 /** Mention links are kept (rendered as a name, never followed); other URLs as react-markdown does. */
 const urlTransform = (url: string) =>
   url.startsWith(MENTION_PROTOCOL) ? url : defaultUrlTransform(url);
@@ -46,10 +49,15 @@ export function Markdown({ children, className }: MarkdownProps) {
         rehypePlugins={[[rehypeSanitize, schema]]}
         urlTransform={urlTransform}
         components={{
-          // A mention (`@[Name](mention:<id>)`, D-28) shows as the name, not as a link.
+          // A mention (`@[Name](mention:<id>)`, D-28) shows as the name, not as a link; any other
+          // `mention:` link is plain text.
           a: ({ href, children: text }) =>
             href?.startsWith(MENTION_PROTOCOL) ? (
-              <span className="font-medium text-primary">{text}</span>
+              MENTION_HREF.test(href) ? (
+                <span className="font-medium text-primary">{text}</span>
+              ) : (
+                <span>{text}</span>
+              )
             ) : (
               <a href={href} target="_blank" rel="noopener noreferrer">
                 {text}

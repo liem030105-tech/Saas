@@ -184,6 +184,8 @@ function CommentForm({
     ? mentionable.filter((user) => user.name.toLowerCase().includes(query)).slice(0, MAX_MATCHES)
     : [];
   const listOpen = matches.length > 0;
+  // The list can shrink while open (the members refetched): keep the highlight on an option.
+  const current = Math.min(active, matches.length - 1);
 
   /** Follows the caret: an `@` at a word start, then no space, opens the picker. */
   const track = (el: HTMLTextAreaElement) => {
@@ -235,7 +237,7 @@ function CommentForm({
           aria-describedby={error ? errorId : undefined}
           aria-autocomplete={mentionable.length > 0 ? 'list' : undefined}
           aria-controls={listOpen ? listId : undefined}
-          aria-activedescendant={listOpen ? `${listId}-${active}` : undefined}
+          aria-activedescendant={listOpen ? `${listId}-${current}` : undefined}
           // Escape closes the picker, not the card (CardDetailModal leaves it to this field).
           data-inline-edit={listOpen ? '' : undefined}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
@@ -250,14 +252,15 @@ function CommentForm({
           }}
           onSelect={(event) => track(event.currentTarget)}
           onKeyDown={(event) => {
-            if (!listOpen) return;
+            // Not while an input method is composing (Enter confirms its candidate there).
+            if (!listOpen || event.nativeEvent.isComposing) return;
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault();
               const step = event.key === 'ArrowDown' ? 1 : -1;
-              setActive((i) => (i + step + matches.length) % matches.length);
+              setActive((current + step + matches.length) % matches.length);
             } else if (event.key === 'Enter' || event.key === 'Tab') {
               event.preventDefault();
-              pick(matches[active]!);
+              pick(matches[current]!);
             } else if (event.key === 'Escape') {
               event.stopPropagation(); // not the edit form's Escape either
               setMention(null);
@@ -276,9 +279,9 @@ function CommentForm({
                 key={user.id}
                 id={`${listId}-${i}`}
                 role="option"
-                aria-selected={i === active}
+                aria-selected={i === current}
                 className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm ${
-                  i === active ? 'bg-muted' : ''
+                  i === current ? 'bg-muted' : ''
                 }`}
                 // Before the field loses focus, so the caret is still where the `@` was typed.
                 onMouseDown={(event) => {

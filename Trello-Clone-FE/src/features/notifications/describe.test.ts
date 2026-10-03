@@ -15,4 +15,9 @@ describe('excerptText', () => {
       'See [docs](https://example.test) @Ada',
     );
   });
+
+  it('shows a mention cut off at the end by its name so far', () => {
+    expect(excerptText('Please check @[Bob Che')).toBe('Please check @Bob Che');
+    expect(excerptText('Please check @[Bob Check](mention:clx00')).toBe('Please check @Bob Check');
+  });
 });
