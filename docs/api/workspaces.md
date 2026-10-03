@@ -138,10 +138,20 @@ Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bit
 | Success | `200 { data: WorkspaceDto }` (with the caller's new role). The invite is marked accepted only if still pending and the membership is created with the invite role, in one transaction, so a link works once |
 | Errors | `400` · `401` · `404` (unknown, expired, or already-accepted token, or email mismatch; identical bodies on purpose) · `409 CONFLICT` (already a member; the invite stays pending) · `429 RATE_LIMITED` |
 
+### POST /invites/:inviteId/accept
+| | |
+|--|--|
+| Task | NOTIFICATIONS-001 (accepting from a `WORKSPACE_INVITED` notification, [notifications.md](notifications.md)) |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | Caller's email must equal the invite email, as for the token |
+| Body | none |
+| Success | `200 { data: WorkspaceDto }`; the same rules and transaction as `POST /invites/accept`, and the invite's notification is marked read. Safe without the token: only the addressee, signed in with that email, can accept it, which is what the token proves too |
+| Errors | `401` · `404` (unknown, malformed, expired, or already-accepted invite, or email mismatch; identical bodies) · `409 CONFLICT` (already a member; the invite stays pending) · `429 RATE_LIMITED` |
+
 Schemas: `CreateInviteInputSchema`, `InviteDtoSchema`, `CreatedInviteDtoSchema`, `AcceptInviteInputSchema` (`@trello-clone/shared`).
 
 ## Required tests
 - The full role matrix for each route (OWNER / ADMIN / MEMBER / VIEWER / non-member → 404).
 - `LAST_OWNER` on demote, remove, and leave. An ADMIN cannot change an OWNER or grant OWNER.
-- Invites: expired, email mismatch, accept twice, re-invite replaces the token, the invite role is capped by the caller's role.
+- Invites: expired, email mismatch, accept twice, re-invite replaces the token, the invite role is capped by the caller's role. Accepting by id (NOTIFICATIONS-001): the same cases.
 - Removing a member deletes their card assignments in that workspace only.

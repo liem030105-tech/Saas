@@ -15,6 +15,7 @@ Card ─┬─< CardMember >─ User
       ├─< Comment
       ├─< Attachment
       └─< Activity (optional cardId)
+User ─< Notification (recipient; points to its workspace and optionally a board, card, comment or invite)
 ```
 
 ## Foreign keys and delete behavior
@@ -43,6 +44,9 @@ Card ─┬─< CardMember >─ User
 | Activity.cardId | Card | **SetNull** | Keep board history after a card is deleted |
 | Activity.userId | User | **Restrict** | Preserve history |
 | Subscription.workspaceId | Workspace | Cascade | |
+| Notification.userId | User | Cascade | The recipient's own data |
+| Notification.actorId | User | SetNull | Keep the notification; it shows no actor |
+| Notification.workspaceId / boardId / cardId / commentId / inviteId | Workspace / Board / Card / Comment / WorkspaceInvite | Cascade (each) | A notification never points to something deleted (NOTIFICATIONS-001) |
 
 **User account deletion** (not in MVP scope): never delete the row. Anonymize it (`email = deleted+<id>@invalid`, `name = "Deleted user"`, random `passwordHash`), delete memberships, and revoke all tokens.
 
@@ -74,6 +78,8 @@ Card ─┬─< CardMember >─ User
 | Cards assigned to a user | `CardMember(userId)` |
 | Refresh-token lookup / family revoke | `RefreshToken(tokenHash)` UQ, `RefreshToken(familyId)` |
 | Invite lookup | `WorkspaceInvite(tokenHash)` UQ |
+| A user's notifications, newest first / unread count | `Notification(userId, createdAt DESC, id DESC)`, `Notification(userId, readAt)` |
+| One due-soon notification per card and due date | `Notification(userId, dedupeKey)` UQ |
 
 Search (SEARCH-001): start with `ILIKE` scoped by `Card(boardId)`; add a `pg_trgm` GIN index via SQL migration only if needed.
 

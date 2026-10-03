@@ -1,7 +1,7 @@
 # API – Conventions, Errors, Authorization
 
 > **Domain:** cross-cutting REST rules: naming, response/error format, pagination, validation, **authorization model**, tenant isolation.
-> Modules: [authentication](authentication.md) · [workspaces](workspaces.md) · [boards](boards.md) · [lists](lists.md) · [cards](cards.md) · [billing](billing.md)
+> Modules: [authentication](authentication.md) · [workspaces](workspaces.md) · [boards](boards.md) · [lists](lists.md) · [cards](cards.md) · [notifications](notifications.md) · [billing](billing.md)
 >
 > Once code exists, the **Zod schemas in `packages/shared/src/schemas`** are the source of truth for shapes; these docs define behavior, authorization, and errors.
 

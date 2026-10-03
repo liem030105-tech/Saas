@@ -23,6 +23,7 @@
 | `Role` | `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` | WORKSPACE-001 |
 | `Plan` | `FREE`, `PRO` | WORKSPACE-001 (column only; used from BILLING-001) |
 | `ActivityType` | `BOARD_CREATED`, `BOARD_UPDATED`, `LIST_CREATED`, `LIST_UPDATED`, `LIST_MOVED`, `LIST_ARCHIVED`, `CARD_CREATED`, `CARD_UPDATED`, `CARD_MOVED`, `CARD_ARCHIVED`, `MEMBER_ADDED`, `MEMBER_REMOVED`, `COMMENT_ADDED`, `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED`, `ATTACHMENT_ADDED` | BOARD-001; values added by the task that first logs them |
+| `NotificationType` | `CARD_ASSIGNED`, `CARD_COMMENTED`, `CARD_MENTIONED`, `CARD_DUE_SOON`, `WORKSPACE_INVITED` | NOTIFICATIONS-001 |
 | `SubscriptionStatus` | `ACTIVE`, `TRIALING`, `PAST_DUE`, `CANCELED`, `INCOMPLETE` (mirror of Stripe statuses we act on) | BILLING-001 |
 
 Role order for comparisons: `OWNER > ADMIN > MEMBER > VIEWER`.
@@ -32,7 +33,7 @@ Role order for comparisons: `OWNER > ADMIN > MEMBER > VIEWER`.
 | Entity | Path to its workspace |
 |--------|-----------------------|
 | Workspace | itself |
-| WorkspaceMember, WorkspaceInvite, Board, Subscription | `workspaceId` |
+| WorkspaceMember, WorkspaceInvite, Board, Subscription, Notification | `workspaceId` (a Notification also belongs to one user, its recipient) |
 | List, Label, Activity | `boardId → Board.workspaceId` |
 | Card | `boardId → Board.workspaceId` (denormalized `boardId`, see below) |
 | CardMember, CardLabel, Checklist, Comment, Attachment | `cardId → Card.boardId → Board.workspaceId` |
@@ -201,6 +202,24 @@ Column key: **N** = nullable · **Key** = PK / FK / UQ (unique) / IX (indexed).
 | data | Json | | | | Event details (e.g. `{ fromListId, toListId }`); shape per type in `@trello-clone/shared` |
 | createdAt | DateTime | | now | | Append-only |
 
+### Notification — NOTIFICATIONS-001
+In-app notifications ([api/notifications.md](../api/notifications.md), ADR-021). Rows are written in the transaction of the change that causes them; due-soon rows when the recipient reads their notifications (no job runner).
+
+| Field | Type | N | Default | Key | Notes |
+|-------|------|---|---------|-----|-------|
+| id | String | | cuid | PK | |
+| userId | String | | | FK → User (Cascade), IX(userId, createdAt DESC, id DESC) | The recipient; IX serves the newest-first list |
+| type | NotificationType | | | | |
+| workspaceId | String | | | FK → Workspace (Cascade) | Every type has one; visibility is re-checked against membership on read |
+| actorId | String | ✓ | | FK → User (SetNull) | Who caused it; null for `CARD_DUE_SOON` |
+| boardId | String | ✓ | | FK → Board (Cascade) | Card types |
+| cardId | String | ✓ | | FK → Card (Cascade), IX | Card types; IX serves the FK |
+| commentId | String | ✓ | | FK → Comment (Cascade), IX | `CARD_COMMENTED`, `CARD_MENTIONED` |
+| inviteId | String | ✓ | | FK → WorkspaceInvite (Cascade), IX | `WORKSPACE_INVITED`; a re-invite deletes the old invite row and so its notification |
+| dedupeKey | String | ✓ | | UQ(userId, dedupeKey) | `due:{cardId}:{dueDate ISO}` for `CARD_DUE_SOON` (one per card and due date); null for the other types |
+| readAt | DateTime | ✓ | | IX(userId, readAt) | Null = unread; IX serves the unread count |
+| createdAt | DateTime | | now | | |
+
 ### Subscription — BILLING-001
 | Field | Type | N | Default | Key | Notes |
 |-------|------|---|---------|-----|-------|
@@ -251,6 +270,10 @@ enum ActivityType {
   ATTACHMENT_ADDED
 }
 
+enum NotificationType {
+  CARD_ASSIGNED CARD_COMMENTED CARD_MENTIONED CARD_DUE_SOON WORKSPACE_INVITED
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -266,6 +289,8 @@ model User {
   activities    Activity[]
   attachments   Attachment[]
   invitesSent   WorkspaceInvite[]
+  notifications       Notification[] @relation("NotificationRecipient")
+  notificationsCaused Notification[] @relation("NotificationActor")
 }
 
 model RefreshToken {
@@ -293,6 +318,7 @@ model Workspace {
   invites      WorkspaceInvite[]
   boards       Board[]
   subscription Subscription?
+  notifications Notification[]
 }
 
 model WorkspaceMember {
@@ -319,6 +345,7 @@ model WorkspaceInvite {
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  notifications Notification[]
   @@unique([workspaceId, email])
   @@index([invitedById])
 }
@@ -336,6 +363,7 @@ model Board {
   cards       Card[]
   labels      Label[]
   activities  Activity[]
+  notifications Notification[]
   @@index([workspaceId, archived])
 }
 
@@ -371,8 +399,10 @@ model Card {
   labels      CardLabel[]
   checklists  Checklist[]
   comments    Comment[]
-  attachments Attachment[]
+  attachments Attachment[] @relation("CardAttachments")
+  coverAttachment Attachment? @relation("CardCover", fields: [coverAttachmentId], references: [id], onDelete: SetNull)
   activities  Activity[]
+  notifications Notification[]
   @@index([listId, position])
   @@index([boardId])
 }
@@ -434,6 +464,7 @@ model Comment {
   updatedAt DateTime @updatedAt
   card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  notifications Notification[]
   @@index([cardId, createdAt])
   @@index([authorId])
 }
@@ -466,6 +497,34 @@ model Activity {
   user      User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   @@index([boardId, createdAt])
   @@index([cardId, createdAt])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  workspaceId String
+  actorId     String?
+  boardId     String?
+  cardId      String?
+  commentId   String?
+  inviteId    String?
+  dedupeKey   String?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  user        User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  board       Board?           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  card        Card?            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  comment     Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  invite      WorkspaceInvite? @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, readAt])
+  @@index([cardId])
+  @@index([commentId])
+  @@index([inviteId])
 }
 
 model Subscription {

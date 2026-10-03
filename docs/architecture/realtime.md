@@ -22,7 +22,7 @@
 
   - Ack payload: `{ ok: true }`, `{ ok: false, code: 'NOT_FOUND' }` (a missing room or one the caller may not see, alike), `{ ok: false, code: 'VALIDATION_ERROR' }` (the id is not a cuid) or `{ ok: false, code: 'INTERNAL_ERROR' }` (the check itself failed, e.g. the database is down; logged on the server). A socket's room messages are handled in the order sent, so a join cannot land after a later leave. A join checks access again once the socket is in the room and leaves if access is gone, so a join racing the member's removal cannot outlive the eviction. Leave with `board:leave` / `workspace:leave` (same payloads, always `{ ok: true }` when valid). A message without an ack callback is still handled.
   - Code: `Trello-Clone-BE/src/realtime/socket.ts` (`attachRealtime`, wired in `server.ts`; CORS is `CLIENT_URL`, like the REST API) and `realtime/rooms.ts`.
-  - Every socket also joins `user:{userId}` on connect (server-side only), so the server can reach all of a user's sockets.
+  - Every socket also joins `user:{userId}` on connect (server-side only), so the server can reach all of a user's sockets. Notifications (NOTIFICATIONS-001) are sent there.
   - When a member is removed from a workspace, the server sends `member:removed` to the workspace room and to their sockets, then evicts their sockets from the workspace's room and its boards' rooms (`socketsLeave`). Deleting a board empties its room the same way, after `board:deleted`.
 
 ## Event envelope
@@ -61,6 +61,10 @@ Naming: `<domain>:<past-tense-verb>` (existing convention; D-16 records the alte
 | `comment:updated` | `board:{id}` | PATCH `/comments/:id` | `CommentDto` |
 | `comment:deleted` | `board:{id}` | DELETE `/comments/:id` | `{ commentId, cardId }` |
 | `member:removed` | `workspace:{id}` + removed user's sockets | DELETE `/workspaces/:id/members/:userId` | `{ userId }` |
+| `notification:created` | `user:{recipientId}` | the change that notifies ([notifications.md → Triggers](../api/notifications.md#triggers)); due-soon ones are not sent live | `NotificationDto` |
+| `notification:read` | `user:{recipientId}` (except the tab that made the change) | PATCH `/notifications/:id`, POST `/notifications/read-all`, accepting an invite by id | `{ notificationId, read } \| { all: true }` |
+
+For `notification:*` the envelope's `boardId` is the notification's board (or null) and `workspaceId` its workspace; `version` is `Date.now()`. The FE (`useNotificationsSocket`) puts a created notification at the top of `['notifications']` and refetches the unread count; a `notification:read` updates the list and refetches the count.
 
 Payload DTOs are the same schemas the REST API returns ([api/](../api/README.md)). A PATCH `/lists/:id` that renames and moves at once sends both `list:updated` and `list:moved` with the **same** `version`, so a client that applies `list:updated` (which already carries the settled position) must not expect to apply `list:moved` too; a create or move that rebalances also sends one `list:reordered`.
 
