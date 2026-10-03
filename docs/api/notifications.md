@@ -88,7 +88,7 @@ Schemas (to add in `@trello-clone/shared`): `NOTIFICATION_TYPES`, `NotificationD
 ## Frontend
 - A bell in the top bar with the unread count (`99+` above 99; hidden at 0), named for screen readers ("Notifications, 3 unread").
 - It opens a popover: newest first, unread ones marked, "Load more" for older ones, "Mark all as read". Empty state: "You're all caught up."
-- An entry reads like the activity feed ("Ada assigned you to Fix login", "Ada commented on Fix login: …", "Ada mentioned you on Fix login", "Fix login is due tomorrow", "Ada invited you to Acme as a Member").
+- An entry reads like the activity feed ("Ada assigned you to Fix login", "Ada commented on Fix login" with the excerpt below, "Ada mentioned you on Fix login", "Fix login is due soon", "Ada invited you to Acme as a Member").
 - Clicking an entry marks it read and opens the card (`/b/:boardId/c/:cardId`). An invite entry has "Accept" (then opens the workspace) instead.
 - Query keys `['notifications']` and `['notifications', 'unread-count']`, in a new `features/notifications`.
 

@@ -26,4 +26,7 @@ export const handlers: RequestHandler[] = [
   http.get(apiUrl('/cards/:cardId/comments'), () =>
     HttpResponse.json({ data: [], nextCursor: null }),
   ),
+  // No notifications until a test says otherwise (the header's bell, NOTIFICATIONS-001).
+  http.get(apiUrl('/notifications'), () => HttpResponse.json({ data: [], nextCursor: null })),
+  http.get(apiUrl('/notifications/unread-count'), () => HttpResponse.json({ data: { count: 0 } })),
 ];
