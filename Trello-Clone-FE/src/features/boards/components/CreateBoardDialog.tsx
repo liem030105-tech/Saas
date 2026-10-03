@@ -20,10 +20,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { UpgradePrompt } from '@/features/workspaces';
 import { cn } from '@/lib/utils';
 
 import { BOARD_BACKGROUNDS, DEFAULT_BOARD_BACKGROUND, readableTextColor } from '../colors';
 import { useCreateBoard } from '../queries';
+
+/** `errors.root.type` of a `402 PLAN_LIMIT_REACHED`: shown with an upgrade prompt. */
+const PLAN_LIMIT = 'planLimit';
 
 const GENERIC_ERROR = "Couldn't create the board. Check your connection and try again.";
 
@@ -71,6 +75,10 @@ function CreateBoardForm({
       await createBoard.mutateAsync(values);
       onCreated();
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'PLAN_LIMIT_REACHED') {
+        form.setError('root', { type: PLAN_LIMIT, message: error.message });
+        return;
+      }
       if (error instanceof ApiError && error.code === 'VALIDATION_ERROR') {
         const titleError = error.details.find((detail) => detail.path === 'title');
         if (titleError) {
@@ -149,11 +157,14 @@ function CreateBoardForm({
         )}
       />
 
-      {errors.root && (
-        <p role="alert" className="text-sm text-destructive">
-          {errors.root.message}
-        </p>
-      )}
+      {errors.root &&
+        (errors.root.type === PLAN_LIMIT ? (
+          <UpgradePrompt workspaceId={workspaceId} message={errors.root.message ?? ''} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">
+            {errors.root.message}
+          </p>
+        ))}
 
       <Button type="submit" disabled={isSubmitting} className="self-start">
         {isSubmitting ? 'Creating…' : 'Create board'}

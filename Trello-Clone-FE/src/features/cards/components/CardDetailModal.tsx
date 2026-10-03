@@ -4,6 +4,7 @@ import {
   CardTitleSchema,
   type CardDetailDto,
   type LabelDto,
+  type Plan,
   type UpdateCardInput,
 } from '@trello-clone/shared';
 import { ArchiveIcon, ArchiveRestoreIcon, Trash2Icon } from 'lucide-react';
@@ -50,6 +51,8 @@ interface CardDetailModalProps {
   activityNames: ActivityNames;
   /** Who is looking and what they may do with comments. */
   commentAccess: CommentAccess;
+  /** The workspace's plan, for the attachment size limit (BILLING-001). */
+  plan: Plan;
   onClose: () => void;
 }
 
@@ -69,6 +72,7 @@ export function CardDetailModal({
   canDeleteAnyAttachment,
   activityNames,
   commentAccess,
+  plan,
   onClose,
 }: CardDetailModalProps) {
   const [showDetails, setShowDetails] = useState(false);
@@ -175,6 +179,7 @@ export function CardDetailModal({
                 canDeleteAnyAttachment || (canEdit && file.uploader.id === commentAccess.user?.id)
               }
               onSetCover={(coverAttachmentId) => save({ coverAttachmentId })}
+              plan={plan}
             />
             {card.checklists.map((checklist) => (
               <ChecklistSection
