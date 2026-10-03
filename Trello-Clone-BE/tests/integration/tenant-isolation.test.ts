@@ -199,6 +199,18 @@ const cases: IsolationCase[] = [
         .set(bearer(a.owner.token)),
   },
   {
+    route: 'GET /workspaces/:workspaceId/billing',
+    attempt: "read B's plan and usage",
+    request: (a, b) =>
+      request(app)
+        .get(`${ws(b.workspaceId)}/billing`)
+        .set(bearer(a.owner.token)),
+    missing: (a) =>
+      request(app)
+        .get(`${ws(missingId)}/billing`)
+        .set(bearer(a.owner.token)),
+  },
+  {
     route: 'GET /workspaces/:workspaceId/invites',
     attempt: "list B's invites",
     request: (a, b) =>

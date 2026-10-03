@@ -117,7 +117,7 @@ Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bit
 | Authorization | ≥ ADMIN; invite `role` ≤ caller's role and never `OWNER` (I5: the schema rejects it with `400`) |
 | Body | `{ email, role }` (email trimmed and lower-cased) |
 | Success | `201 { data: InviteDto & { inviteUrl: string } }`. Any earlier invite for the same email in this workspace (pending, expired, or accepted) is replaced: new token, new expiry, and the old link stops working. An existing account with that email is notified in the app (`WORKSPACE_INVITED`, [notifications.md](notifications.md#triggers)); a replaced invite's notification goes with it |
-| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (email already belongs to a member, or a concurrent invite for it won) · `429 RATE_LIMITED` · `402` (from BILLING-001 only, D-11) |
+| Errors | `400` · `401` · `403` · `404` · `409 CONFLICT` (email already belongs to a member, or a concurrent invite for it won) · `402 PLAN_LIMIT_REACHED` (members plus pending invites would go over the plan's limit; a replaced invite does not count, [billing.md](billing.md#plans-and-limits)) · `429 RATE_LIMITED` |
 
 ### DELETE /workspaces/:workspaceId/invites/:inviteId
 | | |
@@ -136,7 +136,7 @@ Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bit
 | Authorization | Caller's email must equal the invite email (both stored lower-cased) |
 | Body | `{ token }` |
 | Success | `200 { data: WorkspaceDto }` (with the caller's new role). The invite is marked accepted only if still pending and the membership is created with the invite role, in one transaction, so a link works once |
-| Errors | `400` · `401` · `404` (unknown, expired, or already-accepted token, or email mismatch; identical bodies on purpose) · `409 CONFLICT` (already a member; the invite stays pending) · `429 RATE_LIMITED` |
+| Errors | `400` · `401` · `404` (unknown, expired, or already-accepted token, or email mismatch; identical bodies on purpose) · `409 CONFLICT` (already a member; the invite stays pending) · `402 PLAN_LIMIT_REACHED` (the workspace is at its plan's member limit without this invite, e.g. after a downgrade; the invite stays pending, [billing.md](billing.md#plans-and-limits)) · `429 RATE_LIMITED` |
 
 ### POST /invites/:inviteId/accept
 | | |
@@ -146,7 +146,7 @@ Invite link format: `<CLIENT_URL>/invite/<token>`. The raw token (256 random bit
 | Authorization | Caller's email must equal the invite email, as for the token |
 | Body | none |
 | Success | `200 { data: WorkspaceDto }`; the same rules and transaction as `POST /invites/accept`, and the invite's notification is marked read. Safe without the token: only the addressee, signed in with that email, can accept it, which is what the token proves too |
-| Errors | `401` · `404` (unknown, malformed, expired, or already-accepted invite, or email mismatch; identical bodies) · `409 CONFLICT` (already a member; the invite stays pending) · `429 RATE_LIMITED` |
+| Errors | `401` · `404` (unknown, malformed, expired, or already-accepted invite, or email mismatch; identical bodies) · `409 CONFLICT` (already a member; the invite stays pending) · `402 PLAN_LIMIT_REACHED` (as for the token) · `429 RATE_LIMITED` |
 
 Schemas: `CreateInviteInputSchema`, `InviteDtoSchema`, `CreatedInviteDtoSchema`, `AcceptInviteInputSchema` (`@trello-clone/shared`).
 

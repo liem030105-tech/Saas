@@ -14,6 +14,7 @@ import { AppError } from '../../lib/app-error';
 import { lockAttachmentKeys } from '../../lib/attachment-files';
 import { removeFiles, signedFileUrl } from '../../lib/storage';
 import { boardCreated, boardDeleted, boardUpdated } from '../../realtime/events/boards.events';
+import * as billingService from '../billing/billing.service';
 import { hasPermission, type WorkspaceAction } from '../workspaces/permissions';
 
 import type {
@@ -73,7 +74,7 @@ export async function list(workspaceId: string, query: ListBoardsQuery): Promise
 
 /**
  * POST /workspaces/:workspaceId/boards (≥ MEMBER): the board, its default labels and its
- * BOARD_CREATED entry.
+ * BOARD_CREATED entry, within the plan's board limit (BILLING-001).
  */
 export async function create(
   userId: string,
@@ -81,6 +82,7 @@ export async function create(
   input: CreateBoardData,
 ): Promise<BoardDto> {
   const board = await prisma.$transaction(async (tx) => {
+    await billingService.assertWithinLimit(tx, workspaceId, 'boards');
     const created = await tx.board.create({
       data: { workspaceId, title: input.title, background: input.background },
     });
@@ -231,22 +233,26 @@ export async function search(
 
 /**
  * GET /boards/:boardId/activities (≥ VIEWER): the board's activity, newest first (`id` breaks
- * ties), one page after `cursor`; with `cardId`, only that card's entries on this board.
+ * ties), one page after `cursor`; with `cardId`, only that card's entries on this board. Only what
+ * the workspace's plan still shows (activity retention, BILLING-001).
  */
 export async function listActivities(
   userId: string,
   boardId: string,
   query: ListActivitiesQuery,
 ): Promise<ActivitiesPage> {
-  await assertBoardAccess(userId, boardId, 'board.view');
+  const { board } = await assertBoardAccess(userId, boardId, 'board.view');
   if (query.cardId) {
     // The card must be on this board now; otherwise it is not found here (docs/api/boards.md).
     const card = await prisma.card.findFirst({ where: { id: query.cardId, boardId } });
     if (!card) throw AppError.notFound();
   }
+  // The plan's activity retention (D-12): older entries are hidden, not deleted.
+  const since = await billingService.activitySince(board.workspaceId);
   const scope: Prisma.ActivityWhereInput = {
     boardId,
     ...(query.cardId && { cardId: query.cardId }),
+    ...(since && { createdAt: { gte: since } }),
   };
   let after: Prisma.ActivityWhereInput = {};
   if (query.cursor) {

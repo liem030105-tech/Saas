@@ -12,18 +12,31 @@ Limit values are proposed defaults (**D-10**); the enforcement timing is **D-11*
 | File size | 10 MB | 100 MB |
 | Activity retention | 7 days (D-12) | unlimited |
 
-Limits are defined once in `packages/shared/src/constants/plans.ts`. **Only the backend enforces them**, through `billing.service.assertWithinLimit(workspaceId, resource)`, called before creating boards, invites, and attachments. The FE uses the same constants only to show upgrade prompts. Downgrading never deletes data; it only blocks new creation.
+Limits are defined once in `packages/shared/src/constants/plans.ts` (`PLAN_LIMITS`). **Only the backend enforces them**, through `billing.service` (`assertWithinLimit(tx, workspaceId, resource)` for boards and members, `assertFileSize` for attachments), called before creating boards, invites, and attachments. The FE uses the same constants only to show upgrade prompts. Downgrading never deletes data; it only blocks new creation.
 
-**Shared shape:** `BillingDto = { plan, status: SubscriptionStatus | null, currentPeriodEnd, usage: { boards, members } }`
+How each limit is counted and enforced (BILLING-001a):
+- **Boards:** every board of the workspace, archived ones included (so unarchiving needs no check). Checked in `POST /workspaces/:workspaceId/boards`.
+- **Members:** members plus pending (not accepted, not expired) invites. Checked in `POST /workspaces/:workspaceId/invites` (after a replaced invite for the same email is removed) and again when an invite is accepted (`POST /invites/accept`, `POST /invites/:inviteId/accept`), counted once the invite is marked accepted, so it does not count against itself; after a downgrade an invite may therefore fail to be accepted, and it stays pending.
+- Boards and members are counted inside the creating transaction after locking the workspace row, so concurrent creates cannot both take the last slot.
+- **File size:** the caller is authorized, then the upload is read up to the plan's limit. Over the Free limit → `402`; over the Pro limit (the largest there is) → `413 FILE_TOO_LARGE`.
+- **Activity retention:** `GET /boards/:boardId/activities` leaves out entries older than the plan's retention (D-12: filtered on read; nothing is deleted, so upgrading shows them again).
+
+Going over a limit answers `402 PLAN_LIMIT_REACHED` with `details: [{ limit, message }]`, where `limit` is `boards`, `members` or `fileSize` (`PLAN_LIMITED_RESOURCES`), so the FE can show the matching upgrade prompt.
+
+**Shared shape:** `BillingDto = { plan, status: SubscriptionStatus | null, currentPeriodEnd, usage: { boards, members } }` (`BillingDtoSchema`). `status` and `currentPeriodEnd` are null until the workspace has subscribed once; `usage` counts as the limits do.
 
 ---
 
 ### GET /workspaces/:workspaceId/billing
 | | |
 |--|--|
-| Authorization | ≥ ADMIN |
+| Task | BILLING-001a |
+| Authentication | Bearer · rate limited per user (D-04) |
+| Authorization | ≥ ADMIN (`billing.view`) |
 | Success | `200 { data: BillingDto }` |
 | Errors | `401` · `403` · `404` |
+
+The endpoints below arrive with the Stripe integration (BILLING-001b).
 
 ### POST /workspaces/:workspaceId/billing/checkout
 | | |

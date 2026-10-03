@@ -81,6 +81,7 @@ model Workspace {
   invites       WorkspaceInvite[]
   boards        Board[]
   notifications Notification[]
+  subscription  Subscription?
 }
 
 /// A user's membership and role in a workspace. WORKSPACE-001.
@@ -378,4 +379,28 @@ model Notification {
   @@index([cardId])
   @@index([commentId])
   @@index([inviteId])
+}
+
+/// Stripe subscription statuses the app acts on (BILLING-001, docs/api/billing.md).
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+/// A workspace's Stripe subscription (BILLING-001): one per workspace, written only by the Stripe
+/// webhook (`Workspace.plan` follows it). No row = never subscribed.
+model Subscription {
+  id               String             @id @default(cuid())
+  workspaceId      String             @unique
+  /// Null until checkout starts.
+  stripeCustomerId String?            @unique
+  /// Null until checkout completes.
+  stripeSubId      String?            @unique
+  status           SubscriptionStatus
+  currentPeriodEnd DateTime?
+  updatedAt        DateTime           @updatedAt
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

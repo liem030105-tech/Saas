@@ -143,13 +143,13 @@ describe('POST /api/v1/cards/:cardId/attachments', () => {
     expect(await testPrisma.attachment.count()).toBe(0);
   });
 
-  it('413: larger than 10 MB', async () => {
+  it("402: larger than the Free plan's 10 MB (other plans: billing.test.ts)", async () => {
     const { owner, cardId } = await cardWithMember();
     const res = await upload(cardId, owner.token, {
       name: 'big.txt',
       bytes: Buffer.alloc(attachmentData.tooLargeBytes, 0x61),
-    }).expect(413);
-    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('FILE_TOO_LARGE');
+    }).expect(402);
+    expect(ErrorResponseSchema.parse(res.body).error.code).toBe('PLAN_LIMIT_REACHED');
     expect(storage.objects.size).toBe(0);
   });
 

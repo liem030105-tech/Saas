@@ -28,6 +28,6 @@ export const attachmentData = {
   unsafeName: { sent: '../../etc/pa<ss>wd:"x?.png', stored: 'passwdx.png' },
   /** Vietnamese, sent as UTF-8, with a right-to-left override that is dropped. */
   unicodeName: { sent: 'ảnh chụp\u202emàn hình.png', stored: 'ảnh chụpmàn hình.png' },
-  /** One byte over the 10 MB limit (D-10). */
+  /** One byte over the Free plan's 10 MB (D-10). */
   tooLargeBytes: 10 * 1024 * 1024 + 1,
 };
