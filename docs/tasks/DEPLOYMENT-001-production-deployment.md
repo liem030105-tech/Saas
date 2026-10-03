@@ -25,10 +25,10 @@ The app runs on staging (auto-deploy from `main`) and production (release tags) 
 Multi-instance scaling / the Redis adapter (needs a new ADR).
 
 # Frontend Changes
-Build config and env only.
+Build config and env; error reporting from the error boundaries through `lib/error-tracking.ts` (Sentry, loaded lazily; 001b).
 
 # Backend Changes
-Dockerfile, trust-proxy setting, production env validation.
+Dockerfile, trust-proxy setting, production env validation; `errorHandler` reports 5xx through `lib/error-tracking.ts` (Sentry; 001b).
 
 # Database Changes
 None (migrations only run).
@@ -43,7 +43,7 @@ None (single instance).
 Secrets in the platform secret manager; HTTPS only; CORS limited to the production origin; cookie behavior verified in a real browser.
 
 # Testing
-Smoke test after each deploy (`/health`, login, open a board); optional E2E against staging.
+Smoke test after each deploy (`/health`, login, open a board); optional E2E against staging. Error tracking: tests that 5xx are reported without request details and 4xx are not (BE), and that the boundaries report and the scrubbers redact invite tokens (FE).
 
 # Acceptance Criteria
 - [ ] A user can register, log in, and use boards on production; the session survives a reload (the refresh cookie works across `app.` and `api.`, D-22).

@@ -42,6 +42,9 @@ export function initErrorTracking(overrides: Pick<NodeOptions, 'dsn' | 'transpor
       stackFrameVariables: false,
     },
     beforeSend: scrubEvent,
+    // Sentry's default only warns, which would keep a broken process running; crash as Node does
+    // without Sentry (after sending the event), and Render restarts the API.
+    integrations: [Sentry.onUnhandledRejectionIntegration({ mode: 'strict' })],
   });
 }
 
