@@ -128,3 +128,18 @@ export async function markInviteRead(
     data: { readAt: new Date() },
   });
 }
+
+/**
+ * Points a card's notifications at its new board, inside the transaction that moves the card to
+ * another board of its workspace (PATCH /cards/:cardId/move), so their board stays the card's.
+ */
+export async function moveCard(
+  tx: Prisma.TransactionClient,
+  cardId: string,
+  boardId: string,
+): Promise<void> {
+  await tx.notification.updateMany({
+    where: { cardId, boardId: { not: boardId } },
+    data: { boardId },
+  });
+}

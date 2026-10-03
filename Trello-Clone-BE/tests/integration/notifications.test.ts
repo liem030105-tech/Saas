@@ -41,7 +41,7 @@ async function cardFor(recipient: User, role: Role = 'MEMBER') {
   const workspace = await testPrisma.workspace.create({
     data: {
       name: notificationData.workspaceName,
-      slug: `${notificationData.workspaceSlug}-${recipient.user.id}`,
+      slug: `${notificationData.workspaceSlug}-${actor.user.id}`,
       members: {
         create: [
           { userId: actor.user.id, role: 'OWNER' },
@@ -246,7 +246,7 @@ describe('GET /api/v1/notifications', () => {
     expect(await unreadOf(me)).toBe(0);
   });
 
-  it('deleting what a notification points to deletes it (card, comment, workspace)', async () => {
+  it('deleting what a notification points to deletes it (comment, card, workspace)', async () => {
     const me = await createUserWithToken();
     const f = await cardFor(me);
     await notify(me, f);
@@ -256,6 +256,35 @@ describe('GET /api/v1/notifications', () => {
     expect(await testPrisma.notification.count()).toBe(1);
     await testPrisma.card.delete({ where: { id: f.card.id } });
     expect(await testPrisma.notification.count()).toBe(0);
+
+    const g = await cardFor(me);
+    await notify(me, g);
+    await testPrisma.workspace.delete({ where: { id: g.workspace.id } });
+    expect(await testPrisma.notification.count()).toBe(0);
+  });
+
+  it('a card moved to another board takes its notifications along (board title, cascade)', async () => {
+    const me = await createUserWithToken();
+    const f = await cardFor(me, 'OWNER');
+    const row = await notify(me, f);
+    const other = await testPrisma.board.create({
+      data: { workspaceId: f.workspace.id, title: notificationData.otherBoardTitle },
+    });
+    const otherList = await testPrisma.list.create({
+      data: { boardId: other.id, title: notificationData.listTitle, position: 1024 },
+    });
+
+    await request(app)
+      .patch(`${paths.cards}/${f.card.id}/move`)
+      .set(bearer(me.token))
+      .send({ listId: otherList.id, position: 1024 })
+      .expect(200);
+
+    const [shown] = (await listOf(me)).data;
+    expect(shown?.board).toEqual({ id: other.id, title: notificationData.otherBoardTitle });
+    // The old board's deletion no longer takes it.
+    await testPrisma.board.delete({ where: { id: f.board.id } });
+    expect(await testPrisma.notification.findUnique({ where: { id: row.id } })).not.toBeNull();
   });
 });
 
@@ -373,6 +402,9 @@ describe('POST /api/v1/invites/:inviteId/accept', () => {
     expect(
       (await testPrisma.notification.findUniqueOrThrow({ where: { id: notification.id } })).readAt,
     ).not.toBeNull();
+    // The accepted invite's notification no longer shows.
+    expect((await listOf(me)).data).toEqual([]);
+    expect(await unreadOf(me)).toBe(0);
     // Works once: accepting again is the same 404 as an unknown invite.
     await request(app)
       .post(`${paths.invites}/${invite.id}/accept`)

@@ -210,9 +210,9 @@ In-app notifications ([api/notifications.md](../api/notifications.md), ADR-021).
 | id | String | | cuid | PK | |
 | userId | String | | | FK → User (Cascade), IX(userId, createdAt DESC, id DESC) | The recipient; IX serves the newest-first list |
 | type | NotificationType | | | | |
-| workspaceId | String | | | FK → Workspace (Cascade) | Every type has one; visibility is re-checked against membership on read |
-| actorId | String | ✓ | | FK → User (SetNull) | Who caused it; null for `CARD_DUE_SOON` |
-| boardId | String | ✓ | | FK → Board (Cascade) | Card types |
+| workspaceId | String | | | FK → Workspace (Cascade), IX | Every type has one; visibility is re-checked against membership on read; IX serves the FK |
+| actorId | String | ✓ | | FK → User (SetNull), IX | Who caused it; null for `CARD_DUE_SOON`; IX serves the FK |
+| boardId | String | ✓ | | FK → Board (Cascade), IX | Card types: the card's board, moved with the card (PATCH /cards/:cardId/move); IX serves the FK |
 | cardId | String | ✓ | | FK → Card (Cascade), IX | Card types; IX serves the FK |
 | commentId | String | ✓ | | FK → Comment (Cascade), IX | `CARD_COMMENTED`, `CARD_MENTIONED` |
 | inviteId | String | ✓ | | FK → WorkspaceInvite (Cascade), IX | `WORKSPACE_INVITED`; a re-invite deletes the old invite row and so its notification |
@@ -522,6 +522,9 @@ model Notification {
   @@unique([userId, dedupeKey])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, readAt])
+  @@index([workspaceId])
+  @@index([actorId])
+  @@index([boardId])
   @@index([cardId])
   @@index([commentId])
   @@index([inviteId])
@@ -562,3 +565,4 @@ model Subscription {
 | `20261001115753_add_label_checklist_activity` | CARD-005 (D-25) | `ActivityType` += `LABEL_ADDED`, `LABEL_REMOVED`, `CHECKLIST_ADDED`, `CHECKLIST_REMOVED`, `CHECKLIST_ITEM_CHECKED` |
 | `20261002230000_add_attachments` | ATTACHMENTS-001 | `ActivityType` += `ATTACHMENT_ADDED`; `Attachment` (FKs → `Card` cascade and `User` restrict, unique `storageKey`, index `(cardId, createdAt)`); `Card.coverUrl` (never used) replaced by `coverAttachmentId` (unique, FK → `Attachment` set null) |
 | `20261003030000_add_notifications` | NOTIFICATIONS-001 | `NotificationType`; `Notification` (FKs → `User` cascade as recipient and set null as actor, `Workspace`/`Board`/`Card`/`Comment`/`WorkspaceInvite` cascade; unique `(userId, dedupeKey)`; indexes `(userId, createdAt DESC, id DESC)`, `(userId, readAt)`, `cardId`, `commentId`, `inviteId`) |
+| `20261003040000_index_notification_fks` | NOTIFICATIONS-001 | Indexes on `Notification.workspaceId`, `actorId`, `boardId` (their FKs cascade or set null on delete) |

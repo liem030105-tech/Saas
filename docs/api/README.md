@@ -71,7 +71,7 @@ A malformed JSON body is a `400 VALIDATION_ERROR` with empty `details`. An unkno
 - **Strategy:** cursor-based, ordered by `(createdAt DESC, id DESC)` unless stated otherwise.
 - **Query:** `?limit=<n>&cursor=<id>`. `limit` defaults to 20, max 100 (proposed defaults, D-14). `cursor` is the `id` of the last item from the previous page.
 - **Response:** `nextCursor` is `null` when there are no more items. An invalid cursor returns `400`.
-- **Paginated endpoints:** `GET /boards/:boardId/activities`, `GET /cards/:cardId/comments`. All other lists are bounded by the parent resource and returned whole.
+- **Paginated endpoints:** `GET /boards/:boardId/activities`, `GET /cards/:cardId/comments`, `GET /notifications`. All other lists are bounded by the parent resource and returned whole.
 
 ## Validation rules
 Shared rules applied through Zod. The length limits are proposed defaults (D-15).

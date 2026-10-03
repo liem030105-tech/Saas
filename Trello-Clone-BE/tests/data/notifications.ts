@@ -4,6 +4,7 @@ export const notificationData = {
   workspaceName: 'Acme',
   workspaceSlug: 'acme',
   boardTitle: 'Roadmap',
+  otherBoardTitle: 'Backlog',
   listTitle: 'To do',
   cardTitle: 'Fix login',
   dueDate: '2026-10-12T23:59:59.999Z',

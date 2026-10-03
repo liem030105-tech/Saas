@@ -26,6 +26,7 @@ import {
   toCardSummaryDto,
   toLabelDto,
 } from '../boards/boards.service';
+import * as notificationsService from '../notifications/notifications.service';
 
 import type { WorkspaceAction } from '../workspaces/permissions';
 import type {
@@ -334,14 +335,17 @@ export async function move(
   }
   let result: Awaited<ReturnType<typeof cardsRepository.move>>;
   try {
-    result = await prisma.$transaction((tx) =>
-      cardsRepository.move(tx, {
+    result = await prisma.$transaction(async (tx) => {
+      const moved = await cardsRepository.move(tx, {
         cardId,
         userId,
         to: { listId: target.id, boardId: target.boardId },
         position: input.position,
-      }),
-    );
+      });
+      // The card's notifications follow it to its new board (NOTIFICATIONS-001).
+      await notificationsService.moveCard(tx, cardId, target.boardId);
+      return moved;
+    });
   } catch (error) {
     // The card (P2025) or the target list (P2003) was deleted after the checks.
     if (isMissingCard(error) || isMissingReference(error)) throw AppError.notFound();
