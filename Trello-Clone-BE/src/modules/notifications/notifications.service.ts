@@ -196,8 +196,9 @@ export async function notify(
 
 /**
  * After the commit: sends each new notification to its recipient's sockets, from the user who
- * caused it. A failure only loses the live update (logged); the notification is stored and shows
- * on the next read.
+ * caused it, if they may still see it (a card notification's recipient may have been removed from
+ * the workspace since; their `user:` room stays, so the check is here). A failure only loses the
+ * live update (logged); the notification is stored and shows on the next read.
  */
 export async function announce(actorId: string, created: CreatedNotification[]): Promise<void> {
   if (created.length === 0) return;
@@ -206,7 +207,17 @@ export async function announce(actorId: string, created: CreatedNotification[]):
       where: { id: { in: created.map((n) => n.id) } },
       include: NOTIFICATION_INCLUDE,
     });
-    for (const row of rows) notificationCreated(row.userId, actorId, toNotificationDto(row));
+    const memberships = await prisma.workspaceMember.findMany({
+      where: { OR: rows.map((row) => ({ userId: row.userId, workspaceId: row.workspaceId })) },
+      select: { userId: true, workspaceId: true },
+    });
+    const isMember = (row: { userId: string; workspaceId: string }) =>
+      memberships.some((m) => m.userId === row.userId && m.workspaceId === row.workspaceId);
+    for (const row of rows) {
+      // An invite's recipient is not a member yet (only the invite's own checks apply).
+      if (row.type !== 'WORKSPACE_INVITED' && !isMember(row)) continue;
+      notificationCreated(row.userId, actorId, toNotificationDto(row));
+    }
   } catch (error) {
     logger.error({ err: error }, 'notification:created not sent');
   }

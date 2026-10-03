@@ -170,7 +170,7 @@ describe('CARD_DUE_SOON', () => {
       data: { dueDate: new Date(Date.now() + ms), ...data },
     });
 
-  it('a member is notified once per card and due date when reading, never live', async () => {
+  it('a member is notified once per card and due date when reading', async () => {
     const t = await team();
     await assign(t.owner, t.cardId, t.ada).expect(204);
     await testPrisma.notification.deleteMany();
@@ -199,6 +199,23 @@ describe('CARD_DUE_SOON', () => {
     // A new due date notifies again.
     await due(t.cardId, 3 * 60 * 60 * 1000);
     expect(await notificationsOf(t.ada)).toHaveLength(2);
+  });
+
+  it('no notification for a card in a workspace the member has left', async () => {
+    const t = await team();
+    await assign(t.owner, t.cardId, t.ada).expect(204);
+    await testPrisma.notification.deleteMany();
+    await due(t.cardId, 60_000);
+    // The assignment row stays (only the membership goes), so only the membership filter applies.
+    await testPrisma.workspaceMember.delete({
+      where: { userId_workspaceId: { userId: t.ada.user.id, workspaceId: t.workspaceId } },
+    });
+
+    await request(app)
+      .get(`${paths.notifications}/unread-count`)
+      .set(bearer(t.ada.token))
+      .expect(200);
+    expect(await testPrisma.notification.count()).toBe(0);
   });
 
   it.each([

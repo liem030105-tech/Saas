@@ -32,7 +32,7 @@ interface RealtimeEvent<TType extends string, TData> {
   eventId: string;   // uuid v4, unique per emission – used for de-duplication
   type: TType;       // same as the Socket.IO event name
   boardId: string | null;       // null for workspace-level events
-  workspaceId: string;
+  workspaceId: string | null; // null only for notification:updated { all: true } (see Events)
   actorId: string;   // user who caused the change (display only; never a reason to skip an event)
   version: number;   // updatedAt (epoch ms) of the changed record; Date.now() for deletes and *:reordered
   data: TData;

@@ -96,8 +96,14 @@ export async function create(
         type: 'COMMENT_ADDED',
         data: { commentId: created.id },
       });
-      // The card's members hear of it (NOTIFICATIONS-001); `notify` leaves out the author.
-      const members = await tx.cardMember.findMany({ where: { cardId }, select: { userId: true } });
+      // The card's members hear of it (NOTIFICATIONS-001); `notify` leaves out the author. Their
+      // memberships are held (FOR KEY SHARE), so a removal waits and a removed member gets nothing.
+      const members = await tx.$queryRaw<{ userId: string }[]>`
+        SELECT cm."userId" FROM "CardMember" cm
+        JOIN "WorkspaceMember" wm
+          ON wm."userId" = cm."userId" AND wm."workspaceId" = ${card.workspaceId}
+        WHERE cm."cardId" = ${cardId}
+        FOR KEY SHARE OF wm`;
       const sent = await notificationsService.notify(
         tx,
         members.map((member) => ({

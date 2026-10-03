@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { prisma } from '../../src/config/prisma';
+import { announce } from '../../src/modules/notifications/notifications.service';
 import { attachmentData } from '../data/attachments';
 import { cardData } from '../data/cards';
 import { paths } from '../data/http';
@@ -799,5 +800,79 @@ describe('notification events', () => {
       workspaceId,
       data: { notificationId: id, read: true },
     });
+  });
+
+  it("a comment's members hear CARD_COMMENTED live; the author does not", async () => {
+    const { owner, member, boardId, socket: memberSocket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    for (const user of [member, owner]) {
+      await request(app)
+        .post(`${paths.cards}/${cardId}/members/${user.user.id}`)
+        .set(bearer(owner.token))
+        .expect(204);
+    }
+    const ownerSocket = await connected(clientFor(harness.url, { token: owner.token }));
+    sockets.push(ownerSocket);
+    const ownerHeard = recordEvents(ownerSocket);
+
+    const created = nextEvent(memberSocket, 'notification:created');
+    await request(app)
+      .post(`${paths.cards}/${cardId}/comments`)
+      .set(bearer(owner.token))
+      .send({ content: 'Looks good' })
+      .expect(201);
+
+    expect((await created).data).toMatchObject({ type: 'CARD_COMMENTED', card: { id: cardId } });
+    expect(ownerHeard.filter((e) => e.type === 'notification:created')).toEqual([]);
+  });
+
+  it('an invited existing account hears WORKSPACE_INVITED live', async () => {
+    const { owner, workspaceId } = await watchedBoard();
+    const invitee = await createUserWithToken();
+    const tab = await connected(clientFor(harness.url, { token: invitee.token }));
+    sockets.push(tab);
+
+    const created = nextEvent(tab, 'notification:created');
+    await request(app)
+      .post(`${paths.workspaces}/${workspaceId}/invites`)
+      .set(bearer(owner.token))
+      .send({ email: invitee.user.email, role: 'MEMBER' })
+      .expect(201);
+
+    envelope(await created, {
+      type: 'notification:created',
+      boardId: null,
+      workspaceId,
+      data: { type: 'WORKSPACE_INVITED', invite: { role: 'MEMBER' } },
+    });
+  });
+
+  it('a recipient removed from the workspace before the announcement hears nothing', async () => {
+    const { owner, member, workspaceId, boardId, socket: memberSocket } = await watchedBoard();
+    const { cardId } = await withCard(owner, boardId);
+    const heard = recordEvents(memberSocket);
+    const row = await testPrisma.notification.create({
+      data: {
+        userId: member.user.id,
+        type: 'CARD_ASSIGNED',
+        workspaceId,
+        actorId: owner.user.id,
+        boardId,
+        cardId,
+      },
+    });
+    await testPrisma.workspaceMember.delete({
+      where: { userId_workspaceId: { userId: member.user.id, workspaceId } },
+    });
+
+    await announce(owner.user.id, [{ id: row.id, userId: member.user.id }]);
+    // A later event to the same socket proves the earlier one was not merely slow.
+    const marker = nextEvent(memberSocket, 'notification:updated');
+    await request(app)
+      .post(`${paths.notifications}/read-all`)
+      .set(bearer(member.token))
+      .expect(204);
+    await marker;
+    expect(heard.filter((e) => e.type === 'notification:created')).toEqual([]);
   });
 });
