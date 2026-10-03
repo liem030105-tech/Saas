@@ -9,6 +9,7 @@ import { useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
+import { UpgradeAlert } from '@/components/feedback/UpgradeAlert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,16 +26,21 @@ import { cn } from '@/lib/utils';
 import { BOARD_BACKGROUNDS, DEFAULT_BOARD_BACKGROUND, readableTextColor } from '../colors';
 import { useCreateBoard } from '../queries';
 
+/** `errors.root.type` of a `402 PLAN_LIMIT_REACHED`: shown with an upgrade prompt. */
+const PLAN_LIMIT = 'planLimit';
+
 const GENERIC_ERROR = "Couldn't create the board. Check your connection and try again.";
 
 interface CreateBoardDialogProps {
   workspaceId: string;
   /** The element that opens the dialog (a tile, or the empty-state button). */
   trigger: ReactNode;
+  /** Where the caller can upgrade when the plan's board limit is reached (OWNER only). */
+  upgradeTo?: string;
 }
 
 /** "Create board": title + a background from the presets (docs/design/ui.md → Workspace home). */
-export function CreateBoardDialog({ workspaceId, trigger }: CreateBoardDialogProps) {
+export function CreateBoardDialog({ workspaceId, trigger, upgradeTo }: CreateBoardDialogProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -46,7 +52,13 @@ export function CreateBoardDialog({ workspaceId, trigger }: CreateBoardDialogPro
           <DialogDescription>Boards hold your lists and cards.</DialogDescription>
         </DialogHeader>
         {/* Mounted only while open, so each opening starts with an empty form. */}
-        {open && <CreateBoardForm workspaceId={workspaceId} onCreated={() => setOpen(false)} />}
+        {open && (
+          <CreateBoardForm
+            workspaceId={workspaceId}
+            upgradeTo={upgradeTo}
+            onCreated={() => setOpen(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -54,9 +66,11 @@ export function CreateBoardDialog({ workspaceId, trigger }: CreateBoardDialogPro
 
 function CreateBoardForm({
   workspaceId,
+  upgradeTo,
   onCreated,
 }: {
   workspaceId: string;
+  upgradeTo: string | undefined;
   onCreated: () => void;
 }) {
   const createBoard = useCreateBoard(workspaceId);
@@ -71,6 +85,10 @@ function CreateBoardForm({
       await createBoard.mutateAsync(values);
       onCreated();
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'PLAN_LIMIT_REACHED') {
+        form.setError('root', { type: PLAN_LIMIT, message: error.message });
+        return;
+      }
       if (error instanceof ApiError && error.code === 'VALIDATION_ERROR') {
         const titleError = error.details.find((detail) => detail.path === 'title');
         if (titleError) {
@@ -149,11 +167,14 @@ function CreateBoardForm({
         )}
       />
 
-      {errors.root && (
-        <p role="alert" className="text-sm text-destructive">
-          {errors.root.message}
-        </p>
-      )}
+      {errors.root &&
+        (errors.root.type === PLAN_LIMIT ? (
+          <UpgradeAlert message={errors.root.message ?? ''} upgradeTo={upgradeTo} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">
+            {errors.root.message}
+          </p>
+        ))}
 
       <Button type="submit" disabled={isSubmitting} className="self-start">
         {isSubmitting ? 'Creating…' : 'Create board'}

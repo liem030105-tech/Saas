@@ -4,10 +4,21 @@ import { DeleteWorkspaceDialog } from './DeleteWorkspaceDialog';
 import { WorkspaceDetailsForm } from './WorkspaceDetailsForm';
 import { can } from '../permissions';
 
+import type { ReactNode } from 'react';
+
 export const READ_ONLY_SETTINGS_MESSAGE = 'Only workspace admins can change these settings.';
 
-/** The body of `/w/:slug/settings`: only the actions the caller's role allows are shown. */
-export function WorkspaceSettings({ workspace }: { workspace: WorkspaceDto }) {
+/**
+ * The body of `/w/:slug/settings`: only the actions the caller's role allows are shown. `billing`
+ * is the "Plan and billing" section (billing feature, BILLING-001), above the danger zone.
+ */
+export function WorkspaceSettings({
+  workspace,
+  billing,
+}: {
+  workspace: WorkspaceDto;
+  billing?: ReactNode;
+}) {
   return (
     <div className="flex max-w-xl flex-col gap-8">
       <section aria-labelledby="workspace-details-heading" className="flex flex-col gap-4">
@@ -28,6 +39,8 @@ export function WorkspaceSettings({ workspace }: { workspace: WorkspaceDto }) {
           </>
         )}
       </section>
+
+      {billing}
 
       {can(workspace.role, 'workspace.delete') && (
         <section

@@ -12,6 +12,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { ApiError, NETWORK_ERROR_CODE } from '@/api/client';
+import { UpgradeAlert } from '@/components/feedback/UpgradeAlert';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,8 +33,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/format-date';
 
+import { workspaceBillingPath } from '../paths';
+import { can } from '../permissions';
 import { useCreateInvite } from '../queries';
 import { INVITE_ROLES, ROLE_LABELS } from '../roleLabels';
+
+/** `errors.root.type` of a `402 PLAN_LIMIT_REACHED`: shown with an upgrade prompt. */
+const PLAN_LIMIT = 'planLimit';
 
 export const LINK_COPIED_MESSAGE = 'Invite link copied.';
 const GENERIC_ERROR = "Couldn't create the invite. Check your connection and try again.";
@@ -69,7 +75,15 @@ export function InviteDialog({ workspace }: { workspace: WorkspaceDto }) {
         {created ? (
           <InviteLink invite={created} onAnother={() => setCreated(null)} />
         ) : (
-          <InviteForm workspaceId={workspace.id} onCreated={setCreated} />
+          <InviteForm
+            workspaceId={workspace.id}
+            upgradeTo={
+              can(workspace.role, 'billing.manage')
+                ? workspaceBillingPath(workspace.slug)
+                : undefined
+            }
+            onCreated={setCreated}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -78,9 +92,12 @@ export function InviteDialog({ workspace }: { workspace: WorkspaceDto }) {
 
 function InviteForm({
   workspaceId,
+  upgradeTo,
   onCreated,
 }: {
   workspaceId: string;
+  /** Where the caller can upgrade when the plan's member limit is reached (OWNER only). */
+  upgradeTo: string | undefined;
   onCreated: (invite: CreatedInviteDto) => void;
 }) {
   const createInvite = useCreateInvite(workspaceId);
@@ -94,6 +111,10 @@ function InviteForm({
     try {
       onCreated(await createInvite.mutateAsync(values));
     } catch (error) {
+      if (error instanceof ApiError && error.code === 'PLAN_LIMIT_REACHED') {
+        form.setError('root', { type: PLAN_LIMIT, message: error.message });
+        return;
+      }
       if (error instanceof ApiError && error.code === 'CONFLICT') {
         form.setError('email', { message: error.message });
         return;
@@ -166,11 +187,14 @@ function InviteForm({
           )}
         />
       </div>
-      {errors.root && (
-        <p role="alert" className="text-sm text-destructive">
-          {errors.root.message}
-        </p>
-      )}
+      {errors.root &&
+        (errors.root.type === PLAN_LIMIT ? (
+          <UpgradeAlert message={errors.root.message ?? ''} upgradeTo={upgradeTo} />
+        ) : (
+          <p role="alert" className="text-sm text-destructive">
+            {errors.root.message}
+          </p>
+        ))}
       <Button type="submit" disabled={isSubmitting} className="self-start">
         {isSubmitting ? 'Creating link…' : 'Create invite link'}
       </Button>

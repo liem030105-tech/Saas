@@ -130,6 +130,7 @@ export function BoardPage() {
             !board.archived && (role ? can(role, 'attachment.deleteAny') : false)
           }
           activityNames={activityNames}
+          plan={workspace?.plan ?? 'FREE'}
           commentAccess={{
             user: currentUser.data && {
               id: currentUser.data.id,

@@ -1,9 +1,10 @@
 import {
   ATTACHMENT_MIME_TYPES,
   COVER_MIME_TYPES,
-  MAX_ATTACHMENT_BYTES,
+  PLAN_LIMITS,
   type AttachmentDto,
   type CardDetailDto,
+  type Plan,
 } from '@trello-clone/shared';
 import { FileIcon, PaperclipIcon } from 'lucide-react';
 import { useRef } from 'react';
@@ -18,7 +19,13 @@ import { errorMessage } from '../queries';
 import type { Attachments } from '../hooks/useAttachments';
 
 const DELETE_ERROR = "Couldn't delete the attachment. Check your connection and try again.";
-const TOO_LARGE = `Files can be at most ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB.`;
+const MB = 1024 * 1024;
+
+/** Refusing a file over the plan's limit (D-10) before uploading it; the API checks again. */
+export const tooLargeMessage = (plan: Plan) =>
+  plan === 'FREE'
+    ? `Files can be at most ${PLAN_LIMITS.FREE.maxFileBytes / MB} MB on the Free plan. Upgrade to Pro for files up to ${PLAN_LIMITS.PRO.maxFileBytes / MB} MB.`
+    : `Files can be at most ${PLAN_LIMITS[plan].maxFileBytes / MB} MB.`;
 
 /** "512 B", "3.4 KB", "2.1 MB". */
 export function formatFileSize(bytes: number) {
@@ -39,13 +46,15 @@ interface AttachmentsSectionProps {
   canDelete: (file: AttachmentDto) => boolean;
   /** Makes an image attachment the cover, or removes the cover (`null`). */
   onSetCover: (attachmentId: string | null) => void;
+  /** The workspace's plan, which sets the largest file (BILLING-001). */
+  plan: Plan;
 }
 
 /**
  * The card modal's attachments (ATTACHMENTS-001, docs/design/ui.md → Card modal): newest first,
  * each a link that opens or downloads the file (its URL is signed and expires; useCard refetches
  * the card for fresh ones, D-27), with "Make cover" for an image and Delete behind a confirmation.
- * "Add attachment" picks a file; files over the size limit are refused before uploading.
+ * "Add attachment" picks a file; files over the plan's size limit are refused before uploading.
  */
 export function AttachmentsSection({
   card,
@@ -53,6 +62,7 @@ export function AttachmentsSection({
   canEdit,
   canDelete,
   onSetCover,
+  plan,
 }: AttachmentsSectionProps) {
   const input = useRef<HTMLInputElement>(null);
   const { upload, remove, progress } = attachments;
@@ -60,8 +70,8 @@ export function AttachmentsSection({
 
   const pick = (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast.error(TOO_LARGE);
+    if (file.size > PLAN_LIMITS[plan].maxFileBytes) {
+      toast.error(tooLargeMessage(plan));
       return;
     }
     upload.mutate(file);

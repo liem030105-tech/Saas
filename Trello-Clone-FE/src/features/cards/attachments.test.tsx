@@ -1,7 +1,7 @@
 import { File as NodeFile } from 'node:buffer';
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { MAX_ATTACHMENT_BYTES } from '@trello-clone/shared';
+import { MAX_ATTACHMENT_BYTES, PLAN_LIMITS } from '@trello-clone/shared';
 import { http as mswHttp, HttpResponse } from 'msw';
 import { toast } from 'sonner';
 
@@ -21,7 +21,7 @@ import { acmeAs } from '@/testing/data/workspaces';
 import { server } from '@/testing/mocks/server';
 import { renderApp } from '@/testing/render';
 
-import type { BoardDetailDto, CardDetailDto, Role } from '@trello-clone/shared';
+import type { BoardDetailDto, CardDetailDto, Role, WorkspaceDto } from '@trello-clone/shared';
 
 // ATTACHMENTS-001c: the card modal's attachments and the tile's cover.
 
@@ -38,6 +38,8 @@ function signedInAs(
     holdCover?: boolean;
     /** PATCH /cards/:cardId fails with a 500. */
     failCover?: boolean;
+    /** The workspace's plan (default FREE), which sets the largest file (BILLING-001). */
+    plan?: WorkspaceDto['plan'];
   } = {},
 ) {
   const state = {
@@ -70,7 +72,9 @@ function signedInAs(
       HttpResponse.json({ data: { accessToken: freshAccessToken } }),
     ),
     mswHttp.get(apiUrl('/auth/me'), () => HttpResponse.json({ data: currentUser })),
-    mswHttp.get(apiUrl('/workspaces'), () => HttpResponse.json({ data: [acmeAs(role)] })),
+    mswHttp.get(apiUrl('/workspaces'), () =>
+      HttpResponse.json({ data: [{ ...acmeAs(role), plan: options.plan ?? 'FREE' }] }),
+    ),
     mswHttp.get(apiUrl(`/boards/${roadmapBoard.id}`), () =>
       HttpResponse.json({ data: state.board }),
     ),
@@ -229,8 +233,26 @@ describe('card attachments (ATTACHMENTS-001)', () => {
     const big = png('big.png');
     Object.defineProperty(big, 'size', { value: MAX_ATTACHMENT_BYTES + 1 });
     attach(section, big);
-    expect(await screen.findByText('Files can be at most 10 MB.')).toBeVisible();
+    expect(
+      await screen.findByText(
+        'Files can be at most 10 MB on the Free plan. Upgrade to Pro for files up to 100 MB.',
+      ),
+    ).toBeVisible();
     expect(state.calls).toEqual(['POST cat.png']);
+  });
+
+  it('on Pro, files up to 100 MB are sent; a larger one is refused (BILLING-001)', async () => {
+    const { state, section } = await openCard('MEMBER', { plan: 'PRO' });
+    const sized = (name: string, size: number) => {
+      const file = png(name);
+      Object.defineProperty(file, 'size', { value: size });
+      return file;
+    };
+
+    attach(section, sized('huge.png', PLAN_LIMITS.PRO.maxFileBytes + 1));
+    expect(await screen.findByText('Files can be at most 100 MB.')).toBeVisible();
+    attach(section, sized('big.png', MAX_ATTACHMENT_BYTES + 1));
+    await waitFor(() => expect(state.calls).toEqual(['POST big.png']));
   });
 
   it("a MEMBER deletes their own file but not someone else's; deleting the cover clears it", async () => {

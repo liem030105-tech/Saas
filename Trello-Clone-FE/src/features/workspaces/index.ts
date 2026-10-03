@@ -7,5 +7,10 @@ export { WorkspaceNav } from './components/WorkspaceNav';
 export { WorkspaceSettings } from './components/WorkspaceSettings';
 export { useWorkspaceRole } from './hooks/useWorkspaceRole';
 export { can, type WorkspaceAction } from './permissions';
-export { workspaceMembersPath, workspacePath, workspaceSettingsPath } from './paths';
+export {
+  workspaceBillingPath,
+  workspaceMembersPath,
+  workspacePath,
+  workspaceSettingsPath,
+} from './paths';
 export { useMembers, useWorkspaceBySlug, useWorkspaces, workspaceKeys } from './queries';

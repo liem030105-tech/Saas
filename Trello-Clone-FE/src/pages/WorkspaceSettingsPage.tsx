@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router';
 
+import { BillingSection } from '@/features/billing';
 import {
+  can,
   WorkspaceGate,
   WorkspaceSettings,
   workspacePath,
@@ -9,7 +11,8 @@ import {
 
 import { NotFoundPage } from './NotFoundPage';
 
-// `/w/:slug/settings` (WORKSPACE-002): rename, change the URL, delete; actions follow the role.
+// `/w/:slug/settings` (WORKSPACE-002): rename, change the URL, delete; plan and billing for
+// ADMIN and OWNER (BILLING-001); actions follow the role.
 export function WorkspaceSettingsPage() {
   const { slug } = useParams();
 
@@ -26,7 +29,12 @@ export function WorkspaceSettingsPage() {
             </Link>
             <h1 className="text-2xl font-semibold">Workspace settings</h1>
           </div>
-          <WorkspaceSettings workspace={workspace} />
+          <WorkspaceSettings
+            workspace={workspace}
+            billing={
+              can(workspace.role, 'billing.view') && <BillingSection workspace={workspace} />
+            }
+          />
         </main>
       )}
     </WorkspaceGate>

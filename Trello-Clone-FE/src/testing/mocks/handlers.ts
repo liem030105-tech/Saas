@@ -2,6 +2,7 @@ import { http, HttpResponse, type RequestHandler } from 'msw';
 
 import { apiUrl } from '@/testing/data/api';
 import { refreshUnauthorizedBody } from '@/testing/data/auth';
+import { freeBilling } from '@/testing/data/billing';
 import { membersWith } from '@/testing/data/workspaces';
 
 // Default handlers shared by every test; tests override per case with server.use(...).
@@ -17,6 +18,10 @@ export const handlers: RequestHandler[] = [
   // The signed-in user and two others, until a test says otherwise (the board page assigns them).
   http.get(apiUrl('/workspaces/:workspaceId/members'), () =>
     HttpResponse.json({ data: membersWith('MEMBER') }),
+  ),
+  // A Free workspace that never subscribed, until a test says otherwise (settings, BILLING-001).
+  http.get(apiUrl('/workspaces/:workspaceId/billing'), () =>
+    HttpResponse.json({ data: freeBilling }),
   ),
   // A board has no activity until a test says otherwise (the activity feed, CARD-005e).
   http.get(apiUrl('/boards/:boardId/activities'), () =>

@@ -20,7 +20,7 @@ Trello-Clone-FE/
 │   ├── components/
 │   │   ├── ui/              # shadcn/ui components + shared primitives (Button, Dialog, Input, Markdown)
 │   │   ├── layout/          # AppLayout, Sidebar, Header
-│   │   ├── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster, ConfirmDialog
+│   │   ├── feedback/        # Spinner, ErrorBoundary, EmptyState, Toaster, ConfirmDialog, UpgradeAlert
 │   │   └── forms/           # EditableTitle (rename in place, boards and lists)
 │   ├── features/
 │   │   ├── auth/
@@ -33,7 +33,7 @@ Trello-Clone-FE/
 │   ├── pages/               # route-level components that compose features; no logic
 │   ├── hooks/               # generic, domain-agnostic hooks (useDebounce, useMediaQuery)
 │   ├── stores/              # global Zustand stores for UI state (theme, sidebar)
-│   ├── lib/                 # socket client, queryClient, cn(), date formatting
+│   ├── lib/                 # socket client, queryClient, cn(), date formatting, leaving for Stripe
 │   ├── routes/              # router definition, ProtectedRoute, lazy loading
 │   ├── testing/             # mocks/ (MSW handlers + server), render.tsx (renderWithProviders, renderApp)
 │   │   └── data/            # test data and builders, one file per area; tests never inline it

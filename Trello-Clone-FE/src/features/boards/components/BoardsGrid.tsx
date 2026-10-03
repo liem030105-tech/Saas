@@ -15,6 +15,8 @@ interface BoardsGridProps {
   canCreate: boolean;
   /** Show the archived boards instead (no create actions there). */
   archived?: boolean;
+  /** Where the caller can upgrade when the plan's board limit is reached (OWNER only). */
+  upgradeTo?: string;
 }
 
 const TILE = 'flex h-24 rounded-lg p-3 text-left font-semibold';
@@ -27,6 +29,7 @@ export function BoardsGrid({
   workspaceId,
   canCreate: mayCreate,
   archived = false,
+  upgradeTo,
 }: BoardsGridProps) {
   useWorkspaceBoardsSocket(workspaceId); // boards changed elsewhere show up (REALTIME-001)
   const { data: boards, isPending, isError, refetch } = useBoards(workspaceId, archived);
@@ -64,6 +67,7 @@ export function BoardsGrid({
         {canCreate && (
           <CreateBoardDialog
             workspaceId={workspaceId}
+            upgradeTo={upgradeTo}
             trigger={<Button>Create your first board</Button>}
           />
         )}
@@ -94,6 +98,7 @@ export function BoardsGrid({
         <li>
           <CreateBoardDialog
             workspaceId={workspaceId}
+            upgradeTo={upgradeTo}
             trigger={
               <button
                 type="button"
