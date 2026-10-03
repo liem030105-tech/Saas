@@ -1,0 +1,28 @@
+# Production release (DEPLOYMENT-001, ADR-023): pushing a `v*` tag on a commit of `main` moves the
+# `production` branch to it; Render's and Vercel's production deployments follow that branch.
+# Fast-forward only: a tag that is not ahead of the current production commit fails here.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: The tag is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Move production to the tag
+        run: git push origin "$GITHUB_SHA:refs/heads/production"

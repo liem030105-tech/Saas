@@ -1,0 +1,79 @@
+# Render Blueprint (DEPLOYMENT-001, ADR-023): the API for staging and production, from
+# Trello-Clone-BE/Dockerfile (the container applies migrations, then starts). Secrets are entered in
+# the Render dashboard (sync: false), never here. Staging follows `main`; production follows the
+# `production` branch, which the release workflow (.github/workflows/release.yml) moves to each
+# `v*` tag. Setup steps: docs/deployment/staging.md and production.md.
+services:
+  - type: web
+    name: trello-api-staging
+    runtime: docker
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Trello-Clone-BE/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '4000'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: CLIENT_URL # https://staging.<domain>
+        sync: false
+      - key: DATABASE_URL # Neon, staging branch
+        sync: false
+      - key: SEED_DEMO_PASSWORD # for the one-time staging seed
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY # test mode
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+
+  - type: web
+    name: trello-api-production
+    runtime: docker
+    branch: production
+    autoDeploy: true
+    dockerfilePath: ./Trello-Clone-BE/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '4000'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: CLIENT_URL # https://app.<domain>
+        sync: false
+      - key: DATABASE_URL # Neon, production branch
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false

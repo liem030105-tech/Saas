@@ -10,8 +10,8 @@ export const RATE_LIMITS = {
   api: { windowMs: 60_000, limit: 300 }, // per user once authenticated, else per IP
 } as const;
 
-// req.ip is the proxy's address until `trust proxy` is configured for the host (DEPLOYMENT-001);
-// set it before these limiters protect production traffic.
+// req.ip is the client's address: app.ts sets `trust proxy` to TRUST_PROXY (1 behind Render's proxy,
+// DEPLOYMENT-001), so every user behind the proxy is not one key.
 const clientIp = (req: Request) => ipKeyGenerator(req.ip ?? 'unknown');
 
 const common = {
