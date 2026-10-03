@@ -42,3 +42,5 @@ invitesRouter.post(
   validate({ body: AcceptInviteInputSchema }),
   controller.accept,
 );
+// From the invite's notification (NOTIFICATIONS-001): the service checks the caller's email.
+invitesRouter.post('/invites/:inviteId/accept', authenticate, apiRateLimit, controller.acceptById);

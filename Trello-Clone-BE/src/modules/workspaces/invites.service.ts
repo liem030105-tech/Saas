@@ -9,6 +9,7 @@ import { prisma } from '../../config/prisma';
 import { Prisma } from '../../generated/prisma/client';
 import { AppError } from '../../lib/app-error';
 import { hasRole } from '../../lib/roles';
+import * as notificationsService from '../notifications/notifications.service';
 
 import type {
   CreatedInviteDto,
@@ -109,16 +110,41 @@ export async function revoke(workspaceId: string, inviteId: string): Promise<voi
   if (count === 0) throw AppError.notFound();
 }
 
-/**
- * POST /invites/accept: the caller's email must equal the invite's. Marking the invite accepted
- * (only if it still is pending) and creating the membership happen in one transaction, so a link
- * works once.
- */
+/** POST /invites/accept: the invite the link's token belongs to. */
 export async function accept(userId: string, rawToken: string): Promise<WorkspaceDto> {
-  const invite = await prisma.workspaceInvite.findUnique({
-    where: { tokenHash: hashToken(rawToken) },
-    include: { workspace: true },
-  });
+  return acceptInvite(
+    userId,
+    await prisma.workspaceInvite.findUnique({
+      where: { tokenHash: hashToken(rawToken) },
+      include: { workspace: true },
+    }),
+  );
+}
+
+/**
+ * POST /invites/:inviteId/accept (NOTIFICATIONS-001): accepting from the invite's notification,
+ * which cannot carry the link (the raw token is never stored). The same rules as the token: only the
+ * addressee, signed in with that email, can accept it.
+ */
+export async function acceptById(userId: string, inviteId: string): Promise<WorkspaceDto> {
+  return acceptInvite(
+    userId,
+    await prisma.workspaceInvite.findUnique({
+      where: { id: inviteId },
+      include: { workspace: true },
+    }),
+  );
+}
+
+/**
+ * The caller's email must equal the invite's. Marking the invite accepted (only if it still is
+ * pending), creating the membership and marking the invite's notification read happen in one
+ * transaction, so an invite works once.
+ */
+async function acceptInvite(
+  userId: string,
+  invite: Prisma.WorkspaceInviteGetPayload<{ include: { workspace: true } }> | null,
+): Promise<WorkspaceDto> {
   if (!invite || invite.acceptedAt || invite.expiresAt <= new Date()) throw inviteNotFound();
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
@@ -141,6 +167,7 @@ export async function accept(userId: string, rawToken: string): Promise<Workspac
       await tx.workspaceMember.create({
         data: { userId, workspaceId: invite.workspaceId, role: invite.role },
       });
+      await notificationsService.markInviteRead(tx, userId, invite.id);
     });
   } catch (error) {
     if (isUniqueViolation(error)) throw alreadyMember();
