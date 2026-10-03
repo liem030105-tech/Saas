@@ -20,20 +20,25 @@ Delivery and triggers are decided ([ADR-021](../decisions/README.md#adr-021-in-a
 # Out of Scope
 Email delivery (ADR-021); push notifications.
 
+# Spec (requirement 1)
+[api/notifications.md](../api/notifications.md) (endpoints, triggers, visibility, FE), [schema.md → Notification](../database/schema.md#notification--notifications-001), [realtime.md](../architecture/realtime.md) (`notification:created`, `notification:read` in `user:{userId}`), `POST /invites/:inviteId/accept` in [workspaces.md](../api/workspaces.md). Open values: D-28 (mention syntax), D-29 (due-soon window).
+
+Delivery in sub-PRs, each meeting the DoD: **001a** model, migration `add_notifications`, the four endpoints and accept-by-id; **001b** the triggers (assign, comment, invite, due soon) and the live events; **001c** FE (bell, popover, socket); **001d** mentions (per D-28).
+
 # Frontend Changes
-Defined by the spec PR (requirement 1).
+`features/notifications` (bell in the top bar, popover list, `useNotificationsSocket`); per the spec.
 
 # Backend Changes
-Defined by the spec PR (requirement 1).
+`modules/notifications` (routes, controller, service), triggers in the cards, comments and workspaces services, `realtime/events/notifications.events.ts`; per the spec.
 
 # Database Changes
-Defined by the spec PR (requirement 1) (new `Notification` entity expected).
+Model `Notification`, enum `NotificationType`; migration `add_notifications`.
 
 # API Changes
-Defined by the spec PR (requirement 1).
+`GET /api/v1/notifications`, `GET /api/v1/notifications/unread-count`, `PATCH /api/v1/notifications/:notificationId`, `POST /api/v1/notifications/read-all`, `POST /api/v1/invites/:inviteId/accept`.
 
 # Realtime Changes
-Likely a per-user room (e.g. `user:{userId}`) – must be added to realtime.md by the spec.
+`notification:created`, `notification:read` in the existing `user:{userId}` room.
 
 # Security Considerations
 Notifications must only reference resources the recipient can still access (re-check on read).
